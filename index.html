@@ -31,12 +31,23 @@
   --oak:#D6AE80; --oak-soft:#3A2E22; --good:#79C49A; --good-soft:#1E3529; --warn:#E78C69; --warn-soft:#3D2620; --mid:#D8B260; --mid-soft:#3A3120;
   --scrim:rgba(0,0,0,.55); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3); color-scheme:dark}
 body{--accent-base:#7A2E3D; --accent:var(--accent-base); --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--surface)); --accent-ink:#fff}
+/* Color Hunt palettes (light mode). Dark mode keeps the dark tokens and only borrows the accent. */
+body[data-palette="cherry"]{--bg:#FFF9F2;--surface:#FFFFFF;--sunk:#F6EBDD;--line:#EADBC6;--ink:#2A1418;--muted:#8A6B66;--oak:#D45060;--oak-soft:#FBE4E4;--accent-base:#800020}
+body[data-palette="coral"]{--bg:#F2FCFC;--surface:#FFFFFF;--sunk:#DDF5F5;--line:#C7E8E9;--ink:#1D3B3D;--muted:#5E7D7F;--oak:#3E9A9C;--oak-soft:#DDF3F3;--accent-base:#C94F4F}
+body[data-palette="sage"]{--bg:#FFFCEE;--surface:#FFFFFF;--sunk:#FFEFEF;--line:#EEDFD6;--ink:#2F3A22;--muted:#7D7A6A;--oak:#C98E8E;--oak-soft:#FBE9E9;--accent-base:#5F7A3E}
+body[data-palette="navy"]{--bg:#FCF7E8;--surface:#FFFDF6;--sunk:#F5ECD2;--line:#E8DDBA;--ink:#0D1C42;--muted:#5D6787;--oak:#B8913E;--oak-soft:#F5EAD0;--accent-base:#22396F}
+body[data-palette="forest"]{--bg:#F6F1E6;--surface:#FFFDF8;--sunk:#EDE3CF;--line:#DFD3BA;--ink:#123F36;--muted:#5F6E64;--oak:#C49A45;--oak-soft:#F3E8D2;--accent-base:#2A6B5C}
+body[data-palette="sunset"]{--bg:#FFF7EC;--surface:#FFFFFF;--sunk:#FDEBD3;--line:#F3DAB9;--ink:#3A1A12;--muted:#8A6A5A;--oak:#EB7F31;--oak-soft:#FDE8D6;--accent-base:#C9452F}
+body[data-palette="olive"]{--bg:#F5EFE3;--surface:#FFFCF6;--sunk:#ECE2CC;--line:#DDD0B3;--ink:#2B3117;--muted:#6F6A55;--oak:#B8892D;--oak-soft:#F2E6CC;--accent-base:#4F5B2A}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body[data-palette]{--bg:#11161C; --surface:#182029; --sunk:#1F2833; --ink:#E4EAF0; --muted:#8E9BA8; --line:#2A3440; --oak:#D6AE80; --oak-soft:#3A2E22}}
+:root[data-theme="dark"] body[data-palette]{--bg:#11161C; --surface:#182029; --sunk:#1F2833; --ink:#E4EAF0; --muted:#8E9BA8; --line:#2A3440; --oak:#D6AE80; --oak-soft:#3A2E22}
 body[data-accent="fjord"]{--accent-base:#4F7DB3}
 body[data-accent="oak"]{--accent-base:#A87A4D}
 body[data-accent="sage"]{--accent-base:#5E8E72}
 body[data-accent="bauhaus"]{--accent-base:#C8473A}
 body[data-accent="memphis"]{--accent-base:#7B62B5}
 body[data-accent="harbor"]{--accent-base:#2F6F86}
+body[data-accent="burgundy"]{--accent-base:#7A2E3D}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body{--accent:color-mix(in srgb,var(--accent-base) 62%,#fff); --accent-ink:#11161C}}
 :root[data-theme="dark"] body{--accent:color-mix(in srgb,var(--accent-base) 62%,#fff); --accent-ink:#11161C}
 *{box-sizing:border-box}
@@ -340,6 +351,12 @@ body.is-dragging,body.is-dragging *{cursor:grabbing!important;user-select:none;-
 .swatches{display:flex;gap:7px;flex-wrap:wrap}
 .swatches button{width:24px;height:24px;border-radius:50%;border:2px solid transparent;padding:0}
 .swatches button[aria-pressed="true"]{border-color:var(--ink)}
+.swatches button.auto{background:var(--sunk);color:var(--muted);font-size:11px;font-weight:600;border-color:var(--line)}
+.palettes{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;padding-bottom:10px}
+.palettes button{display:flex;flex-direction:column;gap:6px;padding:6px 6px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:12px;text-align:left;color:var(--ink)}
+.palettes button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.palettes .strip{display:flex;height:30px;border-radius:6px;overflow:hidden}
+.palettes .strip i{flex:1}
 details.more summary{cursor:pointer;color:var(--muted);font-size:13px}
 details.more[open] summary{margin-bottom:10px}
 .capgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
@@ -538,6 +555,7 @@ const range = (a,b) => { const out=[]; for(let d=a; d<=b; d=add(d,1)) out.push(d
 const sum = arr => arr.reduce((s,x)=>s+(x||0),0);
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
 const COLORS = [['雾霾蓝','#6B8FB8'],['湖水蓝','#3E8FA8'],['青苔绿','#6E9A5B'],['橄榄绿','#8A9A4A'],['麦穗金','#C4A04A'],['杏橙','#D98C4A'],['陶土红','#C2643F'],['珊瑚红','#E07A6E'],['莓果粉','#C66A8E'],['薰衣紫','#8D7BC4'],['可可棕','#8B6A55'],['石板灰','#73808C']];
+const PALETTES = [['classic','北欧雾蓝（原版）',['#F3F6F9','#EAF0F5','#687684','#1E2833'],'burgundy'],['cherry','樱桃奶油',['#D45060', '#FFF9F2', '#F3E6D5', '#800020'],'auto'],['coral','海雾珊瑚',['#CCFBFA', '#B1E5E6', '#F7ADAD', '#F29191'],'auto'],['sage','鼠尾草粉',['#8EA66B', '#FFF9D6', '#FFDCDC', '#D8A2A2'],'auto'],['navy','午夜海军',['#FCF1D0', '#22396F', '#0D1C42', '#010736'],'auto'],['forest','森林黄铜',['#E8DCC4', '#C49A45', '#2A6B5C', '#123F36'],'auto'],['sunset','暖橘日落',['#FCAD38', '#EB7F31', '#E45742', '#972828'],'auto'],['olive','橄榄麦田',['#D8C9A8', '#B8892D', '#4F5B2A', '#F5EFE3'],'auto']];
 const ACCENTS = [['burgundy','勃艮第酒红','#7A2E3D'],['fjord','北欧雾蓝','#4F7DB3'],['oak','暖橡木','#A87A4D'],['sage','鼠尾草','#5E8E72'],['bauhaus','包豪斯红','#C8473A'],['memphis','孟菲斯紫','#7B62B5'],['harbor','深海夜航','#2F6F86']];
 const KIND = {task:'任务', event:'日程', deadline:'截止', exam:'考试'};
 const ICON = {
@@ -552,7 +570,7 @@ const ICON = {
 };
 
 /* ================= store ================= */
-const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'burgundy', nick:'', tags:[], gcal:false, home:'today', pinned:false };
+const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'burgundy', palette:'classic', nick:'', tags:[], gcal:false, home:'today', pinned:false };
 const S = { items:{}, projects:{}, notes:{}, settings:{}, timer:{}, ready:false, backend:'local' };
 let ver = 0;
 let db = null;
@@ -1244,7 +1262,9 @@ function viewSettings(){
       <p class="hint" style="margin:0" id="gcal-status">${gcalStatusText()}</p></div>`}
     <div class="card"><h3 style="margin:0">个性化</h3>
       <div class="setrow"><div>你的昵称<small>今日概览里打招呼用</small></div><input class="inp" id="set-nick" style="width:160px" value="${esc(s.nick)}" placeholder="昵称"></div>
-      <div class="setrow"><div>主题色<small>深色或浅色跟随 Claude 的外观设置</small></div><div class="swatches">${ACCENTS.map(([k,n,c]) => `<button type="button" data-setaccent="${k}" aria-pressed="${s.accent === k}" title="${n}" aria-label="${n}" style="background:${c}"></button>`).join('')}</div></div>
+      <div class="setrow"><div>配色方案<small>来自 Color Hunt 热门配色，选一套会连主题色一起换</small></div></div>
+      <div class="palettes">${PALETTES.map(([k,n,hx]) => `<button type="button" data-setpalette="${k}" aria-pressed="${(s.palette || 'classic') === k}"><span class="strip">${hx.map(c => `<i style="background:${c}"></i>`).join('')}</span><span>${n}</span></button>`).join('')}</div>
+      <div class="setrow"><div>主题色<small>想单独换强调色可以在这里改；选「跟随配色」就用配色方案自带的</small></div><div class="swatches"><button type="button" data-setaccent="auto" aria-pressed="${s.accent === 'auto'}" title="跟随配色" aria-label="跟随配色" class="auto">A</button>${ACCENTS.map(([k,n,c]) => `<button type="button" data-setaccent="${k}" aria-pressed="${s.accent === k}" title="${n}" aria-label="${n}" style="background:${c}"></button>`).join('')}</div></div>
     </div>
     <div class="card"><h3 style="margin:0">标签</h3><p class="hint" style="margin:0">标签决定没有项目的事项在日历上的颜色；打开「算作截止」的标签，事项会标成截止。</p>
       ${s.tags.map(tg => `<div class="setrow"><div class="inline"><span class="dot" style="background:${tg.color}"></span><input class="inp" style="width:140px" value="${esc(tg.name)}" data-tagname="${tg.id}" aria-label="标签名"><select class="inp" data-tagcolor="${tg.id}" style="width:auto" aria-label="标签颜色">${COLORS.map(([n,c]) => `<option value="${c}" ${tg.color === c ? 'selected' : ''}>${n}</option>`).join('')}</select></div><label class="inline hint">算作截止 <input type="checkbox" class="switch" data-tagdue="${tg.id}" ${tg.due ? 'checked' : ''}></label><button class="icon" type="button" data-tagdel="${tg.id}" aria-label="删除标签 ${esc(tg.name)}">${ICON.trash}</button></div>`).join('') || '<p class="hint">还没有标签。</p>'}
@@ -1955,7 +1975,7 @@ function toast(msg, undoFn){
   if (undoFn) $('#toast-undo').onclick = () => { hideToast(); undoFn(); };
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, undoFn ? 5000 : 2400);
 }
-function applyAccent(){ document.body.dataset.accent = settings().accent || 'burgundy'; }
+function applyAccent(){ const s = settings(), b = document.body; const pal = s.palette && s.palette !== 'classic' ? s.palette : ''; if (pal) b.dataset.palette = pal; else delete b.dataset.palette; const a = s.accent || 'burgundy'; if (a === 'auto' && pal) delete b.dataset.accent; else b.dataset.accent = a === 'auto' ? 'burgundy' : a; }
 
 /* ================= events ================= */
 let suppressClick = false;
@@ -1997,6 +2017,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-soff]'))){ const v = Number(el.dataset.soff); ui.stats.off = v === 0 ? 0 : Math.max(0, ui.stats.off + v); render(); return; }
   if ((el = c('[data-export]'))){ exportData(el.dataset.export); return; }
   if ((el = c('[data-setaccent]'))){ saveSettings({accent: el.dataset.setaccent}); return; }
+  if ((el = c('[data-setpalette]'))){ const k = el.dataset.setpalette; saveSettings({palette: k, accent: k === 'classic' ? 'burgundy' : 'auto'}); return; }
   if ((el = c('[data-capq]'))){
     const v = el.dataset.capq, t0 = today(), s = settings();
     if (v === 'reset'){ const over = {...s.over}; delete over[t0]; saveSettings({over}); return; }
