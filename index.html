@@ -741,27 +741,38 @@ function projStatus(p, D = today()){
   if (rem < 1e-3){ res.k = 'good'; res.label = '全部完成'; res.text = '全部任务已完成。'; return res; }
   if (left <= 0){ res.k = 'bad'; res.label = '已过 Deadline'; res.text = `已过 Deadline ${-left} 天，还剩 ${fmtH(rem)}。`; return res; }
   if (p.start > D){ res.k = 'flat'; res.label = '还没开始'; res.text = `${cnd(p.start)} 开始，还有 ${diff(D,p.start)} 天。`; return res; }
+  // 1) shared-capacity pressure: everything every project plans to do inside this project's window,
+  //    against the hours you actually have in that window. Projects compete for the same day.
+  const w = windowOf(p, D), A = allocate(D).byDay;
+  const ds = w ? range(w[0], w[1]) : [];
+  const load = sum(ds.map(d => sum(Object.values(A[d] || {}))));
+  const capW = sum(ds.map(capOf));
+  const press = capW > 0 ? load / capW : 9;
+  res.press = press; res.loadAvg = wd.length ? load / wd.length : 0;
+  const pk = press > 1 + 1e-6 ? 'bad' : press > .7 ? 'mid' : 'good';
+  const pText = `截止前所有项目加起来每个可用日要 ${fmtH(res.loadAvg)}，你平均每天能投入 ${fmtH(avgCap)}（占 ${Math.round(press*100)}%）。`;
+  // 2) your own recent pace on this project, if there is enough history
   const pm = derive().progress.get(p.id) || new Map();
   let recent = 0, activeDays = 0;
   for (let k = 0; k < 14; k++){ const d = add(D, -k); const v = pm.get(d) || 0; recent += v; if (v > 0) activeDays++; }
   const span = Math.min(14, diff(p.start, D) + 1);
   const speed = span > 0 ? recent / span : 0;
   res.speed = speed;
+  let sk = null, sText = '';
   if (activeDays >= 2 && speed > 0.02){
     const daysNeeded = Math.ceil(rem / speed);
     res.forecast = add(D, daysNeeded - 1);
     const early = diff(res.forecast, p.deadline) - 1;
     res.early = early;
-    if (early < 0){ res.k = 'bad'; res.label = '时间紧迫'; res.text = `按最近两周的速度，预计 ${cnd(res.forecast)} 完成，会晚 ${-early} 天。`; }
-    else if (early < p.buffer){ res.k = 'mid'; res.label = '有点赶'; res.text = `预计 ${cnd(res.forecast)} 完成，提前 ${early} 天（目标提前 ${p.buffer} 天）。`; }
-    else { res.k = 'good'; res.label = '稳'; res.text = `预计 ${cnd(res.forecast)} 完成，比 Deadline 提前 ${early} 天。`; }
-  } else {
-    const ratio = avgCap ? res.need/avgCap : 9;
-    res.k = ratio > 1 ? 'bad' : ratio > .7 ? 'mid' : 'good';
-    res.label = ratio > 1 ? '时间紧迫' : ratio > .7 ? '有点赶' : '稳';
-    res.text = `每个可用日要 ${fmtH(res.need)}${avgCap ? `，平均每天可投入 ${fmtH(avgCap)}` : ''}。完成几件任务后，会按你的实际速度预计完成日。`;
+    sk = early < 0 ? 'bad' : early < p.buffer ? 'mid' : 'good';
+    sText = early < 0 ? `按最近两周的速度，预计 ${cnd(res.forecast)} 完成，会晚 ${-early} 天。` : `按最近两周的速度，预计 ${cnd(res.forecast)} 完成，提前 ${early} 天。`;
   }
-  if (avgCap && res.need > avgCap + 1e-6 && res.k !== 'bad'){ res.k = 'bad'; res.label = '时间不够'; }
+  // the worse of the two decides
+  const rank = {good:0, mid:1, bad:2};
+  const k = sk && rank[sk] > rank[pk] ? sk : pk;
+  res.k = k;
+  res.label = k === 'good' ? '稳' : k === 'mid' ? '有点赶' : (pk === 'bad' ? '时间不够' : '会晚');
+  res.text = (sText ? sText + ' ' : '') + pText + (sk ? '' : ' 完成几件任务后，会再按你的实际速度预计完成日。');
   return res;
 }
 
@@ -830,7 +841,7 @@ function bannerHTML(D = today()){
   const pct = clamp(done/scale*100, 0, 100), lp = clamp(line/scale*100, 2, 98);
   const msg = met ? (done - line > 0.05 ? `<b>✓ ${word}的航速跟上了</b> · 多飞了 ${fmtH(done-line)}，后面几天可以松点油门` : `<b>✓ ${word}的航速刚好</b> · 照这个速度，准时落地`) : (done > 0 ? `还差 <span class="big">${fmtH(line-done)}</span> 跟上${word}的航速` : `${word}航速 <span class="big">${fmtH(line)}</span>，照这个速度飞，准时落地`);
   const overCap = cap > 0 && line > cap + 0.05 ? `<div class="warnbar">${word}建议 ${fmtH(line)}，超过了可投入的 ${fmtH(cap)}。可以提前某个项目的开始日期、放宽 Deadline，或在设置里调高每天可投入的时间。</div>` : cap === 0 && line > 0 ? `<div class="warnbar">${word}设成了休息日，但已经过了计划完成日，剩下的只能挤进来。</div>` : '';
-  const rings = ui.expand ? `<div class="rings">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; return `<div class="ring">${donut(q ? d/q : 1, p.color)}<div><b>${esc(p.name)}</b><span class="mono hint">${fmtH(d)} / ${fmtH(q)}</span> <span class="pill ${st.k}">${st.label}</span>${later ? `<div class="hint">连续两天不做，每天要从 ${fmtH(st.need)} 涨到 ${fmtH(later)}</div>` : ''}</div></div>`; }).join('')}</div>` : '';
+  const rings = ui.expand ? `<div class="rings">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; return `<div class="ring">${donut(q ? d/q : 1, p.color)}<div><b>${esc(p.name)}</b><span class="mono hint">${fmtH(d)} / ${fmtH(q)}</span> <span class="pill ${st.k}" title="${esc(st.text)}">${st.label}</span>${later ? `<div class="hint">连续两天不做，每天要从 ${fmtH(st.need)} 涨到 ${fmtH(later)}</div>` : ''}</div></div>`; }).join('')}</div>` : '';
   return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="icon" type="button" data-act="expand" aria-label="${ui.expand ? '收起' : '展开每个项目'}" title="展开：看每个项目">${ui.expand ? '−' : '＋'}</button><button class="icon" type="button" data-act="pin" aria-pressed="${settings().pinned}" title="${settings().pinned ? '取消固定' : '固定在顶部：往下翻也一直看得见'}" style="${settings().pinned ? 'color:var(--accent)' : ''}">${ICON.pin}</button></div></div>
     <div class="runway ${met ? 'met' : ''}" role="img" aria-label="已飞 ${fmtH(done)}，航速 ${fmtH(line)}"><div class="dash"></div><div class="fill" style="width:${pct}%"></div><div class="line" style="left:calc(${lp}% - 1px)"><span>航速 ${fmtH(line)}</span></div><div class="plane ${met ? 'up' : ''}" style="left:clamp(14px, ${pct}%, calc(100% - 14px))">${ICON.plane}</div></div>
     ${overCap}${rings}`;
