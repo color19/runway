@@ -10,6 +10,7 @@
 <body>
 
 <title>Runway 分享版</title>
+<title>Runway 分享版</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -32,7 +33,8 @@
   --bg:#11161C; --surface:#182029; --sunk:#1F2833; --ink:#E4EAF0; --muted:#8E9BA8; --line:#2A3440;
   --oak:#D6AE80; --oak-soft:#3A2E22; --good:#79C49A; --good-soft:#1E3529; --warn:#E78C69; --warn-soft:#3D2620; --mid:#D8B260; --mid-soft:#3A3120;
   --scrim:rgba(0,0,0,.55); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.3); color-scheme:dark}
-body{--accent-base:#4F7DB3; --accent:var(--accent-base); --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--surface)); --accent-ink:#fff}
+body{--accent-base:#7A2E3D; --accent:var(--accent-base); --accent-soft:color-mix(in srgb,var(--accent) 14%,var(--surface)); --accent-ink:#fff}
+body[data-accent="fjord"]{--accent-base:#4F7DB3}
 body[data-accent="oak"]{--accent-base:#A87A4D}
 body[data-accent="sage"]{--accent-base:#5E8E72}
 body[data-accent="bauhaus"]{--accent-base:#C8473A}
@@ -528,7 +530,7 @@ const range = (a,b) => { const out=[]; for(let d=a; d<=b; d=add(d,1)) out.push(d
 const sum = arr => arr.reduce((s,x)=>s+(x||0),0);
 const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
 const COLORS = [['雾霾蓝','#6B8FB8'],['湖水蓝','#3E8FA8'],['青苔绿','#6E9A5B'],['橄榄绿','#8A9A4A'],['麦穗金','#C4A04A'],['杏橙','#D98C4A'],['陶土红','#C2643F'],['珊瑚红','#E07A6E'],['莓果粉','#C66A8E'],['薰衣紫','#8D7BC4'],['可可棕','#8B6A55'],['石板灰','#73808C']];
-const ACCENTS = [['fjord','北欧雾蓝','#4F7DB3'],['oak','暖橡木','#A87A4D'],['sage','鼠尾草','#5E8E72'],['bauhaus','包豪斯红','#C8473A'],['memphis','孟菲斯紫','#7B62B5'],['harbor','深海夜航','#2F6F86']];
+const ACCENTS = [['burgundy','勃艮第酒红','#7A2E3D'],['fjord','北欧雾蓝','#4F7DB3'],['oak','暖橡木','#A87A4D'],['sage','鼠尾草','#5E8E72'],['bauhaus','包豪斯红','#C8473A'],['memphis','孟菲斯紫','#7B62B5'],['harbor','深海夜航','#2F6F86']];
 const KIND = {task:'任务', event:'日程', deadline:'截止', exam:'考试'};
 const ICON = {
   play:'<svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5v9l7-4.5z"/></svg>',
@@ -541,7 +543,7 @@ const ICON = {
 };
 
 /* ================= store ================= */
-const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'fjord', nick:'', tags:[], gcal:false, home:'today', pinned:false };
+const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'burgundy', nick:'', tags:[], gcal:false, home:'today', pinned:false };
 const S = { items:{}, projects:{}, notes:{}, settings:{}, timer:{}, ready:false, backend:'local' };
 let ver = 0;
 let db = null;
@@ -1822,7 +1824,7 @@ function toast(msg, undoFn){
   if (undoFn) $('#toast-undo').onclick = () => { hideToast(); undoFn(); };
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, undoFn ? 5000 : 2400);
 }
-function applyAccent(){ document.body.dataset.accent = settings().accent || 'fjord'; }
+function applyAccent(){ document.body.dataset.accent = settings().accent || 'burgundy'; }
 
 /* ================= events ================= */
 let suppressClick = false;
