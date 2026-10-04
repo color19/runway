@@ -8,9 +8,6 @@
 <title>Runway</title>
 </head>
 <body>
-
-<title>Runway 分享版</title>
-<title>Runway 分享版</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -81,6 +78,10 @@ kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border
 .rail-foot{margin-top:auto;color:var(--muted);font-size:12px;padding:0 6px;display:flex;align-items:center;gap:6px}
 .sync{width:7px;height:7px;border-radius:50%;background:var(--muted)}
 .sync.on{background:var(--good)}
+.sync.err{background:#c0392b;animation:syncPulse 1.4s ease infinite}
+@keyframes syncPulse{50%{opacity:.35}}
+.rail-foot{position:relative}
+.rail-foot .link{font-size:11px;padding:0;margin-left:4px}
 .mini-x{border:0;background:none;color:var(--muted);width:22px;height:22px;border-radius:6px;font-size:15px;line-height:1}
 .mini-x:hover{background:var(--sunk);color:var(--ink)}
 
@@ -539,7 +540,8 @@ const ICON = {
   edit:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M10.5 3 13 5.5 6 12.5H3.5V10z"/></svg>',
   cal:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12"/></svg>',
   pin:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2h4l-.5 4 2.5 2.5H4L6.5 6zM8 8.5V14"/></svg>',
-  plane:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 11.2 3.8 3.4c-.6-.3-1.2.3-1 .9L5 11l8 1-8 1-2.2 6.7c-.2.6.4 1.2 1 .9l17.7-7.8c.7-.3.7-1.3 0-1.6Z"/></svg>'
+  plane:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 11.2 3.8 3.4c-.6-.3-1.2.3-1 .9L5 11l8 1-8 1-2.2 6.7c-.2.6.4 1.2 1 .9l17.7-7.8c.7-.3.7-1.3 0-1.6Z"/></svg>',
+  prog:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 8V2.3A5.7 5.7 0 0 1 13.7 8z" fill="currentColor" stroke="none"/></svg>'
 };
 
 /* ================= store ================= */
@@ -547,10 +549,14 @@ const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, ba
 const S = { items:{}, projects:{}, notes:{}, settings:{}, timer:{}, ready:false, backend:'local' };
 let ver = 0;
 let db = null;
+let saveErr = false;
 let colRef = col => db.collection(col);
 const LS = SHARE ? 'runway-share-v1' : 'runway-v2';
 function loadLocal(){ try { const o = JSON.parse(localStorage.getItem(LS) || 'null'); if (o) for (const k of ['items','projects','notes','settings','timer']) S[k] = o[k] || {}; } catch(e){} }
-function saveLocal(){ try { localStorage.setItem(LS, JSON.stringify({items:S.items,projects:S.projects,notes:S.notes,settings:S.settings,timer:S.timer})); } catch(e){} }
+function saveLocal(){
+  try { localStorage.setItem(LS, JSON.stringify({items:S.items,projects:S.projects,notes:S.notes,settings:S.settings,timer:S.timer})); if (saveErr){ saveErr = false; renderRail(); } }
+  catch(e){ saveErr = true; renderRail(); toast('这个浏览器没保存上，可能是存储满了：记得导出备份'); }
+}
 const chains = {};
 function persist(changes){
   if (!db) { saveLocal(); return; }
@@ -558,8 +564,12 @@ function persist(changes){
     const key = c.col + '/' + c.id;
     chains[key] = (chains[key] || Promise.resolve()).then(() => {
       const ref = colRef(c.col).doc(c.id);
-      return c.data === null ? ref.delete() : ref.set(c.data);
-    }).catch(e => (SHARE && e && e.code === 'invalid_argument') ? fallbackLocal() : toast(e && e.code === 'quota_exceeded' ? '存储满了：删掉一些旧事项后再试' : '有改动没保存上，检查网络后刷新页面'));
+      return (c.data === null ? ref.delete() : ref.set(c.data)).then(() => { if (saveErr){ saveErr = false; renderRail(); } });
+    }).catch(e => {
+      if (SHARE && e && e.code === 'invalid_argument'){ fallbackLocal(); return; }
+      saveErr = true; renderRail();
+      toast(e && e.code === 'quota_exceeded' ? '存储满了：删掉一些旧事项后再试' : '有改动没保存上，检查网络后刷新页面');
+    });
   }
 }
 function applyLocal(changes){
@@ -623,6 +633,7 @@ function saveSettings(patch, label){ put('settings','main', {...settings(), ...p
 function normItem(id, it){
   const hours = it.hours != null ? Number(it.hours)||0 : (it.minutes ? Number(it.minutes)/60 : 0);
   return { id, title: it.title || '未命名', date: it.date || null, time: it.time || '', end: it.end || '', hours,
+    est: it.est != null ? Number(it.est)||hours : hours, log: it.log || {},
     actual: it.actual != null ? Number(it.actual) : null, done: !!it.done, doneOn: it.doneOn || (it.done ? (it.date || null) : null),
     project: it.project || '', module: it.module || '', tags: Array.isArray(it.tags) ? it.tags : [], kind: KIND[it.kind] ? it.kind : 'task',
     note: it.note || '', rep: it.rep || '', order: it.order || 0 };
@@ -652,12 +663,13 @@ function derive(){
   const bump = (m,k,v) => m.set(k, (m.get(k)||0) + v);
   for (const p of projects){ const pm = new Map(); progress.set(p.id, pm); for (const [d,h] of Object.entries(p.log)){ const v = Number(h)||0; if (v){ bump(pm, d, v); bump(effort, d, v); } } }
   for (const it of items){
+    const hasLog = it.log && Object.keys(it.log).length > 0;
+    if (hasLog) for (const [d,h] of Object.entries(it.log)){ const v = Number(h)||0; if (v) bump(effort, d, v); }
     if (!it.done || !it.doneOn) continue;
     bump(doneCount, it.doneOn, 1);
     if (it.kind !== 'task') continue;
-    const real = it.actual != null ? it.actual : it.hours;
-    bump(effort, it.doneOn, real);
-    if (it.project && progress.has(it.project)) bump(progress.get(it.project), it.doneOn, it.hours);
+    if (!hasLog){ const real = it.actual != null ? it.actual : it.est; bump(effort, it.doneOn, real); }
+    if (it.project && progress.has(it.project)) bump(progress.get(it.project), it.doneOn, it.est);
   }
   M = { t, items, projects, projMap, byDate, progress, effort, doneCount, alloc: new Map() };
   return M;
@@ -668,7 +680,7 @@ function capOf(d){ const s = settings(); return s.over[d] != null ? Number(s.ove
 function projTasks(pid){ return derive().items.filter(i => i.project === pid && i.kind === 'task'); }
 function logSum(p){ return sum(Object.values(p.log).map(Number)); }
 function remNow(p){ return sum(projTasks(p.id).filter(i => !i.done).map(i => i.hours)) + Math.max(0, p.lump - logSum(p)); }
-function totalOf(p){ return sum(projTasks(p.id).map(i => i.hours)) + Math.max(p.lump, logSum(p)); }
+function totalOf(p){ return sum(projTasks(p.id).map(i => i.est)) + Math.max(p.lump, logSum(p)); }
 function progOn(pid, d){ const m = derive().progress.get(pid); return m ? (m.get(d) || 0) : 0; }
 function remStart(p, D){ let r = remNow(p); const m = derive().progress.get(p.id); if (m) for (const [d,h] of m) if (d >= D) r += h; return r; }
 function windowOf(p, D){
@@ -783,7 +795,7 @@ function rowItem(it, o = {}){
     ${c ? `<span class="dot" style="background:${c}" title="${esc(p ? p.name : '')}"></span>` : ''}
     <span class="t" data-edit="${esc(it.id)}">${esc(it.title)} ${tags}</span>
     <span class="meta">${esc(meta)}</span>
-    <span class="acts">${o.quick && !it.done ? `<button class="ghost sm" type="button" data-move="${esc(it.id)}" data-to="${t}">今天</button><button class="ghost sm hide-sm" type="button" data-move="${esc(it.id)}" data-to="${add(t,1)}">明天</button>` : ''}${canTime ? `<button class="icon" type="button" data-timer-item="${esc(it.id)}" aria-label="${timerOn('item', it.id) ? '停止计时' : '开始计时'}">${timerOn('item', it.id) ? ICON.stop : ICON.play}</button>` : ''}${o.del ? `<button class="icon" type="button" data-del="${esc(it.id)}" aria-label="删除">${ICON.trash}</button>` : ''}</span>
+    <span class="acts">${o.quick && !it.done ? `<button class="ghost sm" type="button" data-move="${esc(it.id)}" data-to="${t}">今天</button><button class="ghost sm hide-sm" type="button" data-move="${esc(it.id)}" data-to="${add(t,1)}">明天</button>` : ''}${canTime ? `<button class="icon" type="button" data-progress="${esc(it.id)}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${esc(it.id)}" aria-label="${timerOn('item', it.id) ? '停止计时' : '开始计时'}">${timerOn('item', it.id) ? ICON.stop : ICON.play}</button>` : ''}${o.del ? `<button class="icon" type="button" data-del="${esc(it.id)}" aria-label="删除">${ICON.trash}</button>` : ''}</span>
   </div>`;
 }
 function donut(pct, color, size = 44, stroke = 6){
@@ -925,10 +937,16 @@ function viewToday(){
   const yNote = (S.notes[y] && S.notes[y].text) || '';
   const note = (S.notes[t] && S.notes[t].text) || '';
   const ext = gcalOn(t);
+  const capToday = capOf(t), capOver = settings().over[t] != null;
+  const capq = `<div class="card soft capq"><div class="inline" style="justify-content:space-between;flex-wrap:wrap">
+      <b>今天可投入 ${fmtH(capToday)}${capOver ? ' <span class="hint">（已调整）</span>' : ''}</b>
+      <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span>
+    </div></div>`;
   return `<div class="section">
     <div class="greet"><div><p class="hint">${cnd(t)} ${wdName(t)}</p><h2 style="margin:2px 0 0;font-size:22px">${greeting()}${nick ? '，' + esc(nick) : ''}</h2></div>${streak >= 2 ? `<span class="streak">连续 <b class="num">${streak}</b> 天跟上航速</span>` : ''}</div>
+    ${capq}
     ${recon}
-    ${overdue.length ? `<div class="card soft"><div class="greet"><p><b>有 ${overdue.length} 件过了安排日期还没做</b></p><div class="inline"><button class="ghost sm" type="button" data-act="overdue-today">都放到今天</button><button class="primary sm" type="button" data-act="overdue-spread">分散到接下来几天</button></div></div>${overdue.slice(0,4).map(i => rowItem(i, {showDate:true, quick:true})).join('')}${overdue.length > 4 ? `<p class="hint">还有 ${overdue.length - 4} 件，在「全部事项」里能看到。</p>` : ''}</div>` : ''}
+    ${overdue.length ? `<div class="card soft"><div class="greet"><p><b>有 ${overdue.length} 件过了安排日期还没做</b></p><div class="inline"><button class="ghost sm" type="button" data-act="overdue-today">都放到今天</button><button class="primary sm" type="button" data-act="overdue-resched">重新安排剩余任务</button></div></div>${overdue.slice(0,4).map(i => rowItem(i, {showDate:true, quick:true})).join('')}${overdue.length > 4 ? `<p class="hint">还有 ${overdue.length - 4} 件，在「全部事项」里能看到。</p>` : ''}</div>` : ''}
     <h2>今天要做 <span class="hint">${its.length ? `完成 ${doneN} / ${its.length}` : ''}</span></h2>
     ${its.length ? its.map(i => rowItem(i)).join('') : `<div class="empty"><b>今天还是空白的</b><br>去日历，把任务池里的事拖到今天；或者按 N 新建。</div>`}
     ${ext.length ? `<div class="hint">Google 日历：${ext.map(e => `${e.time ? e.time + ' ' : ''}${esc(e.title)}`).join('；')}</div>` : ''}
@@ -1003,10 +1021,10 @@ function viewProjects(){
   </div>`;
 }
 function moduleSpeed(p, mid){
-  const done = projTasks(p.id).filter(i => i.module === mid && i.done && i.actual != null && i.hours > 0);
-  const ok = done.filter(i => { const r = i.actual / i.hours; return r > 0.25 && r < 4; });
+  const done = projTasks(p.id).filter(i => i.module === mid && i.done && i.actual != null && i.est > 0);
+  const ok = done.filter(i => { const r = i.actual / i.est; return r > 0.25 && r < 4; });
   if (ok.length < 3) return { n: ok.length };
-  return { n: ok.length, ratio: sum(ok.map(i => i.actual)) / sum(ok.map(i => i.hours)), avgA: sum(ok.map(i => i.actual))/ok.length, avgP: sum(ok.map(i => i.hours))/ok.length };
+  return { n: ok.length, ratio: sum(ok.map(i => i.actual)) / sum(ok.map(i => i.est)), avgA: sum(ok.map(i => i.actual))/ok.length, avgP: sum(ok.map(i => i.est))/ok.length };
 }
 function viewProjectDetail(p){
   const st = projStatus(p), t = today();
@@ -1021,11 +1039,11 @@ function viewProjectDetail(p){
     const ts = tasks.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module)));
     if (!m.id && !ts.length && p.modules.length) return '';
     const sp = m.id ? moduleSpeed(p, m.id) : {n:0};
-    const doneH = sum(ts.filter(i => i.done).map(i => i.hours)), allH = sum(ts.map(i => i.hours));
+    const doneH = sum(ts.filter(i => i.done).map(i => i.est)), allH = sum(ts.map(i => i.est));
     return `<div class="module">
       <header><b>${esc(m.name)}</b><span class="hint">完成 ${ts.filter(i => i.done).length}/${ts.length} 件 · ${fmtH(doneH)} / ${fmtH(allH)}</span>${m.id ? `<button class="icon" type="button" data-renmod="${m.id}" aria-label="重命名模块">${ICON.edit}</button><button class="icon" type="button" data-delmod="${m.id}" aria-label="删除模块">${ICON.trash}</button>` : ''}</header>
       ${sp.ratio ? `<div class="speed" style="margin:8px 12px 0">「${esc(m.name)}」你平均每个用 <b>${fmtH(sp.avgA)}</b>（预计 ${fmtH(sp.avgP)}，做了 ${sp.n} 个）${Math.abs(sp.ratio - 1) > 0.15 && ts.some(i => !i.done) ? `<button class="primary sm" type="button" data-speed="${m.id}" data-ratio="${sp.ratio.toFixed(3)}">按我的速度调整剩下 ${ts.filter(i => !i.done).length} 个</button>` : ''}</div>` : (m.id && sp.n > 0 ? `<div class="hint" style="padding:6px 12px 0">再做完 ${3 - sp.n} 个并记录实际用时，就能按你的速度预计这个模块。</div>` : '')}
-      <div class="tasks">${ts.map(i => `<div class="trow ${i.done ? 'done' : ''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done ? 'checked' : ''} aria-label="完成 ${esc(i.title)}"><span class="t" data-edit="${i.id}">${esc(i.title)}</span><span class="h">${fmtH(i.hours)}${i.done && i.actual != null ? ` → ${fmtH(i.actual)}` : ''}</span><button type="button" class="when ${i.date ? 'set' : ''}" data-pick="${i.id}">${i.date ? md(i.date) + ' ' + wdName(i.date) : '排期'}</button>${!i.done ? `<button class="icon" type="button" data-timer-item="${i.id}" aria-label="计时">${timerOn('item', i.id) ? ICON.stop : ICON.play}</button>` : ''}</div>`).join('')}</div>
+      <div class="tasks">${ts.map(i => `<div class="trow ${i.done ? 'done' : ''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done ? 'checked' : ''} aria-label="完成 ${esc(i.title)}"><span class="t" data-edit="${i.id}">${esc(i.title)}</span><span class="h">${fmtH(i.hours)}${i.done && i.actual != null ? ` → ${fmtH(i.actual)}` : ''}</span><button type="button" class="when ${i.date ? 'set' : ''}" data-pick="${i.id}">${i.date ? md(i.date) + ' ' + wdName(i.date) : '排期'}</button>${!i.done ? `<button class="icon" type="button" data-progress="${i.id}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${i.id}" aria-label="计时">${timerOn('item', i.id) ? ICON.stop : ICON.play}</button>` : ''}</div>`).join('')}</div>
       <form class="addrow" data-addtask="${m.id}"><input name="t" placeholder="新任务，例如：Reading 32 + 课后题" aria-label="任务名称"><input name="h" class="h" type="number" min="0" step="0.25" placeholder="小时" aria-label="预计小时"><button class="ghost sm" type="submit">添加</button><button class="link" type="button" data-bulk="${m.id}" style="font-size:12px">＋ 一次加多个</button></form>
     </div>`; }).join('');
   return `<div class="section wide pdetail" style="--c:${p.color}">
@@ -1093,7 +1111,7 @@ function viewStats(){
   const trend = `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="投入时长趋势">${[0, maxV/2, maxV].map(v => `<line class="gridl" x1="${pl}" x2="${W}" y1="${yy(v)}" y2="${yy(v)}"/><text x="${pl-4}" y="${yy(v)+3}" text-anchor="end">${fmtH(v)}</text>`).join('')}${buckets.map((b,i) => `<rect x="${pl + i*bw + bw*.15}" y="${yy(bh[i])}" width="${bw*.7}" height="${Math.max(0, H - pb - yy(bh[i]))}" fill="var(--accent)" rx="2"><title>${b.label}：投入 ${fmtH(bh[i])}，完成 ${bc[i]} 件</title></rect>${(buckets.length <= 14 || i % Math.ceil(buckets.length/12) === 0) ? `<text x="${pl + i*bw + bw/2}" y="${H-6}" text-anchor="middle">${b.label}</text>` : ''}`).join('')}</svg></div>`;
   // distribution
   const distM = new Map();
-  for (const i of dv.items){ if (!i.done || !i.doneOn || i.doneOn < R.from || i.doneOn > R.to || i.kind !== 'task') continue; const k = i.project || '_'; distM.set(k, (distM.get(k)||0) + (i.actual != null ? i.actual : i.hours)); }
+  for (const i of dv.items){ if (!i.done || !i.doneOn || i.doneOn < R.from || i.doneOn > R.to || i.kind !== 'task') continue; const k = i.project || '_'; distM.set(k, (distM.get(k)||0) + (i.actual != null ? i.actual : i.est)); }
   for (const p of dv.projects) for (const [d,h] of Object.entries(p.log)) if (d >= R.from && d <= R.to) distM.set(p.id, (distM.get(p.id)||0) + Number(h));
   const dist = [...distM].map(([k,v]) => { const p = dv.projMap.get(k); return {label: p ? p.name : '独立事项', color: p ? p.color : 'var(--muted)', v}; }).filter(x => x.v > 0).sort((a,b) => b.v - a.v);
   const dTot = sum(dist.map(x => x.v));
@@ -1111,8 +1129,8 @@ function viewStats(){
   const wavg = wk.map((v,i) => wn[i] ? v/wn[i] : 0), wmax = Math.max(0.01, ...wavg), best = wavg.indexOf(Math.max(...wavg));
   const rhythm = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:120px">${wavg.map((v,i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end" title="${WDN[i]} 平均投入 ${fmtH(v)}，算了 ${wn[i]} 个${WDN[i]}"><span class="mono hint">${v ? fmtH(v) : ''}</span><div style="width:70%;height:${v/wmax*80}%;min-height:2px;background:${i === best && v ? 'var(--oak)' : 'var(--accent)'};border-radius:4px 4px 2px 2px"></div><span class="hint">${WDN[i].slice(1)}</span></div>`).join('')}</div>`;
   // estimate accuracy (beyond)
-  const acc2 = dv.items.filter(i => i.done && i.actual != null && i.hours > 0 && i.doneOn >= R.from && i.doneOn <= R.to);
-  const ratio = acc2.length ? sum(acc2.map(i => i.actual))/sum(acc2.map(i => i.hours)) : null;
+  const acc2 = dv.items.filter(i => i.done && i.actual != null && i.est > 0 && i.doneOn >= R.from && i.doneOn <= R.to);
+  const ratio = acc2.length ? sum(acc2.map(i => i.actual))/sum(acc2.map(i => i.est)) : null;
   const msg = now.doneN || now.hours ? `${R.label}划掉了 ${now.doneN} 件事，投入 ${fmtH(now.hours)}${prev.hours ? (now.hours > prev.hours*1.05 ? `，比${R.prevWord}多 ${Math.round((now.hours/prev.hours - 1)*100)}%` : now.hours < prev.hours*.95 ? `，比${R.prevWord}少 ${Math.round((1 - now.hours/prev.hours)*100)}%` : `，和${R.prevWord}差不多稳`) : ''}。` : `${R.label}还没有记录。`;
   return `<div class="section">
     <div class="inline"><div class="seg">${[['30','近 30 天'],['week','周'],['month','月'],['year','年']].map(([k,l]) => `<button type="button" data-sp="${k}" aria-pressed="${ui.stats.period === k}">${l}</button>`).join('')}</div><div class="seg"><button type="button" data-soff="1" aria-label="上一期">‹</button><button type="button" data-soff="-1" aria-label="下一期" ${ui.stats.off === 0 ? 'disabled' : ''}>›</button></div>${ui.stats.off ? `<button class="link" type="button" data-soff="0">回到现在</button>` : ''}<span class="hint">${cnd(R.from)} – ${cnd(R.to)}</span></div>
@@ -1239,8 +1257,10 @@ function renderRail(){
   const dv = derive();
   $('#rail-projects').innerHTML = dv.projects.length ? dv.projects.map(p => { const st = projStatus(p); return `<button class="proj-row" type="button" data-openproj="${p.id}" title="${esc(p.name)} · ${st.label}"><span class="dot" style="background:${p.color}"></span><span class="n">${esc(p.name)}</span><span class="d">${st.left > 0 ? st.left + '天' : md(p.deadline)}</span></button>`; }).join('') : `<div class="hint" style="padding:4px 10px">有 deadline 的大事，建成项目后会出现在这里。</div>`;
   $$('[data-go]').forEach(b => b.setAttribute('aria-current', String(b.dataset.go === ui.go)));
-  $('#sync-dot').className = 'sync' + (S.backend === 'db' && S.ready ? ' on' : '');
-  $('#sync-text').textContent = !S.ready ? '载入中' : S.backend === 'db' ? '只有你看得到，已同步到你的账户' : '只有你看得到，保存在这个浏览器';
+  $('#sync-dot').className = 'sync' + (saveErr ? ' err' : (S.backend === 'db' && S.ready) ? ' on' : '');
+  $('#sync-text').innerHTML = saveErr
+    ? `保存失败，检查网络或存储空间 <button class="link" type="button" data-export="json">导出备份</button>`
+    : (!S.ready ? '载入中' : S.backend === 'db' ? '只有你看得到，已同步到你的账户' : '只有你看得到，保存在这个浏览器');
 }
 const TITLES = {today:['今日概览',''], list:['全部事项','所有日程和任务'], projects:['计划项目','把 deadline 拆成每天的时间'], stats:['数据统计','看看你走了多远'], book:['回响之书','做过的事，都留在这里'], export:['导出与备份','表格、日历文件、清单和备份'], settings:['设置','']};
 function render(){
@@ -1363,7 +1383,8 @@ function ensureTags(ids){
 }
 function createFromParsed(r, overrides = {}){
   const tg = ensureTags(r.tags);
-  const base = { title: r.title || '未命名', time: r.time, end: r.end, hours: r.hours, kind: r.kind || 'task', project: r.project, module:'', tags: tg.ids, note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9, ...overrides };
+  const base = { title: r.title || '未命名', time: r.time, end: r.end, hours: r.hours, est: r.hours, kind: r.kind || 'task', project: r.project, module:'', tags: tg.ids, note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9, ...overrides };
+  if (base.est == null || overrides.hours != null) base.est = base.hours;
   const changes = tg.change ? [tg.change] : [];
   if (r.rep){
     const rep = uid('r'); const dates = repeatDates({...r, date: overrides.date !== undefined && overrides.date ? overrides.date : r.date});
@@ -1444,7 +1465,8 @@ function editItem(id, preset = {}){
       closeSheet(); createFromParsed(merged, ov); return;
     }
     const done = $('#f-done').checked, actualV = $('#f-actual').value;
-    const data = {...S.items[id], title: titleV, ...fields, done, doneOn: done ? (it.doneOn || today()) : null, actual: actualV === '' ? null : Number(actualV)};
+    const untouched = !it.log || !Object.keys(it.log).length; // no progress logged yet: hours and est still mean the same thing
+    const data = {...S.items[id], title: titleV, ...fields, est: untouched ? fields.hours : it.est, done, doneOn: done ? (it.doneOn || today()) : null, actual: actualV === '' ? null : Number(actualV)};
     closeSheet(); put('items', id, data, '已保存');
   });
   const del = $('#f-del');
@@ -1540,25 +1562,56 @@ function pickDate(id){
   $('#pick-go').addEventListener('click', () => { const v = $('#pick-other').value; if (v) { closeSheet(); moveItem(id, v); } });
 }
 
+/* record partial progress: today's spent time + a corrected remaining estimate, decoupled */
+function logProgress(id){
+  const it = S.items[id]; if (!it || it.done) return;
+  const t = today();
+  const spentToday = Number((it.log||{})[t]) || 0;
+  openSheet(`<h2>记录进度<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+    <p style="margin:0">「${esc(it.title)}」</p>
+    <label style="display:block;margin-top:10px">今天投入了多久（小时）<input class="inp" type="number" min="0" step="0.25" id="pg-spent" value="${spentToday || ''}" placeholder="0" style="width:100%;margin-top:4px"></label>
+    <label style="display:block;margin-top:10px">还需要大约多久（小时，可以直接改）<input class="inp" type="number" min="0" step="0.25" id="pg-rem" value="${it.hours || ''}" style="width:100%;margin-top:4px"></label>
+    <p class="meta" style="margin:6px 0 0">投入和剩余是两件事：花了多久不代表剩下的估计也要跟着减，按实际感觉改就行。</p>
+    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="pg-ok">保存</button></div>`);
+  $('#pg-ok').addEventListener('click', () => {
+    const spent = Math.max(0, Number($('#pg-spent').value) || 0);
+    const rem = Math.max(0, Number($('#pg-rem').value) || 0);
+    const log = {...(it.log||{})}; if (spent > 1e-6) log[t] = r2(spent); else delete log[t];
+    const actual = r2(logSum({log})) || (it.actual ?? null);
+    closeSheet();
+    if (rem <= 1e-6){ put('items', id, {...it, log, actual, hours:0, done:true, doneOn:t}, `已完成「${it.title}」`); return; }
+    put('items', id, {...it, log, actual, hours: rem}, spent > 1e-6 ? `已记录投入 ${fmtH(spent)}，还剩 ${fmtH(rem)}` : `已更新剩余 ${fmtH(rem)}`);
+  });
+}
 /* complete with optional actual-time question */
+function finishItem(id, delta){
+  const it = S.items[id]; if (!it) return;
+  const t = today();
+  const d = Math.max(0, Number(delta) || 0);
+  const log = d > 1e-6 ? {...(it.log||{}), [t]: r2((Number((it.log||{})[t]) || 0) + d)} : (it.log || {});
+  const actual = r2(logSum({log}) ) || (it.actual ?? null);
+  put('items', id, {...it, done:true, doneOn: t, hours:0, log, actual}, `已完成「${it.title}」`);
+}
 function toggleDone(id){
   const it = derive().items.find(i => i.id === id); if (!it) return;
   if (it.done){ put('items', id, {...S.items[id], done:false, doneOn:null}, `已撤销完成「${it.title}」`); return; }
   const p = it.project ? derive().projMap.get(it.project) : null;
-  const ask = settings().askActual && p && p.askActual && it.kind === 'task' && it.actual == null && it.hours > 0;
-  const finish = actual => put('items', id, {...S.items[id], done:true, doneOn: today(), actual: actual != null ? actual : (S.items[id].actual ?? null)}, `已完成「${it.title}」`);
-  if (!ask){ finish(null); if (dayRefresh) dayRefresh(); return; }
+  const already = logSum(it);
+  const ask = settings().askActual && p && p.askActual && it.kind === 'task' && it.hours > 0;
+  if (!ask){ finishItem(id, 0); if (dayRefresh) dayRefresh(); return; }
   const opts = [0.25,0.5,0.75,1,1.5,2,3,4];
+  const base = it.hours;
+  const intro = already > 1e-6 ? `「${esc(it.title)}」之前已经投入 ${fmtH(already)}，还剩预计 ${fmtH(base)}，剩下这部分花了多久？` : `「${esc(it.title)}」预计 ${fmtH(base)}，实际用了多久？`;
   openSheet(`<h2>记录实际用时<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
-    <p style="margin:0">「${esc(it.title)}」预计 ${fmtH(it.hours)}，实际用了多久？</p>
-    <div class="chips-pick">${[it.hours, ...opts.filter(o => Math.abs(o - it.hours) > 1e-6)].slice(0,9).map((o,i) => `<button type="button" data-act-h="${o}">${i === 0 ? '和预计一样 ' : ''}${fmtH(o)}</button>`).join('')}</div>
+    <p style="margin:0">${intro}</p>
+    <div class="chips-pick">${[base, ...opts.filter(o => Math.abs(o - base) > 1e-6)].slice(0,9).map((o,i) => `<button type="button" data-act-h="${o}">${i === 0 ? '和预计一样 ' : ''}${fmtH(o)}</button>`).join('')}</div>
     <div class="inline"><input class="inp" type="number" min="0" step="0.25" id="act-custom" placeholder="其他（小时）" style="width:130px"><button class="primary" type="button" id="act-ok">记录</button></div>
     <div class="actions"><button class="link push" type="button" id="act-never">「${esc(p.name)}」完成时不再询问</button><button class="ghost" type="button" id="act-skip">跳过</button></div>`);
-  const done = v => { closeSheet(); finish(v); };
+  const done = v => { closeSheet(); finishItem(id, v); };
   $('#sheet').addEventListener('click', e => { const b = e.target.closest('[data-act-h]'); if (b) done(Number(b.dataset.actH)); });
   $('#act-ok').addEventListener('click', () => { const v = Number($('#act-custom').value); if (v > 0) done(v); });
-  $('#act-skip').addEventListener('click', () => done(null));
-  $('#act-never').addEventListener('click', () => { closeSheet(); commit([{col:'projects', id:p.id, data:{...S.projects[p.id], askActual:false}}, {col:'items', id, data:{...S.items[id], done:true, doneOn: today()}}], `「${p.name}」完成时不再询问，可在编辑项目里重新打开`); });
+  $('#act-skip').addEventListener('click', () => done(0));
+  $('#act-never').addEventListener('click', () => { closeSheet(); commit([{col:'projects', id:p.id, data:{...S.projects[p.id], askActual:false}}], '', {undo:false}); finishItem(id, 0); });
 }
 function moveItem(id, date){
   const it = S.items[id]; if (!it || (it.date || null) === (date || null)) return;
@@ -1566,7 +1619,12 @@ function moveItem(id, date){
 }
 
 /* ================= project actions ================= */
-function addTask(pid, mid, title, hours){ put('items', uid('i'), {title, date:null, hours: hours || 0, kind:'task', project: pid, module: mid || '', tags:[], note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9}, '已添加任务'); }
+function addTask(pid, mid, title, hours){
+  const h = Math.max(0, Number(hours) || 0), p = S.projects[pid];
+  const changes = [{col:'items', id: uid('i'), data:{title, date:null, hours: h, est: h, kind:'task', project: pid, module: mid || '', tags:[], note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9}}];
+  if (p && p.lump > 0 && h > 0) changes.push({col:'projects', id: pid, data:{...p, lump: Math.max(0, r2(p.lump - h))}});
+  commit(changes, '已添加任务');
+}
 function bulkAdd(pid, mid){
   openSheet(`<h2>一次加多个任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
     <div class="field"><label for="bk-name">任务名，用 {起-止} 表示编号</label><input id="bk-name" placeholder="例如：Reading {1-10}、真题 {1-4}" value="Reading {1-6}"></div>
@@ -1585,7 +1643,46 @@ function bulkAdd(pid, mid){
   };
   const prev = () => { const g = gen(); $('#bk-prev').textContent = g.length ? `将添加 ${g.length} 个：${g.slice(0,4).map(x => x.title).join('、')}${g.length > 4 ? '…' : ''} · 共 ${fmtH(sum(g.map(x => x.hours)))}` : ''; };
   ['bk-name','bk-h','bk-lines'].forEach(i => $('#' + i).addEventListener('input', prev)); prev();
-  $('#bk-ok').addEventListener('click', () => { const g = gen(); if (!g.length) return; const base = Date.now() % 1e9; closeSheet(); commit(g.map((x, k) => ({col:'items', id: uid('i'), data:{title:x.title, date:null, hours:x.hours, kind:'task', project:pid, module:mid || '', tags:[], note:'', done:false, actual:null, doneOn:null, order: base + k}})), `已加 ${g.length} 个任务`); });
+  $('#bk-ok').addEventListener('click', () => {
+    const g = gen(); if (!g.length) return; const base = Date.now() % 1e9; closeSheet();
+    const p = S.projects[pid], totalH = sum(g.map(x => x.hours || 0));
+    const changes = g.map((x, k) => ({col:'items', id: uid('i'), data:{title:x.title, date:null, hours:x.hours, est:x.hours, kind:'task', project:pid, module:mid || '', tags:[], note:'', done:false, actual:null, doneOn:null, order: base + k}}));
+    if (p && p.lump > 0 && totalH > 0) changes.push({col:'projects', id: pid, data:{...p, lump: Math.max(0, r2(p.lump - totalH))}});
+    commit(changes, `已加 ${g.length} 个任务`);
+  });
+}
+/* capacity-aware reschedule for a set of (overdue) tasks: respects each day's remaining
+   capacity, each task's project deadline, and whatever is already fixed on the calendar */
+function planReschedule(tasks){
+  const t0 = today(), dv = derive();
+  const deadlineOf = it => { const p = it.project ? dv.projMap.get(it.project) : null; return (p && p.deadline) || null; };
+  const sorted = tasks.slice().sort((a,b) => { const da = deadlineOf(a) || '9999-99-99', db = deadlineOf(b) || '9999-99-99'; return da.localeCompare(db) || (b.hours - a.hours); });
+  const horizon = 30, days = range(t0, add(t0, horizon));
+  const movingIds = new Set(sorted.map(i => i.id));
+  const used = new Map(days.map(d => [d, sum(itemsOn(d).filter(i => i.kind === 'task' && !i.done && !movingIds.has(i.id)).map(i => i.hours))]));
+  const plan = [];
+  for (const it of sorted){
+    const dl = deadlineOf(it);
+    const inWindow = days.filter(d => (!dl || d <= dl) && capOf(d) > 0);
+    const pool = inWindow.length ? inWindow : days.filter(d => capOf(d) > 0);
+    if (!pool.length){ plan.push({it, date: it.date, over:true}); continue; }
+    let best = pool.find(d => capOf(d) - (used.get(d)||0) >= it.hours - 1e-6);
+    if (!best) best = pool.reduce((a,b) => (capOf(b) - (used.get(b)||0)) > (capOf(a) - (used.get(a)||0)) ? b : a, pool[0]);
+    used.set(best, (used.get(best)||0) + it.hours);
+    plan.push({it, date: best, over: used.get(best) > capOf(best) + 1e-6});
+  }
+  return plan;
+}
+function openReschedule(tasks){
+  if (!tasks.length) return;
+  const plan = planReschedule(tasks);
+  const anyOver = plan.some(p => p.over);
+  const rows = plan.map(({it,date,over}) => `<div class="row"><span class="t">${esc(it.title)}</span><span class="meta">${fmtH(it.hours)}</span><span class="when set" ${over ? 'style="color:var(--warn,#b23)"' : ''}>${md(date)} ${wdName(date)}${over ? ' ⚠' : ''}</span></div>`).join('');
+  openSheet(`<h2>重新安排 ${plan.length} 件剩余任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+    <p class="hint" style="margin:0">按每天还剩的可投入时间和各自的截止日期分配${anyOver ? '，⚠ 标记的那天还是会超出当天安排' : '，都能落在截止日期之前，也不超出当天安排'}。</p>
+    <div style="max-height:50vh;overflow:auto;margin-top:6px">${rows}</div>
+    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="resched-ok">按这个安排</button></div>`, {wide:true});
+  $('#resched-ok').addEventListener('click', () => { closeSheet(); commit(plan.map(({it,date}) => ({col:'items', id: it.id, data:{...S.items[it.id], date}})), `已重新安排 ${plan.length} 件任务`); });
 }
 function autoSchedule(pid){
   const p = derive().projMap.get(pid); if (!p) return;
@@ -1623,11 +1720,14 @@ function stopTimer(silent){
   const t = today();
   if (tm.type === 'item' && S.items[tm.id]){
     const it = S.items[tm.id];
-    changes.push({col:'items', id: tm.id, data:{...it, actual: r2((Number(it.actual) || 0) + h)}});
+    const log = {...(it.log||{}), [t]: r2((Number((it.log||{})[t]) || 0) + h)};
+    const actual = r2(logSum({log}));
+    const remHours = Math.max(0, r2((Number(it.hours)||0) - h));
+    changes.push({col:'items', id: tm.id, data:{...it, log, actual, hours: remHours}});
     commit(changes, `记录了 ${fmtH(h)}`);
     if (!silent && !it.done){
-      openSheet(`<h2>记录了 ${fmtH(h)}<button class="x" type="button" data-close aria-label="关闭">×</button></h2><p style="margin:0">「${esc(it.title)}」累计实际 ${fmtH((Number(it.actual) || 0) + h)}${it.hours ? `，预计 ${fmtH(Number(it.hours))}` : ''}。做完了吗？</p><div class="actions"><button class="ghost" type="button" data-close>还没，下次接着做</button><button class="primary" type="button" id="tm-done">标记完成</button></div>`);
-      $('#tm-done').addEventListener('click', () => { closeSheet(); put('items', tm.id, {...S.items[tm.id], done:true, doneOn: today()}, `已完成「${it.title}」`); });
+      openSheet(`<h2>记录了 ${fmtH(h)}<button class="x" type="button" data-close aria-label="关闭">×</button></h2><p style="margin:0">「${esc(it.title)}」已投入 ${fmtH(actual)}${remHours > 1e-6 ? `，还剩预计 ${fmtH(remHours)}` : ''}。做完了吗？</p><div class="actions"><button class="ghost" type="button" data-close>还没，下次接着做</button><button class="primary" type="button" id="tm-done">标记完成</button></div>`);
+      $('#tm-done').addEventListener('click', () => { closeSheet(); finishItem(tm.id, 0); });
     }
   } else if (tm.type === 'project' && S.projects[tm.id]){
     const p = S.projects[tm.id]; const log = {...(p.log || {})}; log[t] = r2((Number(log[t]) || 0) + h);
@@ -1715,7 +1815,7 @@ async function aiBreakdown(pid){
     if (!sample){ out.innerHTML = '<div class="warnbar">这个页面现在用不了 Claude（只能在 Claude 里打开时使用）。</div>'; return; }
     const btn = $('#ai-go'); btn.disabled = true; btn.textContent = '正在拆解…';
     const t = today(); const wd = workdays(p, t);
-    const existing = projTasks(pid).map(i => `${i.title} (${i.hours}h${i.done ? ', 已完成' : ''})`).slice(0, 60).join('; ');
+    const existing = projTasks(pid).map(i => `${i.title} (${i.est}h${i.done ? ', 已完成' : ''})`).slice(0, 60).join('; ');
     const prompt = `你是学习和项目规划助手。请把下面这个项目拆成 2 到 6 个模块，每个模块 3 到 12 个具体可执行的任务。每个任务的预计用时以小时计，在 0.25 到 6 之间，按 0.25 取整。任务名用中文，专有名词可保留英文，简洁具体。不要重复已有任务。
 项目：${p.name}
 今天：${t}；Deadline：${p.deadline}（当天不计入投入）；提前完成天数：${p.buffer}
@@ -1734,8 +1834,10 @@ async function aiBreakdown(pid){
       $('#ai-add').addEventListener('click', () => {
         const keep = mods.filter((m, mi) => $(`[data-aim="${mi}"]`).checked);
         const proj = {...S.projects[pid]}; const modules = (proj.modules || []).slice(); const changes = []; let o = Date.now() % 1e9;
-        for (const m of keep){ let mm = modules.find(z => z.name === m.name); if (!mm){ mm = {id: uid('m'), name: m.name}; modules.push(mm); } for (const x of m.tasks) changes.push({col:'items', id: uid('i'), data:{title: String(x.title).slice(0,120), date:null, hours: Math.max(0, Number(x.hours) || 0), kind:'task', project: pid, module: mm.id, tags:[], note:'', done:false, actual:null, doneOn:null, order: o++}}); }
-        changes.unshift({col:'projects', id: pid, data:{...proj, modules}});
+        let addedH = 0;
+        for (const m of keep){ let mm = modules.find(z => z.name === m.name); if (!mm){ mm = {id: uid('m'), name: m.name}; modules.push(mm); } for (const x of m.tasks){ const h = Math.max(0, Number(x.hours) || 0); addedH += h; changes.push({col:'items', id: uid('i'), data:{title: String(x.title).slice(0,120), date:null, hours: h, est: h, kind:'task', project: pid, module: mm.id, tags:[], note:'', done:false, actual:null, doneOn:null, order: o++}}); } }
+        const lump = proj.lump > 0 && addedH > 0 ? Math.max(0, r2(proj.lump - addedH)) : proj.lump;
+        changes.unshift({col:'projects', id: pid, data:{...proj, modules, lump}});
         closeSheet(); commit(changes, `已加 ${changes.length - 1} 个任务`);
       });
     } catch(e){ out.innerHTML = `<div class="warnbar">${e && e.code === 'empty' ? 'Claude 没给出可用的拆解，换个说法再试一次。' : sampleErr(e)}</div>`; }
@@ -1775,19 +1877,19 @@ function exportData(kind){
   const tn = ids => ids.map(id => (s.tags.find(x => x.id === id) || {}).name).filter(Boolean).join(' ');
   if (kind === 'csv'){
     const head = ['日期','开始','结束','事项','类型','项目','模块','标签','预计用时（小时）','实际用时（小时）','完成','备注'];
-    const lines = [head, ...rows.map(i => [i.date, i.time, i.end, i.title, KIND[i.kind], pn(i.project), mn(i.project, i.module), tn(i.tags), i.hours || '', i.actual ?? '', i.done ? '是' : '否', i.note])].map(r => r.map(csvCell).join(','));
+    const lines = [head, ...rows.map(i => [i.date, i.time, i.end, i.title, KIND[i.kind], pn(i.project), mn(i.project, i.module), tn(i.tags), i.est || '', i.actual ?? '', i.done ? '是' : '否', i.note])].map(r => r.map(csvCell).join(','));
     deliver(`Runway-${from}至${to}.csv`, '\ufeff' + lines.join('\r\n'), 'text/csv'); return;
   }
   if (kind === 'ics'){
     const icsEsc = v => String(v || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
     const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
-    const ev = rows.map(i => { const d = i.date.replace(/-/g,''); const lines = ['BEGIN:VEVENT', `UID:${i.id}@runway`, `DTSTAMP:${stamp}`]; if (i.time){ lines.push(`DTSTART:${d}T${i.time.replace(':','')}00`); const endT = i.end || (() => { const [H,Mi] = i.time.split(':').map(Number); const m = H*60 + Mi + Math.round((i.hours || 1)*60); return `${pad(Math.min(23, Math.floor(m/60)))}:${pad(m%60)}`; })(); lines.push(`DTEND:${d}T${endT.replace(':','')}00`); } else { lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${add(i.date,1).replace(/-/g,'')}`); } lines.push(`SUMMARY:${icsEsc((i.done ? '✓ ' : '') + i.title)}`); const desc = [pn(i.project) && '项目：' + pn(i.project), i.hours && '预计 ' + fmtH(i.hours), i.note].filter(Boolean).join('\n'); if (desc) lines.push(`DESCRIPTION:${icsEsc(desc)}`); lines.push('END:VEVENT'); return lines.join('\r\n'); });
+    const ev = rows.map(i => { const d = i.date.replace(/-/g,''); const lines = ['BEGIN:VEVENT', `UID:${i.id}@runway`, `DTSTAMP:${stamp}`]; if (i.time){ lines.push(`DTSTART:${d}T${i.time.replace(':','')}00`); const endT = i.end || (() => { const [H,Mi] = i.time.split(':').map(Number); const m = H*60 + Mi + Math.round((i.hours || 1)*60); return `${pad(Math.min(23, Math.floor(m/60)))}:${pad(m%60)}`; })(); lines.push(`DTEND:${d}T${endT.replace(':','')}00`); } else { lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${add(i.date,1).replace(/-/g,'')}`); } lines.push(`SUMMARY:${icsEsc((i.done ? '✓ ' : '') + i.title)}`); const desc = [pn(i.project) && '项目：' + pn(i.project), i.est && '预计 ' + fmtH(i.est), i.note].filter(Boolean).join('\n'); if (desc) lines.push(`DESCRIPTION:${icsEsc(desc)}`); lines.push('END:VEVENT'); return lines.join('\r\n'); });
     deliver(`Runway-${from}至${to}.ics`, ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Runway//CN','X-WR-CALNAME:Runway', ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar'); return;
   }
   if (kind === 'md'){
     const pid = ($('#ex-proj') || {}).value;
     const ps = pid ? [dv.projMap.get(pid)] : dv.projects;
-    const md2 = ps.map(p => { const st = projStatus(p); const ts = projTasks(p.id); const mods = [...p.modules, {id:'', name:'其他'}]; return `# ${p.name}\n\nDeadline ${p.deadline} · 共 ${fmtH(st.total)} · 剩 ${fmtH(st.rem)} · ${st.label}\n\n` + mods.map(m => { const list = ts.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module))); if (!list.length) return ''; return `## ${m.name}\n\n` + list.map(i => `- [${i.done ? 'x' : ' '}] ${i.title} · 预计 ${fmtH(i.hours)}${i.date ? ' · 排在 ' + i.date : ''}${i.actual != null ? ' · 实际 ' + fmtH(i.actual) : ''}`).join('\n') + '\n'; }).join('\n'); }).join('\n\n');
+    const md2 = ps.map(p => { const st = projStatus(p); const ts = projTasks(p.id); const mods = [...p.modules, {id:'', name:'其他'}]; return `# ${p.name}\n\nDeadline ${p.deadline} · 共 ${fmtH(st.total)} · 剩 ${fmtH(st.rem)} · ${st.label}\n\n` + mods.map(m => { const list = ts.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module))); if (!list.length) return ''; return `## ${m.name}\n\n` + list.map(i => `- [${i.done ? 'x' : ' '}] ${i.title} · 预计 ${fmtH(i.est)}${i.date ? ' · 排在 ' + i.date : ''}${i.actual != null ? ' · 实际 ' + fmtH(i.actual) : ''}`).join('\n') + '\n'; }).join('\n'); }).join('\n\n');
     deliver(`Runway-${pid ? dv.projMap.get(pid).name : '项目清单'}.md`, md2 || '还没有计划项目。', 'text/markdown'); return;
   }
   if (kind === 'json'){ deliver(`Runway-backup-${t}.json`, JSON.stringify({app:'runway', version:2, exportedAt: new Date().toISOString(), items:S.items, projects:S.projects, notes:S.notes, settings:S.settings}, null, 1), 'application/json'); }
@@ -1838,6 +1940,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-mode]'))){ ui.mode = el.dataset.mode; saveUi(); render(); return; }
   if ((el = c('[data-toggle]'))){ e.preventDefault(); toggleDone(el.dataset.toggle); if (dayRefresh) setTimeout(dayRefresh, 0); return; }
   if ((el = c('[data-timer-item]'))){ startTimer('item', el.dataset.timerItem); return; }
+  if ((el = c('[data-progress]'))){ logProgress(el.dataset.progress); return; }
   if ((el = c('[data-timer-proj]'))){ startTimer('project', el.dataset.timerProj); return; }
   if ((el = c('[data-move]'))){ moveItem(el.dataset.move, el.dataset.to); return; }
   if ((el = c('[data-del]'))){ const it = S.items[el.dataset.del]; if (it){ put('items', el.dataset.del, null, `已删除「${it.title}」`); if (dayRefresh) setTimeout(dayRefresh, 0); } return; }
@@ -1857,13 +1960,25 @@ document.addEventListener('click', e => {
   if ((el = c('[data-addmod]'))){ const pid = el.dataset.addmod; openSheet(`<h2>新模块<button class="x" type="button" data-close aria-label="关闭">×</button></h2><form id="mod-form" class="inline"><input class="inp" id="mod-name" placeholder="模块名，例如：Fixed Income" style="flex:1" autofocus><button class="primary" type="submit">添加</button></form>`); $('#mod-form').addEventListener('submit', ev => { ev.preventDefault(); const n = $('#mod-name').value.trim(); if (!n) return; const p = S.projects[pid]; closeSheet(); put('projects', pid, {...p, modules:[...(p.modules || []), {id: uid('m'), name: n}]}, `已添加模块「${n}」`); }); return; }
   if ((el = c('[data-renmod]'))){ const pid = ui.proj, mid = el.dataset.renmod; const p = S.projects[pid]; const m = (p.modules || []).find(x => x.id === mid); openSheet(`<h2>重命名模块<button class="x" type="button" data-close aria-label="关闭">×</button></h2><form id="mod-form" class="inline"><input class="inp" id="mod-name" value="${esc(m.name)}" style="flex:1" autofocus><button class="primary" type="submit">保存</button></form>`); $('#mod-form').addEventListener('submit', ev => { ev.preventDefault(); const n = $('#mod-name').value.trim(); if (!n) return; closeSheet(); put('projects', pid, {...p, modules: p.modules.map(x => x.id === mid ? {...x, name:n} : x)}, '已保存'); }); return; }
   if ((el = c('[data-delmod]'))){ const pid = ui.proj, mid = el.dataset.delmod; const p = S.projects[pid]; const ts = projTasks(pid).filter(i => i.module === mid); if (!el.classList.contains('arm')){ el.classList.add('arm'); el.style.color = 'var(--warn)'; el.title = `再点一次：删除模块和里面的 ${ts.length} 个任务`; toast(`再点一次删除这个模块和里面的 ${ts.length} 个任务`); return; } commit([{col:'projects', id:pid, data:{...p, modules: p.modules.filter(x => x.id !== mid)}}, ...ts.map(i => ({col:'items', id:i.id, data:null}))], '已删除模块'); return; }
-  if ((el = c('[data-speed]'))){ const pid = ui.proj, mid = el.dataset.speed, ratio = Number(el.dataset.ratio); const ts = projTasks(pid).filter(i => i.module === mid && !i.done); commit(ts.map(i => ({col:'items', id:i.id, data:{...S.items[i.id], hours: Math.max(0.25, Math.round(i.hours*ratio*4)/4)}})), `剩下 ${ts.length} 个任务已按你的实际速度调整`); return; }
+  if ((el = c('[data-speed]'))){ const pid = ui.proj, mid = el.dataset.speed, ratio = Number(el.dataset.ratio); const ts = projTasks(pid).filter(i => i.module === mid && !i.done); commit(ts.map(i => { const h = Math.max(0.25, Math.round(i.hours*ratio*4)/4); const untouched = !i.log || !Object.keys(i.log).length; return {col:'items', id:i.id, data:{...S.items[i.id], hours: h, est: untouched ? h : i.est}}; }), `剩下 ${ts.length} 个任务已按你的实际速度调整`); return; }
   if ((el = c('[data-pace]'))){ ui.pace = Number(el.dataset.pace); render(); return; }
   if ((el = c('[data-lf]'))){ ui.list.f = el.dataset.lf; render(); return; }
   if ((el = c('[data-sp]'))){ ui.stats.period = el.dataset.sp; ui.stats.off = 0; render(); return; }
   if ((el = c('[data-soff]'))){ const v = Number(el.dataset.soff); ui.stats.off = v === 0 ? 0 : Math.max(0, ui.stats.off + v); render(); return; }
   if ((el = c('[data-export]'))){ exportData(el.dataset.export); return; }
   if ((el = c('[data-setaccent]'))){ saveSettings({accent: el.dataset.setaccent}); return; }
+  if ((el = c('[data-capq]'))){
+    const v = el.dataset.capq, t0 = today(), s = settings();
+    if (v === 'reset'){ const over = {...s.over}; delete over[t0]; saveSettings({over}); return; }
+    if (v === 'custom'){
+      openSheet(`<h2>今天可投入多久<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+        <div class="inline"><input class="inp" type="number" min="0" max="20" step="0.5" id="capq-v" value="${capOf(t0)}" style="width:100px" autofocus><span class="hint">小时</span></div>
+        <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="capq-ok">确定</button></div>`);
+      $('#capq-ok').addEventListener('click', () => { const n = Math.max(0, Number($('#capq-v').value) || 0); closeSheet(); saveSettings({over: {...settings().over, [t0]: n}}); });
+      return;
+    }
+    saveSettings({over: {...s.over, [t0]: Number(v)}}); return;
+  }
   if ((el = c('[data-tagdel]'))){ const s = settings(); saveSettings({tags: s.tags.filter(x => x.id !== el.dataset.tagdel)}, '已删除标签'); return; }
   if ((el = c('#title-pick'))){ monthPicker(el); return; }
   if ((el = c('[data-mpick]'))){ ui.cursor = el.dataset.mpick; closePop(); render(); return; }
@@ -1879,7 +1994,7 @@ document.addEventListener('click', e => {
     else if (a === 'import') $('#file-import').click();
     else if (a === 'book-next' || a === 'book-prev') turnPage(a === 'book-next' ? 1 : -1);
     else if (a === 'overdue-today'){ const t0 = today(); const od = derive().items.filter(i => !i.done && i.date && i.date < t0 && i.kind === 'task'); commit(od.map(i => ({col:'items', id:i.id, data:{...S.items[i.id], date: t0}})), `已把 ${od.length} 件放到今天`); }
-    else if (a === 'overdue-spread'){ const t0 = today(); const od = derive().items.filter(i => !i.done && i.date && i.date < t0 && i.kind === 'task'); const days = range(t0, add(t0, 13)).filter(d => capOf(d) > 0).slice(0, Math.max(1, Math.min(5, od.length))); commit(od.map((i, k) => ({col:'items', id:i.id, data:{...S.items[i.id], date: days[k % days.length]}})), `已把 ${od.length} 件分散到接下来 ${days.length} 天`); }
+    else if (a === 'overdue-resched'){ const t0 = today(); openReschedule(derive().items.filter(i => !i.done && i.date && i.date < t0 && i.kind === 'task')); }
     else if (a === 'clear'){ if ($('#clear-confirm').value.trim() !== '清空'){ toast('输入「清空」两个字确认'); return; } const ch = []; for (const col of ['items','projects','notes','settings','timer']) for (const id of Object.keys(S[col])) ch.push({col, id, data:null}); commit(ch, '已清空全部数据', {undo:true}); }
     return;
   }
