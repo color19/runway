@@ -307,6 +307,13 @@ body.is-dragging,body.is-dragging *{cursor:grabbing!important;user-select:none;-
 .parsed{font-size:12px;color:var(--accent);min-height:18px}
 .pool-group{display:flex;flex-direction:column;gap:6px}
 .pool-group h4{margin:6px 0 0;font-size:12px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:6px}
+.poolhd{all:unset;display:flex;align-items:center;gap:6px;width:100%;cursor:pointer;padding:3px 2px;border-radius:5px}
+.poolhd:hover{background:var(--sunk)}
+.poolhd .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-weight:600}
+.poolhd .c{color:var(--muted);font-size:11px}
+.poolhd .chev{transition:transform .15s ease;flex-shrink:0}
+.poolhd[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.pool-group.collapsed{gap:0}
 .pool .chip{font-size:13px;padding:7px 8px}
 .handle{width:14px;align-self:stretch;display:grid;place-items:center;color:var(--muted);touch-action:none;cursor:grab;flex:none}
 
@@ -759,7 +766,8 @@ function projStatus(p, D = today()){
 }
 
 /* ================= ui state ================= */
-const ui = { go:null, mode:'month', cursor:null, pool: window.innerWidth > 1100, expand:false, list:{q:'', f:'open', p:'', tag:''}, stats:{period:'30', off:0}, book:{i:0}, proj:null };
+const ui = { go:null, mode:'month', cursor:null, pool: window.innerWidth > 1100, poolOpen:{}, expand:false, list:{q:'', f:'open', p:'', tag:''}, stats:{period:'30', off:0}, book:{i:0}, proj:null };
+try { Object.assign(ui.poolOpen, JSON.parse(localStorage.getItem('runway-pool') || '{}')); } catch(e){}
 try { const o = JSON.parse(localStorage.getItem('runway-ui') || '{}'); if (o.mode) ui.mode = o.mode; if (typeof o.pool === 'boolean' && window.innerWidth > 1100) ui.pool = o.pool; if (o.expand) ui.expand = true; } catch(e){}
 function saveUi(){ try { localStorage.setItem('runway-ui', JSON.stringify({mode:ui.mode, pool:ui.pool, expand:ui.expand})); } catch(e){} }
 const HASHES = {today:'today', calendar:'cal', list:'list', projects:'projects', stats:'stats', book:'book', export:'export', settings:'settings'};
@@ -1040,8 +1048,9 @@ function viewProjectDetail(p){
     if (!m.id && !ts.length && p.modules.length) return '';
     const sp = m.id ? moduleSpeed(p, m.id) : {n:0};
     const doneH = sum(ts.filter(i => i.done).map(i => i.est)), allH = sum(ts.map(i => i.est));
+    const unschedM = ts.filter(i => !i.done && !i.date);
     return `<div class="module">
-      <header><b>${esc(m.name)}</b><span class="hint">完成 ${ts.filter(i => i.done).length}/${ts.length} 件 · ${fmtH(doneH)} / ${fmtH(allH)}</span>${m.id ? `<button class="icon" type="button" data-renmod="${m.id}" aria-label="重命名模块">${ICON.edit}</button><button class="icon" type="button" data-delmod="${m.id}" aria-label="删除模块">${ICON.trash}</button>` : ''}</header>
+      <header><b>${esc(m.name)}</b><span class="hint">完成 ${ts.filter(i => i.done).length}/${ts.length} 件 · ${fmtH(doneH)} / ${fmtH(allH)}</span>${unschedM.length ? `<button class="ghost sm" type="button" data-autosched="${p.id}" data-mod="${esc(m.id)}">智能排期 ${unschedM.length} 个</button>` : ''}${m.id ? `<button class="icon" type="button" data-renmod="${m.id}" aria-label="重命名模块">${ICON.edit}</button><button class="icon" type="button" data-delmod="${m.id}" aria-label="删除模块">${ICON.trash}</button>` : ''}</header>
       ${sp.ratio ? `<div class="speed" style="margin:8px 12px 0">「${esc(m.name)}」你平均每个用 <b>${fmtH(sp.avgA)}</b>（预计 ${fmtH(sp.avgP)}，做了 ${sp.n} 个）${Math.abs(sp.ratio - 1) > 0.15 && ts.some(i => !i.done) ? `<button class="primary sm" type="button" data-speed="${m.id}" data-ratio="${sp.ratio.toFixed(3)}">按我的速度调整剩下 ${ts.filter(i => !i.done).length} 个</button>` : ''}</div>` : (m.id && sp.n > 0 ? `<div class="hint" style="padding:6px 12px 0">再做完 ${3 - sp.n} 个并记录实际用时，就能按你的速度预计这个模块。</div>` : '')}
       <div class="tasks">${ts.map(i => `<div class="trow ${i.done ? 'done' : ''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done ? 'checked' : ''} aria-label="完成 ${esc(i.title)}"><span class="t" data-edit="${i.id}">${esc(i.title)}</span><span class="h">${fmtH(i.hours)}${i.done && i.actual != null ? ` → ${fmtH(i.actual)}` : ''}</span><button type="button" class="when ${i.date ? 'set' : ''}" data-pick="${i.id}">${i.date ? md(i.date) + ' ' + wdName(i.date) : '排期'}</button>${!i.done ? `<button class="icon" type="button" data-progress="${i.id}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${i.id}" aria-label="计时">${timerOn('item', i.id) ? ICON.stop : ICON.play}</button>` : ''}</div>`).join('')}</div>
       <form class="addrow" data-addtask="${m.id}"><input name="t" placeholder="新任务，例如：Reading 32 + 课后题" aria-label="任务名称"><input name="h" class="h" type="number" min="0" step="0.25" placeholder="小时" aria-label="预计小时"><button class="ghost sm" type="submit">添加</button><button class="link" type="button" data-bulk="${m.id}" style="font-size:12px">＋ 一次加多个</button></form>
@@ -1057,7 +1066,7 @@ function viewProjectDetail(p){
       ${p.note ? `<p class="hint" style="margin:0">${esc(p.note)}</p>` : ''}
     </div>
     <div class="inline">
-      ${unsched.length ? `<button class="primary" type="button" data-autosched="${p.id}">把 ${unsched.length} 个未排期任务排进日历</button>` : ''}
+      ${unsched.length ? `<button class="primary" type="button" data-autosched="${p.id}">把全部 ${unsched.length} 个未排期任务排进日历</button>` : ''}
       <button class="ghost" type="button" data-ai="${p.id}">✦ 让 Claude 帮我拆任务</button>
       <button class="ghost" type="button" data-addmod="${p.id}">＋ 新模块</button>
       <button class="ghost" type="button" data-timer-proj="${p.id}">${timerOn('project', p.id) ? '■ 停止计时' : '▶ 为这个项目计时'}</button>
@@ -1247,9 +1256,17 @@ function renderPool(){
   const loose = dv.items.filter(i => !i.date && !i.done && !i.project);
   const groups = dv.projects.map(p => ({p, its: dv.items.filter(i => i.project === p.id && !i.date && !i.done)})).filter(g => g.its.length);
   const total = loose.length + sum(groups.map(g => g.its.length));
+  const isOpen = k => ui.poolOpen[k] !== false;
+  const grp = (key, label, color, its, extra) => {
+    const open = isOpen(key);
+    return `<div class="pool-group ${open ? '' : 'collapsed'}">
+      <h4><button class="poolhd" type="button" data-poolt="${esc(key)}" aria-expanded="${open}">${color ? `<span class="dot" style="background:${color}"></span>` : ''}<span class="n">${esc(label)}</span><span class="c">${its.length}</span><svg class="chev" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg></button></h4>
+      ${open ? `${its.slice(0, 12).map(i => chip(i, {dur:true, handle:true})).join('')}${extra || ''}` : ''}
+    </div>`;
+  };
   $('#pool-items').innerHTML = (total ? '' : `<div class="empty">有 deadline 的大事（考试、论文、项目）可以建成计划项目，拆好的任务也会出现在这里。</div>`)
-    + (loose.length ? `<div class="pool-group"><h4>独立事项 · ${loose.length}</h4>${loose.map(i => chip(i, {dur:true, handle:true})).join('')}</div>` : '')
-    + groups.map(g => `<div class="pool-group"><h4><span class="dot" style="background:${g.p.color}"></span>${esc(g.p.name)} · ${g.its.length} 项未安排</h4>${g.its.slice(0, 12).map(i => chip(i, {dur:true, handle:true})).join('')}${g.its.length > 12 ? `<button class="link" type="button" data-openproj="${g.p.id}" style="font-size:12px;text-align:left">还有 ${g.its.length - 12} 项，去项目里看</button>` : ''}</div>`).join('');
+    + (loose.length ? grp('_', '独立事项', null, loose) : '')
+    + groups.map(g => grp(g.p.id, g.p.name, g.p.color, g.its, g.its.length > 12 ? `<button class="link" type="button" data-openproj="${g.p.id}" style="font-size:12px;text-align:left">还有 ${g.its.length - 12} 项，去项目里看</button>` : '')).join('');
 }
 
 /* ================= main render ================= */
@@ -1684,10 +1701,11 @@ function openReschedule(tasks){
     <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="resched-ok">按这个安排</button></div>`, {wide:true});
   $('#resched-ok').addEventListener('click', () => { closeSheet(); commit(plan.map(({it,date}) => ({col:'items', id: it.id, data:{...S.items[it.id], date}})), `已重新安排 ${plan.length} 件任务`); });
 }
-function autoSchedule(pid){
+function autoSchedule(pid, mid){
   const p = derive().projMap.get(pid); if (!p) return;
   const t = today(), a = allocate(t).byProj[pid] || {};
-  const tasks = projTasks(pid).filter(i => !i.done && !i.date).sort((x,y) => { const mi = m => { const k = p.modules.findIndex(z => z.id === m); return k < 0 ? 999 : k; }; return (mi(x.module) - mi(y.module)) || (x.order - y.order); });
+  const scoped = mid !== undefined ? projTasks(pid).filter(i => !i.done && !i.date && (i.module || '') === mid) : projTasks(pid).filter(i => !i.done && !i.date);
+  const tasks = scoped.sort((x,y) => { const mi = m => { const k = p.modules.findIndex(z => z.id === m); return k < 0 ? 999 : k; }; return (mi(x.module) - mi(y.module)) || (x.order - y.order); });
   const days = Object.keys(a).filter(d => d >= t).sort();
   if (!days.length){ toast('这个项目没有可排的日子：检查 Deadline 和每天可投入的时间'); return; }
   // spread tasks along the cumulative allocation curve, after work already on the calendar
@@ -1695,8 +1713,8 @@ function autoSchedule(pid){
   let pos = sum(projTasks(pid).filter(i => !i.done && i.date && i.date >= t).map(i => i.hours));
   const changes = [];
   for (const it of tasks){
-    const h = it.hours || 0.5, mid = pos + h/2;
-    let k = cum.findIndex(v => v >= mid - 1e-6); if (k < 0) k = days.length - 1;
+    const h = it.hours || 0.5, mp = pos + h/2;
+    let k = cum.findIndex(v => v >= mp - 1e-6); if (k < 0) k = days.length - 1;
     changes.push({col:'items', id: it.id, data:{...S.items[it.id], date: days[k]}});
     pos += h;
   }
@@ -1941,6 +1959,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-toggle]'))){ e.preventDefault(); toggleDone(el.dataset.toggle); if (dayRefresh) setTimeout(dayRefresh, 0); return; }
   if ((el = c('[data-timer-item]'))){ startTimer('item', el.dataset.timerItem); return; }
   if ((el = c('[data-progress]'))){ logProgress(el.dataset.progress); return; }
+  if ((el = c('[data-poolt]'))){ const k = el.dataset.poolt; ui.poolOpen[k] = !(ui.poolOpen[k] !== false); try { localStorage.setItem('runway-pool', JSON.stringify(ui.poolOpen)); } catch(e){} renderPool(); return; }
   if ((el = c('[data-timer-proj]'))){ startTimer('project', el.dataset.timerProj); return; }
   if ((el = c('[data-move]'))){ moveItem(el.dataset.move, el.dataset.to); return; }
   if ((el = c('[data-del]'))){ const it = S.items[el.dataset.del]; if (it){ put('items', el.dataset.del, null, `已删除「${it.title}」`); if (dayRefresh) setTimeout(dayRefresh, 0); } return; }
@@ -1955,7 +1974,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-add]'))){ editItem(null, {date: el.dataset.add}); return; }
   if ((el = c('[data-open]'))){ openDay(el.dataset.open); return; }
   if ((el = c('[data-bulk]'))){ const f = el.closest('[data-addtask]'); bulkAdd(ui.proj, f ? f.dataset.addtask : ''); return; }
-  if ((el = c('[data-autosched]'))){ autoSchedule(el.dataset.autosched); return; }
+  if ((el = c('[data-autosched]'))){ autoSchedule(el.dataset.autosched, el.dataset.mod !== undefined ? el.dataset.mod : undefined); return; }
   if ((el = c('[data-ai]'))){ aiBreakdown(el.dataset.ai); return; }
   if ((el = c('[data-addmod]'))){ const pid = el.dataset.addmod; openSheet(`<h2>新模块<button class="x" type="button" data-close aria-label="关闭">×</button></h2><form id="mod-form" class="inline"><input class="inp" id="mod-name" placeholder="模块名，例如：Fixed Income" style="flex:1" autofocus><button class="primary" type="submit">添加</button></form>`); $('#mod-form').addEventListener('submit', ev => { ev.preventDefault(); const n = $('#mod-name').value.trim(); if (!n) return; const p = S.projects[pid]; closeSheet(); put('projects', pid, {...p, modules:[...(p.modules || []), {id: uid('m'), name: n}]}, `已添加模块「${n}」`); }); return; }
   if ((el = c('[data-renmod]'))){ const pid = ui.proj, mid = el.dataset.renmod; const p = S.projects[pid]; const m = (p.modules || []).find(x => x.id === mid); openSheet(`<h2>重命名模块<button class="x" type="button" data-close aria-label="关闭">×</button></h2><form id="mod-form" class="inline"><input class="inp" id="mod-name" value="${esc(m.name)}" style="flex:1" autofocus><button class="primary" type="submit">保存</button></form>`); $('#mod-form').addEventListener('submit', ev => { ev.preventDefault(); const n = $('#mod-name').value.trim(); if (!n) return; closeSheet(); put('projects', pid, {...p, modules: p.modules.map(x => x.id === mid ? {...x, name:n} : x)}, '已保存'); }); return; }
