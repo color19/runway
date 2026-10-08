@@ -119,15 +119,10 @@ kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border
 .banner{margin:0 20px 12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
 .banner{position:sticky;top:0;z-index:5}
 .rings.collapsed{display:none}
-/* scrolled past the page header: the banner stays on top as a compact strip of projects */
+/* scrolled past the page header: the banner stays on top in full, projects included */
 .banner.stuck{box-shadow:0 6px 18px rgba(0,0,0,.18);background-color:var(--surface)}
 .banner.stuck{background-image:none}
-.banner.stuck:not(.pinned){padding-top:8px;padding-bottom:8px;gap:6px}
-.banner.stuck:not(.pinned) .runway,.banner.stuck:not(.pinned) .warnbar,.banner.stuck:not(.pinned) .countdowns,.banner.stuck:not(.pinned) .ring .hint:not(.mono){display:none}
-.banner.stuck:not(.pinned) .banner-head p{font-size:12px;margin:0}.banner.stuck:not(.pinned) .banner-head .big{font-size:16px}
-.banner.stuck:not(.pinned) .rings,.banner.stuck:not(.pinned) .rings.collapsed{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none}
-.banner.stuck:not(.pinned) .ring{flex:none;gap:7px}
-.banner.stuck:not(.pinned) .ring svg{width:24px;height:24px}
+
 .banner-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .banner-head p{margin:0}
 .big{font-family:var(--f-display);font-size:22px;font-weight:600;color:var(--accent)}
@@ -154,7 +149,7 @@ kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border
 .okbar{font-size:12px;border-radius:8px;padding:6px 10px;background:var(--good-soft);color:var(--good)}
 
 .view{flex:1 0 auto;padding:0 20px 24px;position:relative}
-.main{overflow-y:auto;overscroll-behavior:contain}
+.main{overflow-y:auto;overscroll-behavior:contain;overflow-anchor:none}
 .main>.top,.main>.banner{flex:none}
 
 /* month */
@@ -338,6 +333,16 @@ button.pill{border:0;cursor:pointer;font-family:inherit}
 .poolhd .chev{transition:transform .15s ease;flex-shrink:0}
 .poolhd[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .pool-group.collapsed{gap:0}
+/* scroll reveal (only after moving to a page) + title entrance */
+@media (prefers-reduced-motion:no-preference){
+  #view .rv{opacity:0;transform:translateY(26px);animation:none!important}
+  #view .cards>.rv:nth-child(odd){transform:translateY(42px) rotate(-2.5deg)}
+  #view .cards>.rv:nth-child(even){transform:translateY(42px) rotate(2.5deg)}
+  #view .rv.rv-in{opacity:1;transform:none;transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1)}
+  #title.tin{animation:titleIn .8s cubic-bezier(.16,1,.3,1)}
+  @keyframes titleIn{from{opacity:0;transform:translateY(16px);filter:blur(10px)}to{opacity:1;transform:none;filter:none}}
+}
+
 .capacity-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .capacity-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:4px 0}
 .capacity-metrics>div{padding:2px 14px;border-left:1px solid var(--line)}
@@ -821,7 +826,7 @@ function projStatus(p, D = today()){
 }
 
 /* ================= ui state ================= */
-const ui = { go:null, mode:'month', cursor:null, pool: window.innerWidth > 1100, poolOpen:{}, expand:false, list:{q:'', f:'open', p:'', tag:''}, stats:{period:'30', off:0}, book:{i:0}, proj:null };
+const ui = { go:null, mode:'month', cursor:null, pool: window.innerWidth > 1100, poolOpen:{}, expand:true, list:{q:'', f:'open', p:'', tag:''}, stats:{period:'30', off:0}, book:{i:0}, proj:null };
 try { Object.assign(ui.poolOpen, JSON.parse(localStorage.getItem('runway-pool') || '{}')); } catch(e){}
 try { const o = JSON.parse(localStorage.getItem('runway-ui') || '{}'); if (o.mode) ui.mode = o.mode; if (typeof o.pool === 'boolean' && window.innerWidth > 1100) ui.pool = o.pool; if (o.expand) ui.expand = true; } catch(e){}
 function saveUi(){ try { localStorage.setItem('runway-ui', JSON.stringify({mode:ui.mode, pool:ui.pool, expand:ui.expand})); } catch(e){} }
@@ -885,8 +890,8 @@ function bannerHTML(D = today()){
   const pct = clamp(done/scale*100, 0, 100), lp = clamp(line/scale*100, 2, 98);
   const msg = met ? (done - line > 0.05 ? `<b>✓ ${word}的航速跟上了</b> · 多飞了 ${fmtH(done-line)}，后面几天可以松点油门` : `<b>✓ ${word}的航速刚好</b> · 照这个速度，准时落地`) : (done > 0 ? `还差 <span class="big">${fmtH(line-done)}</span> 跟上${word}的航速` : `${word}航速 <span class="big">${fmtH(line)}</span>，照这个速度飞，准时落地`);
   const overCap = cap > 0 && line > cap + 0.05 ? `<div class="warnbar">${word}建议 ${fmtH(line)}，超过了可投入的 ${fmtH(cap)}。可以提前某个项目的开始日期、放宽 Deadline，或在设置里调高每天可投入的时间。</div>` : cap === 0 && line > 0 ? `<div class="warnbar">${word}设成了休息日，但已经过了计划完成日，剩下的只能挤进来。</div>` : '';
-  const rings = dv.projects.length ? `<div class="rings${ui.expand ? '' : ' collapsed'}">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; return `<div class="ring">${donut(q ? d/q : 1, p.color)}<div><b>${esc(p.name)}</b><span class="mono hint">${fmtH(d)} / ${fmtH(q)}</span> <span class="pill ${st.k}" title="${esc(st.text)}">${st.label}</span>${later ? `<div class="hint">连续两天不做，每天要从 ${fmtH(st.need)} 涨到 ${fmtH(later)}</div>` : ''}</div></div>`; }).join('')}</div>` : '';
-  return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="icon" type="button" data-act="expand" aria-label="${ui.expand ? '收起' : '展开每个项目'}" title="展开：看每个项目">${ui.expand ? '−' : '＋'}</button><button class="icon" type="button" data-act="pin" aria-pressed="${settings().pinned}" title="${settings().pinned ? '取消：往下翻时缩成一行' : '往下翻时保持完整显示'}" style="${settings().pinned ? 'color:var(--accent)' : ''}">${ICON.pin}</button></div></div>
+  const rings = dv.projects.length ? `<div class="rings${ui.expand ? '' : ' collapsed'}">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; return `<div class="ring">${donut(q ? d/q : 1, p.color)}<div><b>${esc(p.name)}</b><span class="mono hint">${fmtH(d)} / ${fmtH(q)}</span> <span class="pill ${st.k}" title="${esc(st.text)}">${st.label}</span>${later && later - st.need >= 1/60 ? `<div class="hint">要是歇两天，之后每天多 ${fmtH(later - st.need)}</div>` : ''}</div></div>`; }).join('')}</div>` : '';
+  return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="icon" type="button" data-act="expand" aria-label="${ui.expand ? '收起' : '展开每个项目'}" title="展开：看每个项目">${ui.expand ? '−' : '＋'}</button></div></div>
     <div class="runway ${met ? 'met' : ''}" role="img" aria-label="已飞 ${fmtH(done)}，航速 ${fmtH(line)}"><div class="dash"></div><div class="fill" style="width:${pct}%"></div><div class="line" style="left:calc(${lp}% - 1px)"><span>航速 ${fmtH(line)}</span></div><div class="plane ${met ? 'up' : ''}" style="left:clamp(14px, ${pct}%, calc(100% - 14px))">${ICON.plane}</div></div>
     ${overCap}${rings}`;
 }
@@ -1127,7 +1132,7 @@ function viewProjectDetail(p){
     </div>
     <div class="inline">
       ${unsched.length ? `<button class="primary" type="button" data-autosched="${p.id}">把全部 ${unsched.length} 个未排期任务排进日历</button>` : ''}
-      <button class="ghost" type="button" data-ai="${p.id}">✦ 让 Claude 帮我拆任务</button>
+      <button class="ghost" type="button" data-ai="${p.id}">✦ AI 智能拆解任务</button>
       <button class="ghost" type="button" data-addmod="${p.id}">＋ 新模块</button>
       <button class="ghost" type="button" data-timer-proj="${p.id}">${timerOn('project', p.id) ? '■ 停止计时' : '▶ 为这个项目计时'}</button>
     </div>
@@ -1186,12 +1191,16 @@ function viewStats(){
   const dTot = sum(dist.map(x => x.v));
   let acc = 0; const C = 2*Math.PI*36;
   const donutSvg = `<svg width="110" height="110" viewBox="0 0 110 110" role="img" aria-label="时间分布"><circle cx="55" cy="55" r="36" fill="none" stroke="var(--sunk)" stroke-width="16"/>${dist.map(x => { const len = C * x.v/dTot; const s = `<circle cx="55" cy="55" r="36" fill="none" stroke="${x.color}" stroke-width="16" stroke-dasharray="${len} ${C}" stroke-dashoffset="${-acc}" transform="rotate(-90 55 55)"><title>${esc(x.label)} ${fmtH(x.v)}</title></circle>`; acc += len; return s; }).join('')}<text x="55" y="52" text-anchor="middle" style="font-size:11px;fill:var(--muted)">总投入</text><text x="55" y="68" text-anchor="middle" style="font-size:14px;fill:var(--ink);font-family:var(--f-display)">${fmtH(dTot)}</text></svg>`;
-  // heatmap (last 53 weeks ending today)
-  const hs = weekStartOf(add(t, -364)); const cells = []; let maxE = 0;
+  // heatmap: from the month of first use to today
+  const used = [...dv.effort.keys(), ...dv.doneCount.keys(), ...dv.items.filter(i => i.date && i.date <= t).map(i => i.date)].filter(d => d && d <= t).sort();
+  const first = used[0] || t;
+  const firstMonth = first.slice(0, 7) + '-01';
+  const hs = weekStartOf(firstMonth); const cells = []; let maxE = 0;
   for (let d = hs; d <= t; d = add(d,1)){ const v = dv.effort.get(d) || 0; maxE = Math.max(maxE, v); cells.push([d, v]); }
   const lvl = v => v <= 0 ? 0 : v < maxE*.25 ? 1 : v < maxE*.5 ? 2 : v < maxE*.75 ? 3 : 4;
   const fills = ['var(--sunk)', 'color-mix(in srgb,var(--accent) 30%,var(--surface))', 'color-mix(in srgb,var(--accent) 55%,var(--surface))', 'color-mix(in srgb,var(--accent) 78%,var(--surface))', 'var(--accent)'];
-  const heat = `<div class="chart"><svg class="heat" viewBox="0 0 ${54*13 + 20} ${7*13 + 18}" role="img" aria-label="完成热力图">${cells.map(([d,v], i) => { const w = Math.floor(i/7), r = i % 7; return `<rect x="${20 + w*13}" y="${r*13}" width="11" height="11" fill="${fills[lvl(v)]}"><title>${cnd(d)}：投入 ${fmtH(v)} · 划掉 ${dv.doneCount.get(d) || 0} 件</title></rect>`; }).join('')}${cells.filter(([d]) => parse(d).getDate() === 1).map(([d]) => { const i = cells.findIndex(c => c[0] === d); return `<text x="${20 + Math.floor(i/7)*13}" y="${7*13 + 12}">${parse(d).getMonth()+1}月</text>`; }).join('')}</svg></div><div class="legend"><span>少</span>${fills.map(f => `<i style="background:${f};width:11px;height:11px"></i>`).join('')}<span>多</span></div>`;
+  const nW = Math.ceil(cells.length / 7), hW = nW*13 + 20, hH = 7*13 + 18;
+  const heat = `<div class="chart" style="overflow-x:auto"><svg class="heat" viewBox="0 0 ${hW} ${hH}" style="width:${Math.max(hW*1.5, 240)}px;min-width:0;max-width:100%;height:auto" role="img" aria-label="完成热力图">${cells.map(([d,v], i) => { const w = Math.floor(i/7), r = i % 7; return `<rect x="${20 + w*13}" y="${r*13}" width="11" height="11" fill="${d < firstMonth ? 'transparent' : fills[lvl(v)]}"><title>${cnd(d)}：投入 ${fmtH(v)} · 划掉 ${dv.doneCount.get(d) || 0} 件</title></rect>`; }).join('')}${cells.filter(([d]) => parse(d).getDate() === 1).map(([d]) => { const i = cells.findIndex(c => c[0] === d); return `<text x="${20 + Math.floor(i/7)*13}" y="${7*13 + 12}">${parse(d).getMonth()+1}月</text>`; }).join('')}</svg></div><div class="legend"><span>少</span>${fills.map(f => `<i style="background:${f};width:11px;height:11px"></i>`).join('')}<span>多</span></div>`;
   // weekday rhythm
   const wk = Array(7).fill(0), wn = Array(7).fill(0);
   for (const d of now.ds){ wk[monIdx(d)] += dv.effort.get(d) || 0; wn[monIdx(d)]++; }
@@ -1217,7 +1226,7 @@ function viewStats(){
       <div><h2>时间分布</h2>${dist.length ? `<div class="dist">${donutSvg}<ul>${dist.map(x => `<li><span class="dot" style="background:${x.color}"></span><span style="flex:1;min-width:0">${esc(x.label)}</span><b class="mono">${Math.round(x.v/dTot*100)}%</b></li>`).join('')}</ul></div>` : '<div class="empty">这段时间还没有完成记录。</div>'}</div>
       <div><h2>一周节奏 <span class="hint">${wavg[best] ? `最投入的一天：${WDN[best]}` : ''}</span></h2>${rhythm}</div>
     </div>
-    <h2>完成热力图 <span class="hint">最近一年</span></h2>${heat}
+    <h2>完成热力图 <span class="hint">从 ${parse(first).getFullYear()}年${parse(first).getMonth()+1}月开始使用算起</span></h2>${heat}
     <h2>项目进度</h2>${dv.projects.length ? dv.projects.map(p => { const st = projStatus(p); return `<div class="row"><span class="dot" style="background:${p.color}"></span><span class="t" data-openproj="${p.id}">${esc(p.name)}</span><div class="stack" style="width:30%;--c:${p.color}"><i class="d" style="width:${st.total ? st.done/st.total*100 : 0}%"></i></div><span class="meta">${st.total ? Math.round(st.done/st.total*100) : 0}% · ${st.left > 0 ? `还剩 ${st.left} 天` : '已过期'}</span></div>`; }).join('') : '<div class="empty">还没有项目。</div>'}
     <h2>✦ 周回顾</h2>
     <div class="card soft"><p class="hint" style="margin:0">整理最近 7 天的投入、任务进展和留言。复制提示词给你常用的 AI，生成回顾和下周建议。</p><div class="inline"><button class="primary" type="button" data-act="review">准备周回顾</button></div><div class="ai-out" id="review-out" ${ui.review ? '' : 'hidden'}>${esc(ui.review || '')}</div></div>
@@ -1375,11 +1384,13 @@ function render(){
   const view = $('#view'), sc = scroller(), st = sc.scrollTop;
   const key = [ui.go, ui.proj || '', ui.mode, isCal ? (ui.mode === 'month' ? ui.cursor.slice(0,7) : weekStartOf(ui.cursor)) : ''].join('|');
   if (html === view._html && key === view._key) return;   // nothing changed: leave the DOM alone, no flash
-  view.classList.toggle('enter', key !== view._key);
+  const entered = key !== view._key;
+  view.classList.toggle('enter', entered);
   view._key = key; view._html = html;
   view.innerHTML = html;
   sc.scrollTop = st;
   syncStuck();
+  if (entered){ armReveal(view); titleIn(); }
 }
 
 /* ================= quick-add natural language ================= */
@@ -1799,7 +1810,7 @@ function planReschedule(tasks){
   const t0 = today(), dv = derive();
   const projOf = it => it.project ? dv.projMap.get(it.project) : null;
   const endOf = it => { const p = projOf(it); if (!p) return null; const w = windowOf(p, t0); return w ? w[1] : add(t0, -1); };
-  const sorted = tasks.slice().sort((a,b) => ((endOf(a) || '9999') .localeCompare(endOf(b) || '9999')) || (b.hours - a.hours));
+  const sorted = tasks.slice().sort((a,b) => ((endOf(a) || '9999').localeCompare(endOf(b) || '9999')) || (a.project === b.project && (a.module || '') === (b.module || '') ? taskOrder(a, b) : 0) || (b.hours - a.hours));
   const days = range(t0, add(t0, 45));
   const moving = new Set(sorted.map(i => i.id));
   const used = new Map(days.map(d => [d, sum(itemsOn(d).filter(i => i.kind === 'task' && !i.done && !moving.has(i.id)).map(i => i.hours)) + (d === t0 ? (dv.effort.get(t0) || 0) : 0)]));
@@ -1843,11 +1854,16 @@ function openReschedule(tasks){
     commit(pick.map(({it,date}) => ({col:'items', id: it.id, data:{...S.items[it.id], date}})), `已重新安排 ${pick.length} 件任务${pick.some(x => !x.date) ? '（无法安排的放回了任务池）' : ''}`);
   });
 }
+// "Reading 3" before "Reading 12", "第2章" before "第10章"; tasks without numbers keep the order they were added
+const numCmp = new Intl.Collator('zh', {numeric:true, sensitivity:'base'});
+const hasNum = t => /\d/.test(t) || /第[一二三四五六七八九十百]+[章节课讲篇]/.test(t);
+const cnOrd = t => t.replace(/第([一二三四五六七八九十百]+)([章节课讲篇])/g, (m, n, u) => `第${cnNum(n)}${u}`);
+function taskOrder(x, y){ return (hasNum(x.title) && hasNum(y.title)) ? (numCmp.compare(cnOrd(x.title), cnOrd(y.title)) || (x.order - y.order)) : (x.order - y.order); }
 function autoSchedule(pid, mid){
   const p = derive().projMap.get(pid); if (!p) return;
   const t = today(), a = allocate(t).byProj[pid] || {};
   const scoped = mid !== undefined ? projTasks(pid).filter(i => !i.done && !i.date && (i.module || '') === mid) : projTasks(pid).filter(i => !i.done && !i.date);
-  const tasks = scoped.sort((x,y) => { const mi = m => { const k = p.modules.findIndex(z => z.id === m); return k < 0 ? 999 : k; }; return (mi(x.module) - mi(y.module)) || (x.order - y.order); });
+  const tasks = scoped.sort((x,y) => { const mi = m => { const k = p.modules.findIndex(z => z.id === m); return k < 0 ? 999 : k; }; return (mi(x.module) - mi(y.module)) || taskOrder(x, y); });
   const days = Object.keys(a).filter(d => d >= t).sort();
   if (!days.length){ toast('这个项目没有可排的日子：检查 Deadline 和每天可投入的时间'); return; }
   // spread tasks along the cumulative allocation curve, after work already on the calendar
@@ -1971,48 +1987,105 @@ function showExt(id){
 
 /* ================= Claude (sample) ================= */
 async function getSample(){ try { return window.claude && window.claude.use ? await window.claude.use('sample') : null; } catch(e){ return null; } }
-function sampleErr(e){ const c = e && e.code; return c === 'not_granted' ? '需要你允许这个页面使用 Claude。' : c === 'rate_limited' ? 'Claude 现在有点忙，过一会儿再试。' : c === 'cancelled' ? '已取消。' : '这次没生成出来，稍后再试。'; }
-async function aiBreakdown(pid){
-  const p = derive().projMap.get(pid); if (!p) return;
-  openSheet(`<h2>✦ 让 Claude 帮我拆任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
-    <p class="hint" style="margin:0">说说这个项目要做什么、手上有什么材料、你卡在哪。Claude 会拆成模块和任务，并估计每个任务的小时数。你确认后才会加进来。</p>
-    <div class="field"><label for="ai-desc">描述</label><textarea id="ai-desc" style="min-height:120px" placeholder="例如：CFA Level 1 最后 6 周。Ethics 和 FRA 已经过完一遍，Fixed Income 和 Derivatives 还弱，想做 3 套完整模考。">${esc(p.note)}</textarea></div>
-    ${splitSeg(S.projects[pid])}
-    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="ai-go">开始拆解</button></div>
-    <div id="ai-res"></div>`, {wide:true});
-  $('#ai-go').addEventListener('click', async () => {
-    const sample = await getSample();
-    const out = $('#ai-res');
-    if (!sample){ out.innerHTML = '<div class="warnbar">这个页面现在用不了 Claude（只能在 Claude 里打开时使用）。</div>'; return; }
-    const btn = $('#ai-go'); btn.disabled = true; btn.textContent = '正在拆解…';
-    const t = today(); const wd = workdays(p, t);
-    const existing = projTasks(pid).map(i => `${i.title} (${i.est}h${i.done ? ', 已完成' : ''})`).slice(0, 60).join('; ');
-    const prompt = `你是学习和项目规划助手。请把下面这个项目拆成 2 到 6 个模块，每个模块 3 到 12 个具体可执行的任务。每个任务的预计用时以小时计，在 0.25 到 6 之间，按 0.25 取整。任务名用中文，专有名词可保留英文，简洁具体。不要重复已有任务。
+function sampleErr(e){ const c = e && e.code; return c === 'not_granted' ? '需要你允许这个页面使用 AI。' : c === 'rate_limited' ? 'AI 现在有点忙，过一会儿再试。' : c === 'cancelled' ? '已取消。' : '这次没生成出来，稍后再试。'; }
+/* AI breakdown. In Claude: Claude does it directly. Elsewhere (share version, plain browser):
+   build a prompt, copy it to any AI, paste the answer back, preview, add. */
+function aiPrompt(p, desc){
+  const t = today(), wd = workdays(p, t);
+  const existing = projTasks(p.id).map(i => `${i.title} (${i.est}h${i.done ? ', 已完成' : ''})`).slice(0, 60).join('; ');
+  return `你是学习和项目规划助手。请把下面这个项目拆成 2 到 6 个模块，每个模块 3 到 12 个具体可执行的任务。每个任务的预计用时以小时计，在 0.25 到 6 之间，按 0.25 取整。任务名用中文，专有名词可保留英文，简洁具体。不要重复已有任务。
 项目：${p.name}
 今天：${t}；Deadline：${p.deadline}（当天不计入投入）；提前完成天数：${p.buffer}
 截止前可用的工作日 ${wd.length} 天，总共约 ${fmtH(sum(wd.map(capOf)))} 可投入时间（这个项目和其他项目共享）。
 已有任务：${existing || '无'}
-用户描述：${$('#ai-desc').value.trim() || '（没写）'}
-只输出 JSON，格式：{"modules":[{"name":"模块名","tasks":[{"title":"任务名","hours":1.5}]}],"note":"一句话说明总量是否现实"}`;
-    try {
-      const res = await sample.json(prompt, {modelTier:'default'});
-      const mods = (res && Array.isArray(res.modules)) ? res.modules.filter(m => m && m.name && Array.isArray(m.tasks)) : [];
-      if (!mods.length) throw {code:'empty'};
-      const total = sum(mods.flatMap(m => m.tasks.map(x => Number(x.hours) || 0)));
-      out.innerHTML = `<div class="okbar">拆成 ${mods.length} 个模块、${sum(mods.map(m => m.tasks.length))} 个任务，共 ${fmtH(total)}。${esc(res.note || '')}</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${mods.map((m, mi) => `<div class="module"><header><label class="inline"><input type="checkbox" class="check" data-aim="${mi}" checked><b>${esc(m.name)}</b></label><span class="hint">${m.tasks.length} 个 · ${fmtH(sum(m.tasks.map(x => Number(x.hours)||0)))}</span></header><div class="tasks">${m.tasks.map(x => `<div class="trow"><span class="t">${esc(x.title)}</span><span class="h">${fmtH(Number(x.hours)||0)}</span></div>`).join('')}</div></div>`).join('')}</div>
-        <div class="actions" style="margin-top:8px"><span class="hint push">加进来以后，可以在项目里逐个改名、改时间或删掉。</span><button class="primary" type="button" id="ai-add">加进项目</button></div>`;
-      $('#ai-add').addEventListener('click', () => {
-        const keep = mods.filter((m, mi) => $(`[data-aim="${mi}"]`).checked);
-        const proj = {...S.projects[pid]}; const modules = (proj.modules || []).slice(); const changes = []; let o = Date.now() % 1e9;
-        let addedH = 0;
-        for (const m of keep){ let mm = modules.find(z => z.name === m.name); if (!mm){ mm = {id: uid('m'), name: m.name}; modules.push(mm); } for (const x of m.tasks){ const h = Math.max(0, Number(x.hours) || 0); addedH += h; changes.push({col:'items', id: uid('i'), data:{title: String(x.title).slice(0,120), date:null, hours: h, est: h, kind:'task', project: pid, module: mm.id, tags:[], note:'', done:false, actual:null, doneOn:null, order: o++}}); } }
-        const lump = splitPref() && lumpLeftOf(proj) > 0 && addedH > 0 ? lumpCut(proj, addedH) : proj.lump;
-        changes.unshift({col:'projects', id: pid, data:{...proj, modules, lump}});
-        closeSheet(); commit(changes, `已加 ${changes.length - 1} 个任务`);
-      });
-    } catch(e){ out.innerHTML = `<div class="warnbar">${e && e.code === 'empty' ? 'Claude 没给出可用的拆解，换个说法再试一次。' : sampleErr(e)}</div>`; }
-    finally { btn.disabled = false; btn.textContent = '重新拆解'; }
+用户描述：${desc || '（没写）'}
+
+只输出一个 JSON 代码块，不要任何其他文字，格式严格如下：
+\`\`\`json
+{"modules":[{"name":"模块名","tasks":[{"title":"任务名","hours":1.5}]}],"note":"一句话说明总量是否现实"}
+\`\`\``;
+}
+// tolerant parser: JSON (with or without code fences / extra text), or "## 模块" + "- 任务 | 1.5h" lines
+function parseBreakdown(txt){
+  const raw = String(txt || '').trim(); if (!raw) return null;
+  const tryJSON = s => { try { return JSON.parse(s); } catch(e){ return null; } };
+  let obj = null;
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) obj = tryJSON(fence[1].trim());
+  if (!obj){ const a = raw.indexOf('{'), b = raw.lastIndexOf('}'); if (a >= 0 && b > a) obj = tryJSON(raw.slice(a, b + 1).replace(/[“”]/g, '"').replace(/,\s*([}\]])/g, '$1')); }
+  if (obj && Array.isArray(obj.modules)){
+    const mods = obj.modules.filter(m => m && m.name && Array.isArray(m.tasks)).map(m => ({name: String(m.name).slice(0,60), tasks: m.tasks.filter(x => x && x.title).map(x => ({title: String(x.title).slice(0,120), hours: Math.max(0, Number(x.hours) || 0)}))})).filter(m => m.tasks.length);
+    return mods.length ? {mods, note: obj.note || ''} : null;
+  }
+  const mods = []; let cur = null;
+  for (const line of raw.split('\n').map(l => l.trim()).filter(Boolean)){
+    const h = line.match(/^#{1,4}\s*(.+)$/) || line.match(/^(?:模块|Module)\s*[:：]?\s*(.+)$/i);
+    if (h){ cur = {name: h[1].replace(/[*_]/g,'').trim(), tasks: []}; mods.push(cur); continue; }
+    const t = line.match(/^(?:[-*•]|\d+[.)])\s*(.+?)(?:\s*[|｜,，·]\s*|\s+)(\d+(?:\.\d+)?)\s*(?:h|小时|hrs?)?\s*$/i);
+    if (t){ if (!cur){ cur = {name:'任务', tasks: []}; mods.push(cur); } cur.tasks.push({title: t[1].replace(/[*_]/g,'').trim(), hours: Number(t[2])}); }
+  }
+  const ok = mods.filter(m => m.tasks.length);
+  return ok.length ? {mods: ok, note: ''} : null;
+}
+function showBreakdown(out, pid, mods, note){
+  const total = sum(mods.flatMap(m => m.tasks.map(x => Number(x.hours) || 0)));
+  out.innerHTML = `<div class="okbar">拆成 ${mods.length} 个模块、${sum(mods.map(m => m.tasks.length))} 个任务，共 ${fmtH(total)}。${esc(note || '')}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${mods.map((m, mi) => `<div class="module"><header><label class="inline"><input type="checkbox" class="check" data-aim="${mi}" checked><b>${esc(m.name)}</b></label><span class="hint">${m.tasks.length} 个 · ${fmtH(sum(m.tasks.map(x => Number(x.hours)||0)))}</span></header><div class="tasks">${m.tasks.map(x => `<div class="trow"><span class="t">${esc(x.title)}</span><span class="h">${fmtH(Number(x.hours)||0)}</span></div>`).join('')}</div></div>`).join('')}</div>
+    <div class="actions" style="margin-top:8px"><span class="hint push">加进来以后，可以在项目里逐个改名、改时间或删掉。</span><button class="primary" type="button" id="ai-add">加进项目</button></div>`;
+  $('#ai-add').addEventListener('click', () => {
+    const keep = mods.filter((m, mi) => $(`[data-aim="${mi}"]`).checked);
+    const proj = {...S.projects[pid]}; const modules = (proj.modules || []).slice(); const changes = []; let o = Date.now() % 1e9;
+    let addedH = 0;
+    for (const m of keep){ let mm = modules.find(z => z.name === m.name); if (!mm){ mm = {id: uid('m'), name: m.name}; modules.push(mm); } for (const x of m.tasks){ const h = Math.max(0, Number(x.hours) || 0); addedH += h; changes.push({col:'items', id: uid('i'), data:{title: String(x.title).slice(0,120), date:null, hours: h, est: h, kind:'task', project: pid, module: mm.id, tags:[], note:'', done:false, actual:null, doneOn:null, order: o++}}); } }
+    if (!changes.length){ toast('先勾选至少一个模块'); return; }
+    const lump = splitPref() && lumpLeftOf(proj) > 0 && addedH > 0 ? lumpCut(proj, addedH) : proj.lump;
+    changes.unshift({col:'projects', id: pid, data:{...proj, modules, lump}});
+    closeSheet(); commit(changes, `已加 ${changes.length - 1} 个任务`);
+  });
+}
+async function aiBreakdown(pid){
+  const p = derive().projMap.get(pid); if (!p) return;
+  const sample = SHARE ? null : await getSample();
+  const desc = `<div class="field"><label for="ai-desc">描述</label><textarea id="ai-desc" style="min-height:110px" placeholder="例如：CFA Level 1 最后 6 周。Ethics 和 FRA 已经过完一遍，Fixed Income 和 Derivatives 还弱，想做 3 套完整模考。">${esc(p.note)}</textarea></div>`;
+  if (sample){
+    openSheet(`<h2>✦ AI 智能拆解任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+      <p class="hint" style="margin:0">说说这个项目要做什么、手上有什么材料、你卡在哪。AI 会拆成模块和任务，并估计每个任务的小时数。你确认后才会加进来。</p>
+      ${desc}${splitSeg(S.projects[pid])}
+      <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="ai-go">开始拆解</button></div>
+      <div id="ai-res"></div>`, {wide:true});
+    $('#ai-go').addEventListener('click', async () => {
+      const out = $('#ai-res'), btn = $('#ai-go'); btn.disabled = true; btn.textContent = '正在拆解…';
+      try {
+        const res = await sample.json(aiPrompt(p, $('#ai-desc').value.trim()), {modelTier:'default'});
+        const r = parseBreakdown(JSON.stringify(res || {}));
+        if (!r) throw {code:'empty'};
+        showBreakdown(out, pid, r.mods, r.note);
+      } catch(e){ out.innerHTML = `<div class="warnbar">${e && e.code === 'empty' ? 'AI 没给出可用的拆解，换个说法再试一次。' : sampleErr(e)}</div>`; }
+      finally { btn.disabled = false; btn.textContent = '重新拆解'; }
+    });
+    return;
+  }
+  openSheet(`<h2>✦ AI 智能拆解任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+    <p class="hint" style="margin:0">三步：写下项目情况，复制提示词发给你常用的 AI（ChatGPT、Claude、Gemini、豆包、Kimi 都行），再把它返回的结果粘贴回来。确认后才会加进项目。</p>
+    ${desc}
+    <div class="actions"><button class="primary" type="button" id="ai-mk">1. 生成并复制提示词</button></div>
+    <div class="field" id="ai-pwrap" hidden><label for="ai-prompt">提示词（已复制，如果没复制上可以手动全选）</label><textarea id="ai-prompt" readonly style="min-height:150px"></textarea></div>
+    <div class="field"><label for="ai-paste">2. 把 AI 返回的结果粘贴到这里</label><textarea id="ai-paste" style="min-height:130px" placeholder='AI 会返回一段 JSON，像这样：
+{"modules":[{"name":"Fixed Income","tasks":[{"title":"第 3 章练习","hours":1.5}]}]}
+整段粘贴就行，包括 \`\`\`json 也没关系。'></textarea></div>
+    ${splitSeg(S.projects[pid])}
+    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="ai-parse">3. 预览拆解结果</button></div>
+    <div id="ai-res"></div>`, {wide:true});
+  $('#ai-mk').addEventListener('click', async () => {
+    const box = $('#ai-prompt'); box.value = aiPrompt(p, $('#ai-desc').value.trim()); $('#ai-pwrap').hidden = false;
+    try { await navigator.clipboard.writeText(box.value); toast('提示词已复制，去发给你的 AI 吧'); }
+    catch(e){ box.focus(); box.select(); toast('请按 ⌘C / Ctrl+C 复制已选中的提示词'); }
+  });
+  $('#ai-parse').addEventListener('click', () => {
+    const out = $('#ai-res'), r = parseBreakdown($('#ai-paste').value);
+    if (!r){ out.innerHTML = '<div class="warnbar">没认出拆解结果。确认粘贴的是 AI 返回的完整内容；如果 AI 加了别的文字，让它“只输出 JSON 代码块”再来一次。</div>'; return; }
+    showBreakdown(out, pid, r.mods, r.note);
+    out.scrollIntoView({behavior:'smooth', block:'start'});
   });
 }
 function weeklyReview(){
@@ -2257,6 +2330,32 @@ document.addEventListener('keydown', e => {
 
 /* month picker */
 function closePop(){ const p = $('.popover'); p && p.remove(); }
+function armReveal(view){
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  const sc = scroller(), root = sc === $('.main') ? sc : null;
+  const bottom = (root ? root.getBoundingClientRect().bottom : window.innerHeight) - 10;
+  if (armReveal.io) armReveal.io.disconnect();
+  const io = armReveal.io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('rv-in'); io.unobserve(e.target); } }), {root, threshold: 0.08});
+  view.querySelectorAll('.section>*, .cards>*').forEach(el => { if (el.getBoundingClientRect().top > bottom){ el.classList.add('rv'); io.observe(el); } });
+}
+function titleIn(){ const t = $('#title'); if (!t || matchMedia('(prefers-reduced-motion:reduce)').matches) return; t.classList.remove('tin'); void t.offsetWidth; t.classList.add('tin'); }
+let syRaf = 0;
+document.addEventListener('scroll', () => { if (syRaf) return; syRaf = requestAnimationFrame(() => { syRaf = 0; const sc = scroller(); document.documentElement.style.setProperty('--sy', String(Math.round(sc.scrollTop))); }); }, {capture:true, passive:true});
+function geoSvg(){ return `<svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice"><circle cx="800" cy="500" r="420"/><circle cx="800" cy="1180" r="680"/><circle cx="800" cy="-180" r="680"/><line x1="0" y1="0" x2="1600" y2="1000"/><line x1="1600" y1="0" x2="0" y2="1000"/><line x1="800" y1="0" x2="800" y2="1000"/><line x1="0" y1="500" x2="1600" y2="500"/><rect x="618" y="250" width="364" height="500"/><rect x="382" y="250" width="236" height="236"/><rect x="982" y="514" width="236" height="236"/><rect x="382" y="250" width="146" height="146"/><rect x="1072" y="604" width="146" height="146"/><line x1="0" y1="250" x2="1600" y2="250"/><line x1="0" y1="750" x2="1600" y2="750"/></svg>`; }
+function editionMotion(){
+  if (!document.querySelector('.edition-bar')) return;
+  const g = document.createElement('div'); g.className = 'geo'; g.setAttribute('aria-hidden','true'); g.innerHTML = geoSvg(); document.body.prepend(g);
+  let seen = false; try { seen = sessionStorage.getItem('rw-intro') === '1'; sessionStorage.setItem('rw-intro','1'); } catch(e){}
+  if (seen || matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  const o = document.createElement('div'); o.className = 'intro'; o.setAttribute('aria-hidden','true');
+  o.innerHTML = geoSvg() + `<div class="frame"><b>Runway</b><span>THE STUDY EDITION</span></div>`;
+  document.body.appendChild(o);
+  const end = () => { if (o._done) return; o._done = true; o.classList.add('out'); setTimeout(() => o.remove(), 750); };
+  o.addEventListener('click', end);
+  setTimeout(() => o.classList.add('reveal'), 1500);
+  setTimeout(end, 2300);
+}
+editionMotion();
 function syncStuck(){
   const b = $('#banner'), top = $('.top'); if (!b || !top || b.hidden) return;
   const sc = scroller(), lim = sc === $('.main') ? sc.getBoundingClientRect().top : 0;
