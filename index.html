@@ -226,6 +226,7 @@ body.is-dragging,body.is-dragging *{cursor:grabbing!important;user-select:none;-
 .pill{font-size:12px;border-radius:999px;padding:1px 9px;white-space:nowrap;display:inline-block}
 .pill.good{background:var(--good-soft);color:var(--good)}
 .pill.mid{background:var(--mid-soft);color:var(--mid)}
+button.pill{border:0;cursor:pointer;font-family:inherit}
 .pill.bad{background:var(--warn-soft);color:var(--warn)}
 .pill.flat{background:var(--sunk);color:var(--muted)}
 .greet{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
@@ -325,6 +326,14 @@ body.is-dragging,body.is-dragging *{cursor:grabbing!important;user-select:none;-
 .poolhd .chev{transition:transform .15s ease;flex-shrink:0}
 .poolhd[aria-expanded="false"] .chev{transform:rotate(-90deg)}
 .pool-group.collapsed{gap:0}
+.capacity-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.capacity-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;padding:4px 0}
+.capacity-metrics>div{padding:2px 14px;border-left:1px solid var(--line)}
+.capacity-metrics>div:first-child{border:0;padding-left:0}
+.capacity-metrics small{display:block;font-size:11px;color:var(--muted)}
+.capacity-metrics strong{font-family:var(--f-display);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.capacity-metrics>div:last-child strong{color:var(--accent)}
+.capq .hint{margin:0}
 .pool .chip{font-size:13px;padding:7px 8px}
 .handle{width:14px;align-self:stretch;display:grid;place-items:center;color:var(--muted);touch-action:none;cursor:grab;flex:none}
 
@@ -466,6 +475,7 @@ details.more[open] summary{margin-bottom:10px}
 }
 @media (hover:hover) and (pointer:fine){.handle{display:none}}
 @media (prefers-reduced-motion:reduce){.page.flip,.page.flipback{animation:none}.runway .fill,.runway .plane{transition:none}}
+
 </style>
 
 <div class="app" id="app">
@@ -588,7 +598,7 @@ function persist(changes){
     const key = c.col + '/' + c.id;
     chains[key] = (chains[key] || Promise.resolve()).then(() => {
       const ref = colRef(c.col).doc(c.id);
-      return (c.data === null ? ref.delete() : ref.set(c.data)).then(() => { if (saveErr){ saveErr = false; renderRail(); } });
+      return (c.data === null ? ref.delete() : ref.set(JSON.parse(JSON.stringify(c.data)))).then(() => { if (saveErr){ saveErr = false; renderRail(); } });
     }).catch(e => {
       if (SHARE && e && e.code === 'invalid_argument'){ fallbackLocal(); return; }
       saveErr = true; renderRail();
@@ -657,7 +667,7 @@ function saveSettings(patch, label){ put('settings','main', {...settings(), ...p
 function normItem(id, it){
   const hours = it.hours != null ? Number(it.hours)||0 : (it.minutes ? Number(it.minutes)/60 : 0);
   return { id, title: it.title || '未命名', date: it.date || null, time: it.time || '', end: it.end || '', hours,
-    est: it.est != null ? Number(it.est)||hours : hours, log: it.log || {},
+    est: it.est != null ? Number(it.est)||hours : hours, log: it.log || {}, burn: it.burn || null,
     actual: it.actual != null ? Number(it.actual) : null, done: !!it.done, doneOn: it.doneOn || (it.done ? (it.date || null) : null),
     project: it.project || '', module: it.module || '', tags: Array.isArray(it.tags) ? it.tags : [], kind: KIND[it.kind] ? it.kind : 'task',
     note: it.note || '', rep: it.rep || '', order: it.order || 0 };
@@ -689,11 +699,13 @@ function derive(){
   for (const it of items){
     const hasLog = it.log && Object.keys(it.log).length > 0;
     if (hasLog) for (const [d,h] of Object.entries(it.log)){ const v = Number(h)||0; if (v) bump(effort, d, v); }
+    // progress = remaining hours retired, on the day they were retired (partial work counts the same day)
+    if (it.burn && it.kind === 'task' && it.project && progress.has(it.project)) for (const [d,h] of Object.entries(it.burn)){ const v = Number(h)||0; if (v) bump(progress.get(it.project), d, v); }
     if (!it.done || !it.doneOn) continue;
     bump(doneCount, it.doneOn, 1);
     if (it.kind !== 'task') continue;
     if (!hasLog){ const real = it.actual != null ? it.actual : it.est; bump(effort, it.doneOn, real); }
-    if (it.project && progress.has(it.project)) bump(progress.get(it.project), it.doneOn, it.est);
+    if (!it.burn && it.project && progress.has(it.project)) bump(progress.get(it.project), it.doneOn, it.est);
   }
   M = { t, items, projects, projMap, byDate, progress, effort, doneCount, alloc: new Map() };
   return M;
@@ -755,6 +767,9 @@ function projStatus(p, D = today()){
   res.need = wd.length ? remStart(p, D)/wd.length : rem;
   res.planEnd = add(p.deadline, -p.buffer);
   if (total < 1e-6){ res.k = 'flat'; res.label = '待加任务'; res.text = '还没有任务或工作量。点进项目添加任务，或填一个总工作量。'; return res; }
+  const reestN = projTasks(p.id).filter(needsReest).length;
+  res.reest = reestN;
+  if (rem < 1e-3 && reestN){ res.k = 'mid'; res.label = '需要重新估时'; res.text = `还有 ${reestN} 件没完成，但剩余时间记成了 0。点任务旁的进度图标，填一下还需要多久。`; return res; }
   if (rem < 1e-3){ res.k = 'good'; res.label = '全部完成'; res.text = '全部任务已完成。'; return res; }
   if (left <= 0){ res.k = 'bad'; res.label = '已过 Deadline'; res.text = `已过 Deadline ${-left} 天，还剩 ${fmtH(rem)}。`; return res; }
   if (p.start > D){ res.k = 'flat'; res.label = '还没开始'; res.text = `${cnd(p.start)} 开始，还有 ${diff(D,p.start)} 天。`; return res; }
@@ -830,7 +845,7 @@ function rowItem(it, o = {}){
     <input class="check" type="checkbox" data-toggle="${esc(it.id)}" ${it.done ? 'checked' : ''} aria-label="完成 ${esc(it.title)}">
     ${c ? `<span class="dot" style="background:${c}" title="${esc(p ? p.name : '')}"></span>` : ''}
     <span class="t" data-edit="${esc(it.id)}">${esc(it.title)} ${tags}</span>
-    <span class="meta">${esc(meta)}</span>
+    <span class="meta">${esc(meta)}</span>${needsReest(it) ? `<button class="pill mid" type="button" data-progress="${esc(it.id)}" title="还没完成，但剩余记成了 0">需重新估时</button>` : ''}
     <span class="acts">${o.quick && !it.done ? `<button class="ghost sm" type="button" data-move="${esc(it.id)}" data-to="${t}">今天</button><button class="ghost sm hide-sm" type="button" data-move="${esc(it.id)}" data-to="${add(t,1)}">明天</button>` : ''}${canTime ? `<button class="icon" type="button" data-progress="${esc(it.id)}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${esc(it.id)}" aria-label="${timerOn('item', it.id) ? '停止计时' : '开始计时'}">${timerOn('item', it.id) ? ICON.stop : ICON.play}</button>` : ''}${o.del ? `<button class="icon" type="button" data-del="${esc(it.id)}" aria-label="删除">${ICON.trash}</button>` : ''}</span>
   </div>`;
 }
@@ -965,19 +980,24 @@ function viewToday(){
   let recon = '';
   if (qy > 0.05){
     const rest = sum(dv.projects.map(p => workdays(p, t).length ? 1 : 0)) ? Math.max(1, Math.round(sum(dv.projects.map(p => workdays(p,t).length)) / Math.max(1, dv.projects.filter(p => workdays(p,t).length).length))) : 1;
-    const dlt = gy - qy;
-    if (gy < 0.01) recon = `<div class="card soft recon zero"><div class="glyph">0</div><div><p><b>昨天歇了一天</b></p><p class="hint">没事的，Deadline 没变，${fmtH(qy)} 已经摊到后面约 ${rest} 天，每天多 ${fmtH(qy/rest)}，慢慢追回来就好。</p></div></div>`;
-    else if (dlt < -0.05) recon = `<div class="card soft recon down"><div class="glyph">−</div><div><p><b>昨天少做了 ${fmtH(-dlt)}</b></p><p class="hint">别担心，已经摊到后面约 ${rest} 天，每天多 ${fmtH(-dlt/rest)}。</p></div></div>`;
-    else if (dlt > 0.05) recon = `<div class="card soft recon up"><div class="glyph">+</div><div><p><b>昨天多做了 ${fmtH(dlt)}</b></p><p class="hint">多出来的时间存进了后面的日子：接下来约 ${rest} 天，每天少做 ${fmtH(dlt/rest)}。</p></div></div>`;
+    const dlt = gy - qy, ey = dv.effort.get(y) || 0;
+    const upd = (v, more) => `所需日均投入已更新：接下来每个可用日约${more ? '多' : '少'} ${fmtH(v/rest)}，Deadline 不变。`;
+    if (gy < 0.01 && ey < 0.01) recon = `<div class="card soft recon zero"><div class="glyph">0</div><div><p><b>昨天歇了一天</b></p><p class="hint">没事的。计划里昨天要推进 ${fmtH(qy)}，${upd(qy, true)}</p></div></div>`;
+    else if (gy < 0.01) recon = `<div class="card soft recon down"><div class="glyph">?</div><div><p><b>昨天投入了 ${fmtH(ey)}，但任务剩余没有更新</b></p><p class="hint">进展暂时按 0 算。点任务旁的进度图标，把还剩多少改一下，航速会更准。</p></div></div>`;
+    else if (dlt < -0.05) recon = `<div class="card soft recon down"><div class="glyph">−</div><div><p><b>昨天推进了 ${fmtH(gy)}，计划是 ${fmtH(qy)}</b></p><p class="hint">实际投入 ${fmtH(ey)}。${upd(-dlt, true)}</p></div></div>`;
+    else if (dlt > 0.05) recon = `<div class="card soft recon up"><div class="glyph">+</div><div><p><b>昨天推进了 ${fmtH(gy)}，比计划多 ${fmtH(dlt)}</b></p><p class="hint">实际投入 ${fmtH(ey)}。${upd(dlt, false)}</p></div></div>`;
   }
   const yNote = (S.notes[y] && S.notes[y].text) || '';
   const note = (S.notes[t] && S.notes[t].text) || '';
   const ext = gcalOn(t);
   const capToday = capOf(t), capOver = settings().over[t] != null;
-  const capq = `<div class="card soft capq"><div class="inline" style="justify-content:space-between;flex-wrap:wrap">
-      <b>今天可投入 ${fmtH(capToday)}${capOver ? ' <span class="hint">（已调整）</span>' : ''}</b>
-      <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span>
-    </div></div>`;
+  const spentT = dv.effort.get(t) || 0, leftT = Math.max(0, capToday - spentT);
+  const capq = `<div class="card soft capq">
+      <div class="capacity-head"><b>今天的时间${capOver ? ' <span class="hint">（今天单独调整过）</span>' : ''}</b>
+      <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span></div>
+      <div class="capacity-metrics"><div><small>今天可投入</small><strong>${fmtH(capToday)}</strong></div><div><small>已投入</small><strong>${fmtH(spentT)}</strong></div><div><small>还可安排</small><strong>${fmtH(leftT)}</strong></div></div>
+      <p class="hint">「可投入」是今天一整天的总量，不是从现在算起；已投入来自计时和记录的进度。</p>
+    </div>`;
   return `<div class="section">
     <div class="greet"><div><p class="hint">${cnd(t)} ${wdName(t)}</p><h2 style="margin:2px 0 0;font-size:22px">${greeting()}${nick ? '，' + esc(nick) : ''}</h2></div>${streak >= 2 ? `<span class="streak">连续 <b class="num">${streak}</b> 天跟上航速</span>` : ''}</div>
     ${capq}
@@ -1080,7 +1100,7 @@ function viewProjectDetail(p){
     return `<div class="module">
       <header><b>${esc(m.name)}</b><span class="hint">完成 ${ts.filter(i => i.done).length}/${ts.length} 件 · ${fmtH(doneH)} / ${fmtH(allH)}</span>${unschedM.length ? `<button class="ghost sm" type="button" data-autosched="${p.id}" data-mod="${esc(m.id)}">智能排期 ${unschedM.length} 个</button>` : ''}${m.id ? `<button class="icon" type="button" data-renmod="${m.id}" aria-label="重命名模块">${ICON.edit}</button><button class="icon" type="button" data-delmod="${m.id}" aria-label="删除模块">${ICON.trash}</button>` : ''}</header>
       ${sp.ratio ? `<div class="speed" style="margin:8px 12px 0">「${esc(m.name)}」你平均每个用 <b>${fmtH(sp.avgA)}</b>（预计 ${fmtH(sp.avgP)}，做了 ${sp.n} 个）${Math.abs(sp.ratio - 1) > 0.15 && ts.some(i => !i.done) ? `<button class="primary sm" type="button" data-speed="${m.id}" data-ratio="${sp.ratio.toFixed(3)}">按我的速度调整剩下 ${ts.filter(i => !i.done).length} 个</button>` : ''}</div>` : (m.id && sp.n > 0 ? `<div class="hint" style="padding:6px 12px 0">再做完 ${3 - sp.n} 个并记录实际用时，就能按你的速度预计这个模块。</div>` : '')}
-      <div class="tasks">${ts.map(i => `<div class="trow ${i.done ? 'done' : ''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done ? 'checked' : ''} aria-label="完成 ${esc(i.title)}"><span class="t" data-edit="${i.id}">${esc(i.title)}</span><span class="h">${fmtH(i.done ? i.est : i.hours)}${i.done && i.actual != null ? ` → ${fmtH(i.actual)}` : ''}</span><button type="button" class="when ${i.date ? 'set' : ''}" data-pick="${i.id}">${i.date ? md(i.date) + ' ' + wdName(i.date) : '排期'}</button>${!i.done ? `<button class="icon" type="button" data-progress="${i.id}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${i.id}" aria-label="计时">${timerOn('item', i.id) ? ICON.stop : ICON.play}</button>` : ''}</div>`).join('')}</div>
+      <div class="tasks">${ts.map(i => `<div class="trow ${i.done ? 'done' : ''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done ? 'checked' : ''} aria-label="完成 ${esc(i.title)}"><span class="t" data-edit="${i.id}">${esc(i.title)}</span><span class="h">${needsReest(i) ? `<button class="pill mid" type="button" data-progress="${i.id}">需重新估时</button>` : fmtH(i.done ? i.est : i.hours)}${i.done && i.actual != null ? ` → ${fmtH(i.actual)}` : ''}</span><button type="button" class="when ${i.date ? 'set' : ''}" data-pick="${i.id}">${i.date ? md(i.date) + ' ' + wdName(i.date) : '排期'}</button>${!i.done ? `<button class="icon" type="button" data-progress="${i.id}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${i.id}" aria-label="计时">${timerOn('item', i.id) ? ICON.stop : ICON.play}</button>` : ''}</div>`).join('')}</div>
       <form class="addrow" data-addtask="${m.id}"><input name="t" placeholder="新任务，例如：Reading 32 + 课后题" aria-label="任务名称"><input name="h" class="h" type="number" min="0" step="0.25" placeholder="小时" aria-label="预计小时"><button class="ghost sm" type="submit">添加</button><button class="link" type="button" data-bulk="${m.id}" style="font-size:12px">＋ 一次加多个</button></form>
     </div>`; }).join('');
   return `<div class="section wide pdetail" style="--c:${p.color}">
@@ -1099,7 +1119,7 @@ function viewProjectDetail(p){
       <button class="ghost" type="button" data-addmod="${p.id}">＋ 新模块</button>
       <button class="ghost" type="button" data-timer-proj="${p.id}">${timerOn('project', p.id) ? '■ 停止计时' : '▶ 为这个项目计时'}</button>
     </div>
-    ${p.lump > 0 || logSum(p) > 0 ? `<div class="card soft"><div class="greet"><div><b>未拆分的工作量</b><p class="hint">总共 ${fmtH(p.lump)} · 已记录 ${fmtH(logSum(p))} · 还剩 ${fmtH(lumpLeft)}。拆成任务后可以在「编辑项目」里调小。</p></div><div class="inline"><span class="hint">今天记录 <b class="mono">${fmtH(Number(p.log[t])||0)}</b></span><button class="ghost sm" type="button" data-log="${p.id}" data-h="-0.5">−0.5</button><button class="ghost sm" type="button" data-log="${p.id}" data-h="0.5">+0.5h</button><button class="ghost sm" type="button" data-log="${p.id}" data-h="1">+1h</button></div></div></div>` : ''}
+    ${p.lump > 0 || logSum(p) > 0 ? `<div class="card soft"><div class="greet"><div><b>未拆分的工作量</b><p class="hint">总共 ${fmtH(p.lump)} · 已记录 ${fmtH(logSum(p))} · 还剩 ${fmtH(lumpLeft)}。新加任务时可以选择从这里扣，还是算作额外增加。</p>${splitSeg(S.projects[p.id])}</div><div class="inline"><span class="hint">今天记录 <b class="mono">${fmtH(Number(p.log[t])||0)}</b></span><button class="ghost sm" type="button" data-log="${p.id}" data-h="-0.5">−0.5</button><button class="ghost sm" type="button" data-log="${p.id}" data-h="0.5">+0.5h</button><button class="ghost sm" type="button" data-log="${p.id}" data-h="1">+1h</button></div></div></div>` : ''}
     ${modHTML}
     ${others.length ? `<h2>日程与截止</h2>${others.map(i => rowItem(i, {showDate:true})).join('')}` : ''}
   </div>`;
@@ -1187,8 +1207,8 @@ function viewStats(){
     </div>
     <h2>完成热力图 <span class="hint">最近一年</span></h2>${heat}
     <h2>项目进度</h2>${dv.projects.length ? dv.projects.map(p => { const st = projStatus(p); return `<div class="row"><span class="dot" style="background:${p.color}"></span><span class="t" data-openproj="${p.id}">${esc(p.name)}</span><div class="stack" style="width:30%;--c:${p.color}"><i class="d" style="width:${st.total ? st.done/st.total*100 : 0}%"></i></div><span class="meta">${st.total ? Math.round(st.done/st.total*100) : 0}% · ${st.left > 0 ? `还剩 ${st.left} 天` : '已过期'}</span></div>`; }).join('') : '<div class="empty">还没有项目。</div>'}
-    <h2>✦ Claude 周回顾</h2>
-    <div class="card soft"><p class="hint" style="margin:0">把最近 7 天的完成、每天航速跟上没有和你写给自己的话交给 Claude，写一段回顾和下周建议。</p><div class="inline"><button class="primary" type="button" data-act="review">生成本周回顾</button></div><div class="ai-out" id="review-out" ${ui.review ? '' : 'hidden'}>${esc(ui.review || '')}</div></div>
+    <h2>✦ 周回顾</h2>
+    <div class="card soft"><p class="hint" style="margin:0">整理最近 7 天的投入、任务进展和留言。复制提示词给你常用的 AI，生成回顾和下周建议。</p><div class="inline"><button class="primary" type="button" data-act="review">准备周回顾</button></div><div class="ai-out" id="review-out" ${ui.review ? '' : 'hidden'}>${esc(ui.review || '')}</div></div>
   </div>`;
 }
 
@@ -1613,42 +1633,87 @@ function pickDate(id){
   $('#pick-go').addEventListener('click', () => { const v = $('#pick-other').value; if (v) { closeSheet(); moveItem(id, v); } });
 }
 
+/* ---------- progress model ----------
+   log   {date: hours actually spent}            -> "投入" (effort)
+   hours remaining estimate                     -> what is still left
+   est   original estimate                      -> project size, speed ratios
+   burn  {date: remaining hours retired}        -> "进展" (progress toward the plan), drives pace and rings
+   finRem remaining at the moment it was ticked -> lets "un-complete" restore it exactly */
+function addBurn(b, d, v){ if (!d || Math.abs(v) < 1e-6) return b; const n = r2((Number(b[d])||0) + v); if (n > 1e-6) b[d] = n; else delete b[d]; return b; }
+function burnOf(raw){
+  if (raw.burn) return {...raw.burn};
+  // older items: progress made before burns existed shows up as est > hours
+  const b = {}, est = raw.est != null ? Number(raw.est)||0 : Number(raw.hours)||0, pre = raw.done ? 0 : Math.max(0, est - (Number(raw.hours)||0));
+  if (pre > 1e-6){ const lg = raw.log || {}, tot = sum(Object.values(lg).map(Number)); if (tot > 0) for (const [d,h] of Object.entries(lg)) addBurn(b, d, pre * Number(h)/tot); else addBurn(b, today(), pre); }
+  return b;
+}
+// change the remaining estimate; a drop counts as progress today, a rise first cancels today's progress
+function remPatch(raw, rem, t = today()){
+  const old = Number(raw.hours)||0, burn = burnOf(raw);
+  if (rem < old - 1e-6) addBurn(burn, t, old - rem);
+  else if (rem > old + 1e-6) addBurn(burn, t, -Math.min(Number(burn[t])||0, rem - old));
+  return { hours: r2(Math.max(0, rem)), burn };
+}
+const needsReest = i => i.kind === 'task' && !i.done && i.hours <= 1e-6 && (i.est > 0 || Object.keys(i.log || {}).length > 0);
+function setRemaining(id, rem, label){
+  const raw = S.items[id]; if (!raw) return;
+  if (rem <= 1e-6){ finishItem(id, 0); return; }
+  put('items', id, {...raw, ...remPatch(raw, rem)}, label || `还剩 ${fmtH(rem)}`);
+}
 /* record partial progress: today's spent time + a corrected remaining estimate, decoupled */
 function logProgress(id){
   const it = S.items[id]; if (!it || it.done) return;
   const t = today();
   const spentToday = Number((it.log||{})[t]) || 0;
+  const reest = !(Number(it.hours) > 0);
   openSheet(`<h2>记录进度<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
-    <p style="margin:0">「${esc(it.title)}」</p>
-    <label style="display:block;margin-top:10px">今天投入了多久（小时）<input class="inp" type="number" min="0" step="0.25" id="pg-spent" value="${spentToday || ''}" placeholder="0" style="width:100%;margin-top:4px"></label>
-    <label style="display:block;margin-top:10px">还需要大约多久（小时，可以直接改）<input class="inp" type="number" min="0" step="0.25" id="pg-rem" value="${it.hours || ''}" style="width:100%;margin-top:4px"></label>
-    <p class="meta" style="margin:6px 0 0">投入和剩余是两件事：花了多久不代表剩下的估计也要跟着减，按实际感觉改就行。</p>
+    <p style="margin:0">「${esc(it.title)}」${reest ? '<br><span class="hint">还没完成，但剩余记成了 0，请重新估一下还要多久。</span>' : ''}</p>
+    <label style="display:block;margin-top:10px">今天投入了多久（小时，全天合计）<input class="inp" type="number" min="0" step="0.25" id="pg-spent" value="${spentToday || ''}" placeholder="0" style="width:100%;margin-top:4px"></label>
+    <label style="display:block;margin-top:10px">还需要大约多久（小时，可以直接改）<input class="inp" type="number" min="0" step="0.25" id="pg-rem" value="${reest ? '' : (it.hours || '')}" placeholder="${reest ? '例如 0.5' : ''}" style="width:100%;margin-top:4px"></label>
+    <p class="meta" style="margin:6px 0 0">投入和剩余是两件事：花了多久不代表剩下的估计也要跟着减，按实际感觉改就行。剩余填 0 就是完成。</p>
     <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="pg-ok">保存</button></div>`);
   $('#pg-ok').addEventListener('click', () => {
     const spent = Math.max(0, Number($('#pg-spent').value) || 0);
-    const rem = Math.max(0, Number($('#pg-rem').value) || 0);
+    const remRaw = $('#pg-rem').value;
+    if (reest && remRaw === ''){ toast('先填还需要多久，或者填 0 表示完成'); return; }
+    const rem = Math.max(0, Number(remRaw) || 0);
     const log = {...(it.log||{})}; if (spent > 1e-6) log[t] = r2(spent); else delete log[t];
     const actual = r2(logSum({log})) || (it.actual ?? null);
+    const base = {...it, log, actual};
     closeSheet();
-    if (rem <= 1e-6){ put('items', id, {...it, log, actual, hours:0, done:true, doneOn:t}, `已完成「${it.title}」`); return; }
-    put('items', id, {...it, log, actual, hours: rem}, spent > 1e-6 ? `已记录投入 ${fmtH(spent)}，还剩 ${fmtH(rem)}` : `已更新剩余 ${fmtH(rem)}`);
+    if (rem <= 1e-6){ const old = Number(it.hours)||0; const burn = addBurn(burnOf(it), t, old); put('items', id, {...base, hours:0, burn, finRem: old, done:true, doneOn:t}, `已完成「${it.title}」`); return; }
+    put('items', id, {...base, ...remPatch(it, rem, t)}, spent > 1e-6 ? `今天投入 ${fmtH(spent)}，还剩 ${fmtH(rem)}` : `已更新剩余 ${fmtH(rem)}`);
   });
 }
-/* complete with optional actual-time question */
+/* complete; delta = extra time spent that isn't in the log yet */
 function finishItem(id, delta){
   const it = S.items[id]; if (!it) return;
   const t = today();
   const d = Math.max(0, Number(delta) || 0);
   const log = d > 1e-6 ? {...(it.log||{}), [t]: r2((Number((it.log||{})[t]) || 0) + d)} : (it.log || {});
   const actual = r2(logSum({log}) ) || (it.actual ?? null);
-  put('items', id, {...it, done:true, doneOn: t, hours:0, log, actual}, `已完成「${it.title}」`);
+  const old = Number(it.hours)||0;
+  const burn = addBurn(burnOf(it), t, old);
+  put('items', id, {...it, done:true, doneOn: t, hours:0, finRem: old, burn, log, actual}, `已完成「${it.title}」`);
+}
+function reopenItem(id){
+  const raw = S.items[id]; if (!raw) return;
+  const {finRem, ...rest} = raw;
+  let hours = Number(raw.hours)||0;
+  let burn = raw.burn ? {...raw.burn} : null;
+  if (finRem != null){ hours = Number(finRem)||0; if (burn) addBurn(burn, raw.doneOn, -hours); }
+  else if (hours <= 1e-6){ const est = raw.est != null ? Number(raw.est)||0 : 0; hours = Math.max(0, r2(est - logSum({log: raw.log || {}}))); if (burn) burn = null; }
+  const data = {...rest, done:false, doneOn:null, hours};
+  if (burn) data.burn = burn; else delete data.burn;
+  put('items', id, data, hours > 0 ? `已撤销完成，还剩 ${fmtH(hours)}` : '已撤销完成，记得重新估一下还要多久');
 }
 function toggleDone(id){
   const it = derive().items.find(i => i.id === id); if (!it) return;
-  if (it.done){ put('items', id, {...S.items[id], done:false, doneOn:null}, `已撤销完成「${it.title}」`); return; }
+  if (it.done){ reopenItem(id); return; }
   const p = it.project ? derive().projMap.get(it.project) : null;
   const already = logSum(it);
-  const ask = settings().askActual && p && p.askActual && it.kind === 'task' && it.hours > 0;
+  // timed today already: the time is in the log, no need to ask
+  const ask = settings().askActual && p && p.askActual && it.kind === 'task' && it.hours > 0 && !(it.log && it.log[today()]);
   if (!ask){ finishItem(id, 0); if (dayRefresh) dayRefresh(); return; }
   const opts = [0.25,0.5,0.75,1,1.5,2,3,4];
   const base = it.hours;
@@ -1670,17 +1735,26 @@ function moveItem(id, date){
 }
 
 /* ================= project actions ================= */
+/* new tasks either split the project's unsplit workload (total stays the same) or add work on top (total grows) */
+const lumpLeftOf = p => Math.max(0, (Number(p.lump)||0) - logSum({log: p.log || {}}));
+function splitPref(){ try { return localStorage.getItem('runway-split') !== '0'; } catch(e){ return true; } }
+function setSplitPref(v){ try { localStorage.setItem('runway-split', v ? '1' : '0'); } catch(e){} }
+const lumpCut = (p, h) => Math.max(logSum({log: p.log || {}}), r2((Number(p.lump)||0) - h));
+const splitSeg = p => p && lumpLeftOf(p) > 0 ? `<div class="inline" style="gap:8px"><span class="hint">新加的任务算作</span><div class="seg" role="group" aria-label="新任务算作"><button type="button" data-split="1" aria-pressed="${splitPref()}">拆分原有工作量</button><button type="button" data-split="0" aria-pressed="${!splitPref()}">额外增加任务</button></div></div>` : '';
 function addTask(pid, mid, title, hours){
   const h = Math.max(0, Number(hours) || 0), p = S.projects[pid];
+  const split = splitPref() && p && lumpLeftOf(p) > 0 && h > 0;
   const changes = [{col:'items', id: uid('i'), data:{title, date:null, hours: h, est: h, kind:'task', project: pid, module: mid || '', tags:[], note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9}}];
-  if (p && p.lump > 0 && h > 0) changes.push({col:'projects', id: pid, data:{...p, lump: Math.max(0, r2(p.lump - h))}});
-  commit(changes, '已添加任务');
+  const cut = split ? r2((Number(p.lump)||0) - lumpCut(p, h)) : 0;
+  if (split) changes.push({col:'projects', id: pid, data:{...p, lump: lumpCut(p, h)}});
+  commit(changes, split ? `已添加任务，从未拆分工作量里扣了 ${fmtH(cut)}${cut < h - 1e-6 ? '（已扣完）' : ''}` : '已添加任务（额外增加）');
 }
 function bulkAdd(pid, mid){
   openSheet(`<h2>一次加多个任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
     <div class="field"><label for="bk-name">任务名，用 {起-止} 表示编号</label><input id="bk-name" placeholder="例如：Reading {1-10}、真题 {1-4}" value="Reading {1-6}"></div>
     <div class="grid2"><div class="field"><label for="bk-h">每个预计（小时）</label><input id="bk-h" type="number" min="0" step="0.25" value="1.5"></div><div class="field"><label for="bk-lines">或者每行一个（会覆盖上面）</label><textarea id="bk-lines" placeholder="FRA 第 1 章\nFRA 第 2 章 2h" style="min-height:70px"></textarea></div></div>
     <div class="hint" id="bk-prev"></div>
+    ${splitSeg(S.projects[pid])}
     <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="bk-ok">添加</button></div>`);
   const gen = () => {
     const lines = $('#bk-lines').value.split('\n').map(x => x.trim()).filter(Boolean);
@@ -1698,42 +1772,63 @@ function bulkAdd(pid, mid){
     const g = gen(); if (!g.length) return; const base = Date.now() % 1e9; closeSheet();
     const p = S.projects[pid], totalH = sum(g.map(x => x.hours || 0));
     const changes = g.map((x, k) => ({col:'items', id: uid('i'), data:{title:x.title, date:null, hours:x.hours, est:x.hours, kind:'task', project:pid, module:mid || '', tags:[], note:'', done:false, actual:null, doneOn:null, order: base + k}}));
-    if (p && p.lump > 0 && totalH > 0) changes.push({col:'projects', id: pid, data:{...p, lump: Math.max(0, r2(p.lump - totalH))}});
-    commit(changes, `已加 ${g.length} 个任务`);
+    const split = splitPref() && p && lumpLeftOf(p) > 0 && totalH > 0;
+    const cut = split ? r2((Number(p.lump)||0) - lumpCut(p, totalH)) : 0;
+    if (split) changes.push({col:'projects', id: pid, data:{...p, lump: lumpCut(p, totalH)}});
+    commit(changes, `已加 ${g.length} 个任务${split ? '，从未拆分工作量里扣了 ' + fmtH(cut) + (cut < totalH - 1e-6 ? '（已扣完）' : '') : '（额外增加）'}`);
   });
 }
-/* capacity-aware reschedule for a set of (overdue) tasks: respects each day's remaining
-   capacity, each task's project deadline, and whatever is already fixed on the calendar */
+/* capacity-aware reschedule. Rules match the pacing math:
+   - a task goes on a day inside its project's window (start .. deadline − 1 − buffer); the deadline day never counts
+   - each day's room = capacity − remaining work already on that day − (today only) hours already put in today
+   - outcomes: ok / over (inside the window but that day overflows) / late (only fits after the target) / none (left in the pool) */
 function planReschedule(tasks){
   const t0 = today(), dv = derive();
-  const deadlineOf = it => { const p = it.project ? dv.projMap.get(it.project) : null; return (p && p.deadline) || null; };
-  const sorted = tasks.slice().sort((a,b) => { const da = deadlineOf(a) || '9999-99-99', db = deadlineOf(b) || '9999-99-99'; return da.localeCompare(db) || (b.hours - a.hours); });
-  const horizon = 30, days = range(t0, add(t0, horizon));
-  const movingIds = new Set(sorted.map(i => i.id));
-  const used = new Map(days.map(d => [d, sum(itemsOn(d).filter(i => i.kind === 'task' && !i.done && !movingIds.has(i.id)).map(i => i.hours))]));
+  const projOf = it => it.project ? dv.projMap.get(it.project) : null;
+  const endOf = it => { const p = projOf(it); if (!p) return null; const w = windowOf(p, t0); return w ? w[1] : add(t0, -1); };
+  const sorted = tasks.slice().sort((a,b) => ((endOf(a) || '9999') .localeCompare(endOf(b) || '9999')) || (b.hours - a.hours));
+  const days = range(t0, add(t0, 45));
+  const moving = new Set(sorted.map(i => i.id));
+  const used = new Map(days.map(d => [d, sum(itemsOn(d).filter(i => i.kind === 'task' && !i.done && !moving.has(i.id)).map(i => i.hours)) + (d === t0 ? (dv.effort.get(t0) || 0) : 0)]));
+  const free = d => capOf(d) - (used.get(d) || 0);
   const plan = [];
   for (const it of sorted){
-    const dl = deadlineOf(it);
-    const inWindow = days.filter(d => (!dl || d <= dl) && capOf(d) > 0);
-    const pool = inWindow.length ? inWindow : days.filter(d => capOf(d) > 0);
-    if (!pool.length){ plan.push({it, date: it.date, over:true}); continue; }
-    let best = pool.find(d => capOf(d) - (used.get(d)||0) >= it.hours - 1e-6);
-    if (!best) best = pool.reduce((a,b) => (capOf(b) - (used.get(b)||0)) > (capOf(a) - (used.get(a)||0)) ? b : a, pool[0]);
-    used.set(best, (used.get(best)||0) + it.hours);
-    plan.push({it, date: best, over: used.get(best) > capOf(best) + 1e-6});
+    const p = projOf(it), end = endOf(it), h = it.hours > 1e-6 ? it.hours : 0.5;
+    const ok = d => capOf(d) > 0 && (!p || d >= p.start);
+    const win = days.filter(d => ok(d) && (!end || d <= end));
+    let date = win.find(d => free(d) >= h - 1e-6), status = 'ok', note = '';
+    if (!date && win.length){
+      date = win.reduce((x,y) => free(y) > free(x) ? y : x, win[0]); status = 'over';
+      note = `这天会超出 ${fmtH(h - Math.max(0, free(date)))}`;
+    }
+    if (!date){
+      date = days.filter(ok).find(d => free(d) >= h - 1e-6);
+      if (date){
+        status = 'late';
+        note = p && date >= p.deadline ? `在 Deadline（${md(p.deadline)}）之后` : `比目标完成日晚 ${diff(end, date)} 天${p && p.buffer ? '，会用掉提前缓冲' : ''}`;
+      } else { status = 'none'; note = p && !win.length ? '截止前已经没有可投入的日子，之后 45 天也排不下' : '接下来 45 天都排满了'; }
+    }
+    if (date) used.set(date, (used.get(date) || 0) + h);
+    plan.push({it, date: date || null, status, note, h});
   }
   return plan;
 }
 function openReschedule(tasks){
   if (!tasks.length) return;
   const plan = planReschedule(tasks);
-  const anyOver = plan.some(p => p.over);
-  const rows = plan.map(({it,date,over}) => `<div class="row"><span class="t">${esc(it.title)}</span><span class="meta">${fmtH(it.hours)}</span><span class="when set" ${over ? 'style="color:var(--warn,#b23)"' : ''}>${md(date)} ${wdName(date)}${over ? ' ⚠' : ''}</span></div>`).join('');
+  const G = [['ok','可以安排','排进当天剩余的时间，在截止前完成'],['over','会超量','截止前每天都不够放，放到最空的那天，当天会超出'],['late','会晚于目标','截止前排不下，只能往后放'],['none','无法安排','先放回任务池，需要你决定：延期、砍掉或加时间']];
+  const row = (x, k) => `<label class="row" style="cursor:pointer"><input type="checkbox" class="check" data-rs="${k}" checked><span class="t">${esc(x.it.title)}</span><span class="meta">${fmtH(x.h)}${x.it.hours > 1e-6 ? '' : '（未估时，按 30 分算）'}</span><span class="meta" style="min-width:110px;text-align:right">${x.date ? `${md(x.date)} ${wdName(x.date)}` : '任务池'}${x.note ? `<br><span style="color:var(--${x.status === 'ok' ? 'muted' : 'warn'})">${esc(x.note)}</span>` : ''}</span></label>`;
+  const body = G.map(([st, name, desc]) => { const xs = plan.map((x,k) => [x,k]).filter(([x]) => x.status === st); return xs.length ? `<h3 style="margin:10px 0 2px;font-size:14px">${name} · ${xs.length} 件</h3><p class="hint" style="margin:0 0 4px">${desc}</p>${xs.map(([x,k]) => row(x,k)).join('')}` : ''; }).join('');
+  const bad = plan.filter(x => x.status !== 'ok').length;
   openSheet(`<h2>重新安排 ${plan.length} 件剩余任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
-    <p class="hint" style="margin:0">按每天还剩的可投入时间和各自的截止日期分配${anyOver ? '，⚠ 标记的那天还是会超出当天安排' : '，都能落在截止日期之前，也不超出当天安排'}。</p>
-    <div style="max-height:50vh;overflow:auto;margin-top:6px">${rows}</div>
-    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="resched-ok">按这个安排</button></div>`, {wide:true});
-  $('#resched-ok').addEventListener('click', () => { closeSheet(); commit(plan.map(({it,date}) => ({col:'items', id: it.id, data:{...S.items[it.id], date}})), `已重新安排 ${plan.length} 件任务`); });
+    <p class="hint" style="margin:0">按每天还剩的时间（今天会先扣掉已经投入的）、各项目的截止日和提前天数来排。${bad ? `有 ${bad} 件没法按原计划完成，看一下再确认。` : '全部都能在截止前、不超量地排进去。'}取消勾选的任务保持不动。</p>
+    <div style="max-height:55vh;overflow:auto;margin-top:6px">${body}</div>
+    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="resched-ok">按勾选的安排</button></div>`, {wide:true});
+  $('#resched-ok').addEventListener('click', () => {
+    const pick = plan.filter((x,k) => { const c = document.querySelector(`[data-rs="${k}"]`); return c && c.checked; });
+    closeSheet();
+    commit(pick.map(({it,date}) => ({col:'items', id: it.id, data:{...S.items[it.id], date}})), `已重新安排 ${pick.length} 件任务${pick.some(x => !x.date) ? '（无法安排的放回了任务池）' : ''}`);
+  });
 }
 function autoSchedule(pid, mid){
   const p = derive().projMap.get(pid); if (!p) return;
@@ -1774,12 +1869,22 @@ function stopTimer(silent){
     const it = S.items[tm.id];
     const log = {...(it.log||{}), [t]: r2((Number((it.log||{})[t]) || 0) + h)};
     const actual = r2(logSum({log}));
-    const remHours = Math.max(0, r2((Number(it.hours)||0) - h));
-    changes.push({col:'items', id: tm.id, data:{...it, log, actual, hours: remHours}});
+    const cur = Number(it.hours)||0, byEffort = Math.max(0, r2(cur - h));
+    // the timer only records time spent; how much is left is a separate question
+    let data = {...it, log, actual};
+    if (silent && !it.done) data = {...data, ...remPatch(it, byEffort, t)};   // switched to another timer: assume time spent = progress, never auto-complete
+    changes.push({col:'items', id: tm.id, data});
     commit(changes, `记录了 ${fmtH(h)}`);
     if (!silent && !it.done){
-      openSheet(`<h2>记录了 ${fmtH(h)}<button class="x" type="button" data-close aria-label="关闭">×</button></h2><p style="margin:0">「${esc(it.title)}」已投入 ${fmtH(actual)}${remHours > 1e-6 ? `，还剩预计 ${fmtH(remHours)}` : ''}。做完了吗？</p><div class="actions"><button class="ghost" type="button" data-close>还没，下次接着做</button><button class="primary" type="button" id="tm-done">标记完成</button></div>`);
+      const chips = [byEffort > 1e-6 ? [byEffort, `按投入扣减：还剩 ${fmtH(byEffort)}`] : null, [0.5, '还需 30 分'], [1, '还需 1 小时'], [2, '还需 2 小时']].filter(Boolean);
+      openSheet(`<h2>已投入 ${fmtH(h)}<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+        <p style="margin:0">「${esc(it.title)}」累计投入 ${fmtH(actual)}${cur > 1e-6 ? `，原来估计还剩 ${fmtH(cur)}` : ''}。完成了，还是还需要一些时间？</p>
+        <div class="chips-pick"><button type="button" id="tm-done">完成了</button>${chips.map(([v,l]) => `<button type="button" data-tm-rem="${v}">${l}</button>`).join('')}</div>
+        <div class="inline"><input class="inp" type="number" min="0" step="0.25" id="tm-custom" placeholder="还需几小时" style="width:130px"><button class="ghost" type="button" id="tm-ok">记录</button></div>
+        <div class="actions"><button class="link push" type="button" data-close>先不改剩余时间</button></div>`);
       $('#tm-done').addEventListener('click', () => { closeSheet(); finishItem(tm.id, 0); });
+      $('#sheet').addEventListener('click', e => { const b = e.target.closest('[data-tm-rem]'); if (b){ closeSheet(); setRemaining(tm.id, Number(b.dataset.tmRem)); } });
+      $('#tm-ok').addEventListener('click', () => { const v = $('#tm-custom').value; if (v === '') return; closeSheet(); setRemaining(tm.id, Math.max(0, Number(v) || 0)); });
     }
   } else if (tm.type === 'project' && S.projects[tm.id]){
     const p = S.projects[tm.id]; const log = {...(p.log || {})}; log[t] = r2((Number(log[t]) || 0) + h);
@@ -1859,6 +1964,7 @@ async function aiBreakdown(pid){
   openSheet(`<h2>✦ 让 Claude 帮我拆任务<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
     <p class="hint" style="margin:0">说说这个项目要做什么、手上有什么材料、你卡在哪。Claude 会拆成模块和任务，并估计每个任务的小时数。你确认后才会加进来。</p>
     <div class="field"><label for="ai-desc">描述</label><textarea id="ai-desc" style="min-height:120px" placeholder="例如：CFA Level 1 最后 6 周。Ethics 和 FRA 已经过完一遍，Fixed Income 和 Derivatives 还弱，想做 3 套完整模考。">${esc(p.note)}</textarea></div>
+    ${splitSeg(S.projects[pid])}
     <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="ai-go">开始拆解</button></div>
     <div id="ai-res"></div>`, {wide:true});
   $('#ai-go').addEventListener('click', async () => {
@@ -1888,7 +1994,7 @@ async function aiBreakdown(pid){
         const proj = {...S.projects[pid]}; const modules = (proj.modules || []).slice(); const changes = []; let o = Date.now() % 1e9;
         let addedH = 0;
         for (const m of keep){ let mm = modules.find(z => z.name === m.name); if (!mm){ mm = {id: uid('m'), name: m.name}; modules.push(mm); } for (const x of m.tasks){ const h = Math.max(0, Number(x.hours) || 0); addedH += h; changes.push({col:'items', id: uid('i'), data:{title: String(x.title).slice(0,120), date:null, hours: h, est: h, kind:'task', project: pid, module: mm.id, tags:[], note:'', done:false, actual:null, doneOn:null, order: o++}}); } }
-        const lump = proj.lump > 0 && addedH > 0 ? Math.max(0, r2(proj.lump - addedH)) : proj.lump;
+        const lump = splitPref() && lumpLeftOf(proj) > 0 && addedH > 0 ? lumpCut(proj, addedH) : proj.lump;
         changes.unshift({col:'projects', id: pid, data:{...proj, modules, lump}});
         closeSheet(); commit(changes, `已加 ${changes.length - 1} 个任务`);
       });
@@ -1896,20 +2002,33 @@ async function aiBreakdown(pid){
     finally { btn.disabled = false; btn.textContent = '重新拆解'; }
   });
 }
-async function weeklyReview(){
-  const out = $('#review-out'); if (!out) return;
-  const sample = await getSample();
-  out.hidden = false;
-  if (!sample){ out.textContent = '这个页面现在用不了 Claude（只能在 Claude 里打开时使用）。'; return; }
+function weeklyReview(){
   const t = today(), dv = derive();
-  const days = range(add(t, -6), t).map(d => ({ d, wd: wdName(d), 建议: r2(sum(dv.projects.map(p => quota(p.id, d)))), 完成: r2(progDay(d)), 实际投入: r2(dv.effort.get(d) || 0), 划掉: dv.items.filter(i => i.doneOn === d).map(i => i.title).slice(0, 12), 留言: (S.notes[d] && S.notes[d].text) || '' }));
-  const projs = dv.projects.map(p => { const st = projStatus(p); return { 名称: p.name, deadline: p.deadline, 状态: st.label, 说明: st.text, 剩余小时: r2(st.rem) }; });
-  const prompt = `你是一个温和但直接的学习教练。根据下面这个人最近 7 天的数据，用简体中文写一段周回顾，200 到 300 字，分三小段：这周做得好的；落下了什么、可能的原因；下周的具体建议（落到项目和每天小时数）。不要使用破折号，不要用 markdown 标题，语气像朋友。
-每天的数据：${JSON.stringify(days)}
-项目：${JSON.stringify(projs)}`;
-  out.textContent = '正在写…';
-  try { const r = await sample(prompt, { onText: u => { out.textContent = u.text; } }); ui.review = r.text; out.textContent = r.text; }
-  catch(e){ out.textContent = e && e.text ? e.text : sampleErr(e); }
+  const days = range(add(t, -6), t).map(d => ({日期:d, 星期:wdName(d), 建议投入小时:r2(sum(dv.projects.map(p => quota(p.id,d)))), 实际投入小时:r2(dv.effort.get(d)||0), 完成任务:dv.items.filter(i => i.done && i.doneOn === d).map(i => i.title), 留言:(S.notes[d] && S.notes[d].text)||''}));
+  const projs = dv.projects.map(p => { const st = projStatus(p); return {名称:p.name, 截止日期:p.deadline, 状态:st.label, 说明:st.text, 剩余小时:r2(st.rem)}; });
+  const prompt = `你是一个温和但直接的学习教练。根据下面最近7天的数据，用简体中文写200到300字周回顾，分三段：这周做得好的；落下了什么及可能的原因；下周具体建议。区分实际投入、完成任务和剩余工作，不把未完成任务等同于没有付出，没有记录也不代表没有学习。不编造原因，建议须考虑多个项目共享时间。建议投入是按当前计划回算的参考值，不是历史承诺。不要使用markdown标题。
+回顾区间：${add(t,-6)} 至 ${t}
+每日数据：${JSON.stringify(days)}
+项目：${JSON.stringify(projs)}
+下周每日总容量（小时）：${JSON.stringify(range(add(t,1),add(t,7)).map(d => ({日期:d,小时:capOf(d)})))}`;
+  openSheet(`<h2>✦ 周回顾<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+    <p class="hint" style="margin:0">${esc(add(t,-6))} 至 ${esc(t)} · 已记录投入 ${fmtH(sum(days.map(d => d.实际投入小时)))} · 完成 ${sum(days.map(d => d.完成任务.length))} 个任务</p>
+    <div class="field"><label for="review-prompt">1. 复制提示词，发给你常用的 AI</label><textarea id="review-prompt" readonly style="min-height:200px">${esc(prompt)}</textarea></div>
+    <div class="actions"><button class="primary" type="button" id="review-copy">复制周回顾提示词</button></div>
+    <div class="field"><label for="review-result">2. 粘贴生成的周回顾（可编辑）</label><textarea id="review-result" style="min-height:160px" placeholder="把 AI 返回的回顾粘贴到这里，也可以自己写。">${esc(ui.review||'')}</textarea></div>
+    <p class="hint" style="margin:0">回顾文本仅在本次打开页面期间保留；需要长期保存时请另行复制。</p>
+    <div class="actions"><button class="ghost" type="button" data-close>关闭</button><button class="primary" type="button" id="review-show">显示周回顾</button></div>`, {wide:true});
+  $('#review-copy').onclick = async () => {
+    const field = $('#review-prompt');
+    try { await navigator.clipboard.writeText(field.value); toast('周回顾提示词已复制'); }
+    catch(e){ field.focus(); field.select(); toast('请按 ⌘C / Ctrl+C 复制已选中的提示词'); }
+  };
+  $('#review-show').onclick = () => {
+    const value = $('#review-result').value.trim();
+    if (!value){ toast('请先填写周回顾'); return; }
+    ui.review = value; closeSheet();
+    const out = $('#review-out'); if (out){ out.hidden=false; out.textContent=value; }
+  };
 }
 
 /* ================= export / import ================= */
@@ -1993,6 +2112,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-toggle]'))){ e.preventDefault(); toggleDone(el.dataset.toggle); if (dayRefresh) setTimeout(dayRefresh, 0); return; }
   if ((el = c('[data-timer-item]'))){ startTimer('item', el.dataset.timerItem); return; }
   if ((el = c('[data-progress]'))){ logProgress(el.dataset.progress); return; }
+  if ((el = c('[data-split]'))){ const v = el.dataset.split === '1'; setSplitPref(v); $$('[data-split]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.split === '1') === v))); return; }
   if ((el = c('[data-poolt]'))){ const k = el.dataset.poolt; ui.poolOpen[k] = !(ui.poolOpen[k] !== false); try { localStorage.setItem('runway-pool', JSON.stringify(ui.poolOpen)); } catch(e){} renderPool(); return; }
   if ((el = c('[data-timer-proj]'))){ startTimer('project', el.dataset.timerProj); return; }
   if ((el = c('[data-move]'))){ moveItem(el.dataset.move, el.dataset.to); return; }
