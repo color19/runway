@@ -143,7 +143,9 @@ kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border
 .warnbar{font-size:12px;border-radius:8px;padding:6px 10px;background:var(--warn-soft);color:var(--warn)}
 .okbar{font-size:12px;border-radius:8px;padding:6px 10px;background:var(--good-soft);color:var(--good)}
 
-.view{flex:1;min-height:0;overflow:auto;padding:0 20px 24px;position:relative}
+.view{flex:1 0 auto;padding:0 20px 24px;position:relative}
+.main{overflow-y:auto;overscroll-behavior:contain}
+.main>.top,.main>.banner{flex:none}
 
 /* month */
 .dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));font-size:12px;color:var(--muted);padding:0 2px 6px}
@@ -1360,13 +1362,13 @@ function render(){
     $('#eyebrow').textContent = b || a; $('#title').textContent = ui.go === 'projects' && ui.proj && derive().projMap.get(ui.proj) ? derive().projMap.get(ui.proj).name : a;
     html = ({list:viewList, projects:viewProjects, stats:viewStats, book:viewBook, export:viewExport, settings:viewSettings})[ui.go]();
   }
-  const view = $('#view'), st = view.scrollTop;
+  const view = $('#view'), sc = scroller(), st = sc.scrollTop;
   const key = [ui.go, ui.proj || '', ui.mode, isCal ? (ui.mode === 'month' ? ui.cursor.slice(0,7) : weekStartOf(ui.cursor)) : ''].join('|');
   if (html === view._html && key === view._key) return;   // nothing changed: leave the DOM alone, no flash
   view.classList.toggle('enter', key !== view._key);
   view._key = key; view._html = html;
   view.innerHTML = html;
-  view.scrollTop = st;
+  sc.scrollTop = st;
 }
 
 /* ================= quick-add natural language ================= */
@@ -2107,7 +2109,7 @@ document.addEventListener('click', e => {
   let el;
   if (!c('.popover') && !c('#title-pick')) closePop();
   if (c('[data-close]') || t === $('#overlay')){ closeSheet(); return; }
-  if ((el = c('[data-go]'))){ ui.go = el.dataset.go; if (ui.go !== 'projects') ui.proj = null; if (window.innerWidth <= 820) ui.pool = false; if (!$('#overlay').hidden) closeSheet(); $('#view').scrollTop = 0; render(); return; }
+  if ((el = c('[data-go]'))){ ui.go = el.dataset.go; if (ui.go !== 'projects') ui.proj = null; if (window.innerWidth <= 820) ui.pool = false; if (!$('#overlay').hidden) closeSheet(); scroller().scrollTop = 0; render(); return; }
   if ((el = c('[data-mode]'))){ ui.mode = el.dataset.mode; saveUi(); render(); return; }
   if ((el = c('[data-toggle]'))){ e.preventDefault(); toggleDone(el.dataset.toggle); if (dayRefresh) setTimeout(dayRefresh, 0); return; }
   if ((el = c('[data-timer-item]'))){ startTimer('item', el.dataset.timerItem); return; }
@@ -2121,7 +2123,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-assign]'))){ const id = el.dataset.assign, d = el.dataset.day; closeSheet(); moveItem(id, d || null); return; }
   if ((el = c('[data-pick]'))){ pickDate(el.dataset.pick); return; }
   if ((el = c('[data-editproj]'))){ editProject(el.dataset.editproj); return; }
-  if ((el = c('[data-openproj]'))){ ui.go = 'projects'; ui.proj = el.dataset.openproj; if (window.innerWidth <= 1100) ui.pool = false; if (!$('#overlay').hidden) closeSheet(); $('#view').scrollTop = 0; render(); return; }
+  if ((el = c('[data-openproj]'))){ ui.go = 'projects'; ui.proj = el.dataset.openproj; if (window.innerWidth <= 1100) ui.pool = false; if (!$('#overlay').hidden) closeSheet(); scroller().scrollTop = 0; render(); return; }
   if ((el = c('[data-dayjump]'))){ closeSheet(); openDay(el.dataset.dayjump); return; }
   if ((el = c('[data-ext]'))){ showExt(el.dataset.ext); return; }
   if ((el = c('[data-log]'))){ const p = S.projects[el.dataset.log]; if (!p) return; const d = today(); const log = {...(p.log || {})}; log[d] = Math.max(0, r2((Number(log[d]) || 0) + Number(el.dataset.h))); if (!log[d]) delete log[d]; put('projects', el.dataset.log, {...p, log}, '', {undo:true}); return; }
@@ -2244,11 +2246,12 @@ document.addEventListener('keydown', e => {
 
 /* month picker */
 function closePop(){ const p = $('.popover'); p && p.remove(); }
+function scroller(){ const m = $('.main'); return m && getComputedStyle(m).overflowY !== 'visible' ? m : (document.scrollingElement || document.documentElement); }
 function monthPicker(btn){
   closePop();
   const r = btn.getBoundingClientRect(), vr = $('.main').getBoundingClientRect();
   const pop = document.createElement('div'); pop.className = 'popover'; pop.dataset.y = parse(ui.cursor).getFullYear();
-  pop.style.left = Math.max(8, r.left - vr.left) + 'px'; pop.style.top = (r.bottom - vr.top + 6) + 'px';
+  pop.style.left = Math.max(8, r.left - vr.left) + 'px'; pop.style.top = (r.bottom - vr.top + $('.main').scrollTop + 6) + 'px';
   $('.main').style.position = 'relative'; $('.main').appendChild(pop); fillPicker(pop);
 }
 function fillPicker(pop){ const y = Number(pop.dataset.y), cur = ui.cursor.slice(0,7); pop.innerHTML = `<div class="yr"><button class="icon" type="button" data-ypick="-1" aria-label="上一年">‹</button><b>${y} 年</b><button class="icon" type="button" data-ypick="1" aria-label="下一年">›</button></div><div class="mgrid">${Array.from({length:12}, (_,m) => `<button type="button" data-mpick="${y}-${pad(m+1)}-01" aria-current="${cur === `${y}-${pad(m+1)}`}">${m+1}月</button>`).join('')}</div>`; }
