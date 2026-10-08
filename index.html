@@ -117,7 +117,17 @@ kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border
 
 /* safety line banner */
 .banner{margin:0 20px 12px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
-.banner.pinned{position:sticky;top:0;z-index:5}
+.banner{position:sticky;top:0;z-index:5}
+.rings.collapsed{display:none}
+/* scrolled past the page header: the banner stays on top as a compact strip of projects */
+.banner.stuck{box-shadow:0 6px 18px rgba(0,0,0,.18);background-color:var(--surface)}
+.banner.stuck{background-image:none}
+.banner.stuck:not(.pinned){padding-top:8px;padding-bottom:8px;gap:6px}
+.banner.stuck:not(.pinned) .runway,.banner.stuck:not(.pinned) .warnbar,.banner.stuck:not(.pinned) .countdowns,.banner.stuck:not(.pinned) .ring .hint:not(.mono){display:none}
+.banner.stuck:not(.pinned) .banner-head p{font-size:12px;margin:0}.banner.stuck:not(.pinned) .banner-head .big{font-size:16px}
+.banner.stuck:not(.pinned) .rings,.banner.stuck:not(.pinned) .rings.collapsed{display:flex;gap:18px;overflow-x:auto;scrollbar-width:none}
+.banner.stuck:not(.pinned) .ring{flex:none;gap:7px}
+.banner.stuck:not(.pinned) .ring svg{width:24px;height:24px}
 .banner-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 .banner-head p{margin:0}
 .big{font-family:var(--f-display);font-size:22px;font-weight:600;color:var(--accent)}
@@ -454,7 +464,7 @@ details.more[open] summary{margin-bottom:10px}
   .top{padding:14px 16px 10px}
   .top h1{font-size:23px}
   .banner{margin:0 12px 10px}
-  .banner.pinned{top:env(safe-area-inset-top,0px)}
+  .banner{top:env(safe-area-inset-top,0px)}
   .cell{min-height:66px;padding:4px 3px}
   .cell .chip{padding:0;height:5px;border-radius:3px;border:0;background:var(--c,var(--accent))}
   .cell .chip.deadline{background:var(--oak)} .cell .chip.exam{background:var(--warn)} .cell .chip.ext{background:var(--line)}
@@ -875,8 +885,8 @@ function bannerHTML(D = today()){
   const pct = clamp(done/scale*100, 0, 100), lp = clamp(line/scale*100, 2, 98);
   const msg = met ? (done - line > 0.05 ? `<b>✓ ${word}的航速跟上了</b> · 多飞了 ${fmtH(done-line)}，后面几天可以松点油门` : `<b>✓ ${word}的航速刚好</b> · 照这个速度，准时落地`) : (done > 0 ? `还差 <span class="big">${fmtH(line-done)}</span> 跟上${word}的航速` : `${word}航速 <span class="big">${fmtH(line)}</span>，照这个速度飞，准时落地`);
   const overCap = cap > 0 && line > cap + 0.05 ? `<div class="warnbar">${word}建议 ${fmtH(line)}，超过了可投入的 ${fmtH(cap)}。可以提前某个项目的开始日期、放宽 Deadline，或在设置里调高每天可投入的时间。</div>` : cap === 0 && line > 0 ? `<div class="warnbar">${word}设成了休息日，但已经过了计划完成日，剩下的只能挤进来。</div>` : '';
-  const rings = ui.expand ? `<div class="rings">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; return `<div class="ring">${donut(q ? d/q : 1, p.color)}<div><b>${esc(p.name)}</b><span class="mono hint">${fmtH(d)} / ${fmtH(q)}</span> <span class="pill ${st.k}" title="${esc(st.text)}">${st.label}</span>${later ? `<div class="hint">连续两天不做，每天要从 ${fmtH(st.need)} 涨到 ${fmtH(later)}</div>` : ''}</div></div>`; }).join('')}</div>` : '';
-  return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="icon" type="button" data-act="expand" aria-label="${ui.expand ? '收起' : '展开每个项目'}" title="展开：看每个项目">${ui.expand ? '−' : '＋'}</button><button class="icon" type="button" data-act="pin" aria-pressed="${settings().pinned}" title="${settings().pinned ? '取消固定' : '固定在顶部：往下翻也一直看得见'}" style="${settings().pinned ? 'color:var(--accent)' : ''}">${ICON.pin}</button></div></div>
+  const rings = dv.projects.length ? `<div class="rings${ui.expand ? '' : ' collapsed'}">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; return `<div class="ring">${donut(q ? d/q : 1, p.color)}<div><b>${esc(p.name)}</b><span class="mono hint">${fmtH(d)} / ${fmtH(q)}</span> <span class="pill ${st.k}" title="${esc(st.text)}">${st.label}</span>${later ? `<div class="hint">连续两天不做，每天要从 ${fmtH(st.need)} 涨到 ${fmtH(later)}</div>` : ''}</div></div>`; }).join('')}</div>` : '';
+  return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="icon" type="button" data-act="expand" aria-label="${ui.expand ? '收起' : '展开每个项目'}" title="展开：看每个项目">${ui.expand ? '−' : '＋'}</button><button class="icon" type="button" data-act="pin" aria-pressed="${settings().pinned}" title="${settings().pinned ? '取消：往下翻时缩成一行' : '往下翻时保持完整显示'}" style="${settings().pinned ? 'color:var(--accent)' : ''}">${ICON.pin}</button></div></div>
     <div class="runway ${met ? 'met' : ''}" role="img" aria-label="已飞 ${fmtH(done)}，航速 ${fmtH(line)}"><div class="dash"></div><div class="fill" style="width:${pct}%"></div><div class="line" style="left:calc(${lp}% - 1px)"><span>航速 ${fmtH(line)}</span></div><div class="plane ${met ? 'up' : ''}" style="left:clamp(14px, ${pct}%, calc(100% - 14px))">${ICON.plane}</div></div>
     ${overCap}${rings}`;
 }
@@ -1345,7 +1355,7 @@ function render(){
   const banner = $('#banner');
   const showBanner = isCal || ui.go === 'today';
   banner.hidden = !showBanner;
-  banner.classList.toggle('pinned', !!settings().pinned && isCal);
+  banner.classList.toggle('pinned', !!settings().pinned);
   if (showBanner){ const bh = bannerHTML(); if (bh !== banner._html){ banner.innerHTML = bh; banner._html = bh; } }
   if (typing) return;   // don't clobber what's being typed; we re-render after blur
   const cur = parse(ui.cursor);
@@ -1369,6 +1379,7 @@ function render(){
   view._key = key; view._html = html;
   view.innerHTML = html;
   sc.scrollTop = st;
+  syncStuck();
 }
 
 /* ================= quick-add natural language ================= */
@@ -2246,6 +2257,14 @@ document.addEventListener('keydown', e => {
 
 /* month picker */
 function closePop(){ const p = $('.popover'); p && p.remove(); }
+function syncStuck(){
+  const b = $('#banner'), top = $('.top'); if (!b || !top || b.hidden) return;
+  const sc = scroller(), lim = sc === $('.main') ? sc.getBoundingClientRect().top : 0;
+  b.classList.toggle('stuck', top.getBoundingClientRect().bottom <= lim + 1);
+}
+let stuckRaf = 0; const onScrollStuck = () => { if (stuckRaf) return; stuckRaf = requestAnimationFrame(() => { stuckRaf = 0; syncStuck(); }); };
+document.addEventListener('scroll', onScrollStuck, {capture:true, passive:true});
+window.addEventListener('resize', onScrollStuck, {passive:true});
 function scroller(){ const m = $('.main'); return m && getComputedStyle(m).overflowY !== 'visible' ? m : (document.scrollingElement || document.documentElement); }
 function monthPicker(btn){
   closePop();
