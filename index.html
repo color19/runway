@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Runway：从 deadline 倒推每天的航速。Time flies, but I'm the pilot.">
+<meta name="description" content="Runway: plan backward from your deadline. 从 deadline 倒推每天的航速。Time flies, but I'm the pilot.">
 <style>:root{color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,sans-serif;background:#1D3033}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Runway</title>
 </head>
@@ -684,6 +684,7 @@ body{--glass:color-mix(in srgb,var(--bg) 70%,transparent);--glass-2:color-mix(in
 /* round 1: hierarchy, sticky layers, painting window */
 body::after{display:none}
 .rail .brand{display:none}
+.nav button{white-space:nowrap}
 .rail{padding-top:16px}
 .eyebrow{font-family:var(--f-body);letter-spacing:.12em;font-size:11px}
 .top{min-height:132px;padding:22px 28px 20px;position:relative;isolation:isolate;overflow:hidden;background:none}
@@ -886,9 +887,9 @@ const add = (s,n) => { const d = parse(s); d.setDate(d.getDate()+n); return ymd(
 const diff = (a,b) => Math.round((parse(b) - parse(a)) / 864e5);
 const monIdx = s => (parse(s).getDay()+6)%7;           // 0 = Monday
 const WDN = ['周一','周二','周三','周四','周五','周六','周日'];
-const wdName = s => WDN[monIdx(s)];
+const wdName = s => (LANG === 'en' ? WDN_EN : WDN)[monIdx(s)];
 const md = s => { const d = parse(s); return `${d.getMonth()+1}/${d.getDate()}`; };
-const cnd = s => { const d = parse(s); return `${d.getMonth()+1}月${d.getDate()}日`; };
+const cnd = s => { const d = parse(s); return LANG === 'en' ? `${MON_EN[d.getMonth()]} ${d.getDate()}` : `${d.getMonth()+1}月${d.getDate()}日`; };
 const r2 = x => Math.round(x*100)/100;
 const fmtH = h => { h = Math.max(0, h||0); if (h < 0.995) return Math.round(h*60) + 'm'; const H = Math.floor(h + 1e-9), M = Math.round((h-H)*60); return M ? (M===60 ? (H+1)+'h' : `${H}h${M}m`) : H+'h'; };
 const uid = p => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
@@ -900,6 +901,7 @@ const ARTS = [['study','书房','原版'],['starry','星月夜','梵高 · 1889'
 const PALETTES = [['classic','北欧雾蓝（原版）',['#F3F6F9','#EAF0F5','#687684','#1E2833'],'burgundy'],['cherry','樱桃奶油',['#D45060', '#FFF9F2', '#F3E6D5', '#800020'],'auto'],['coral','海雾珊瑚',['#CCFBFA', '#B1E5E6', '#F7ADAD', '#F29191'],'auto'],['sage','鼠尾草粉',['#8EA66B', '#FFF9D6', '#FFDCDC', '#D8A2A2'],'auto'],['navy','午夜海军',['#FCF1D0', '#22396F', '#0D1C42', '#010736'],'auto'],['forest','森林黄铜',['#E8DCC4', '#C49A45', '#2A6B5C', '#123F36'],'auto'],['sunset','暖橘日落',['#FCAD38', '#EB7F31', '#E45742', '#972828'],'auto'],['olive','橄榄麦田',['#D8C9A8', '#B8892D', '#4F5B2A', '#F5EFE3'],'auto']];
 const ACCENTS = [['burgundy','勃艮第酒红','#7A2E3D'],['fjord','北欧雾蓝','#4F7DB3'],['oak','暖橡木','#A87A4D'],['sage','鼠尾草','#5E8E72'],['bauhaus','包豪斯红','#C8473A'],['memphis','孟菲斯紫','#7B62B5'],['harbor','深海夜航','#2F6F86']];
 const KIND = {task:'任务', event:'日程', deadline:'截止', exam:'考试'};
+const KIND_EN = {task:'Task', event:'Event', deadline:'Due', exam:'Exam'};
 const ICON = {
   play:'<svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5v9l7-4.5z"/></svg>',
   stop:'<svg viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="4" width="8" height="8" rx="1.5"/></svg>',
@@ -912,6 +914,116 @@ const ICON = {
 };
 
 document.documentElement.lang = 'zh-CN';
+
+/* ================= language ================= */
+// The source is Chinese. In English mode every rendered text node / title / aria-label / placeholder
+// is looked up in EN_DICT (exact, or a template with {n} slots); user-written content is left alone.
+let LANG = 'zh';
+const L = (zh, en) => LANG === 'en' ? en : zh;
+const WDN_EN = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const MON_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const wdn = () => LANG === 'en' ? WDN_EN : WDN;
+const ymL = (y, m1) => LANG === 'en' ? `${MON_EN[m1-1]} ${y}` : `${y}年${m1}月`;
+const monL = m1 => LANG === 'en' ? MON_EN[m1-1] : `${m1}月`;
+const dayL = d => LANG === 'en' ? `${wdName(d)}, ${cnd(d)}` : cnd(d) + ' ' + wdName(d);
+const yearL = y => LANG === 'en' ? String(y) : `${y} 年`;
+const EN_DICT = {"只有你看得到，保存在这个浏览器":"Only you can see this. Saved in this browser","只有你看得到，已同步到你的账户":"Only you can see this. Synced to your account","语言":"Language","导航":"Navigation","新建计划项目":"New project","上一页":"Previous page","下一页":"Next page","今日航速":"Today's pace","任务池":"Inbox","关闭任务池":"Close Inbox","随手记：周五交论文 2h #CFA":"Jot down: essay fri 2pm 2h #CFA","主导航":"Main navigation","＋ 新建":"+ New","今日概览":"Today","时间线":"Timeline","日历":"Calendar","全部事项":"All items","计划项目":"Projects","回看":"Review","数据统计":"Stats","朝花夕拾":"Dawn Blossoms","导出与备份":"Export & backup","设置":"Settings","我的项目":"My projects","载入中":"Loading","今天":"Today","月":"Month","周":"Week","更多选项":"More options","记下":"Add","计划":"Projects","更多":"More","周一":"Mon","周二":"Tue","周三":"Wed","周四":"Thu","周五":"Fri","周六":"Sat","周日":"Sun","{0}月{1}日":"{0}/{1}","雾霾蓝":"Haze blue","湖水蓝":"Lake blue","青苔绿":"Moss green","橄榄绿":"Olive green","麦穗金":"Wheat gold","杏橙":"Apricot","陶土红":"Terracotta","珊瑚红":"Coral","莓果粉":"Berry pink","薰衣紫":"Lavender","可可棕":"Cocoa","石板灰":"Slate","书房":"The Study","原版":"Original","星月夜":"The Starry Night","梵高 · 1889":"Van Gogh · 1889","睡莲":"Water Lilies","莫奈 · 1919":"Monet · 1919","神奈川冲浪里":"The Great Wave off Kanagawa","葛饰北斋 · 约 1831":"Hokusai · c. 1831","米诺陶号沉船":"The Wreck of the Minotaur","透纳 · 约 1810":"Turner · c. 1810","构图七号":"Composition VII","康定斯基 · 1913":"Kandinsky · 1913","北欧雾蓝（原版）":"Nordic mist (original)","樱桃奶油":"Cherry cream","海雾珊瑚":"Sea-mist coral","鼠尾草粉":"Sage & rose","午夜海军":"Midnight navy","森林黄铜":"Forest brass","暖橘日落":"Warm sunset","橄榄麦田":"Olive & wheat","勃艮第酒红":"Burgundy","北欧雾蓝":"Nordic mist","暖橡木":"Warm oak","鼠尾草":"Sage","包豪斯红":"Bauhaus red","孟菲斯紫":"Memphis purple","深海夜航":"Night harbor","任务":"Task","日程":"Event","截止":"Deadline","考试":"Exam","这个浏览器没保存上，可能是存储满了：记得导出备份":"Couldn't save in this browser, storage may be full. Export a backup.","存储满了：删掉一些旧事项后再试":"Storage is full. Delete some old items and try again.","有改动没保存上，检查网络后刷新页面":"Some changes weren't saved. Check your connection and refresh.","没有可以撤销的操作":"Nothing to undo","已撤销":"Undone","同步中断了，刷新页面即可恢复":"Sync interrupted. Refresh to resume.","这里不能保存到你的账户，改成保存在这个浏览器里":"Can't save to your account here, saving in this browser instead","未命名":"Untitled","未命名项目":"Untitled project","待加任务":"Add tasks","还没有任务或工作量。点进项目添加任务，或填一个总工作量。":"No tasks or hours yet. Open the project to add tasks, or enter a total.","需要重新估时":"Re-estimate","还有 {0} 件没完成，但剩余时间记成了 0。点任务旁的进度图标，填一下还需要多久。":"{0} still open, but time left is 0. Tap the progress icon next to a task and enter how long it still needs.","全部完成":"All done","全部任务已完成。":"All tasks done.","已过 Deadline":"Past deadline","已过 Deadline {0} 天，还剩 {1}。":"{0} days past the deadline, {1} left.","还没开始":"Not started","{0} 开始，还有 {1} 天。":"Starts {0}, in {1} days.","截止前所有项目加起来每个可用日要 {0}，你平均每天能投入 {1}（占 {2}%）。":"Before this deadline, all projects together need {0} per available day. You have {1} a day on average ({2}%).","按最近两周的速度，预计 {0} 完成，会晚 {1} 天。":"At your pace over the last two weeks, you'll finish {0}, {1} days late.","按最近两周的速度，预计 {0} 完成，提前 {1} 天。":"At your pace over the last two weeks, you'll finish {0}, {1} days early.","稳":"On track","有点赶":"Tight","时间不够":"Not enough time","会晚":"Running late","{0}年{1}":"{1}/{0}","按现在的速度 {0} 完成，晚 {1} 天":"At this pace: done {0}, {1} days late","按现在的速度 {0} 完成，提前 {1} 天":"At this pace: done {0}, {1} days early","· 负荷 {0}%":"· load {0}%","负荷 {0}%":"Load {0}%","Google 日历：{0}":"Google Calendar: {0}","剩":"left","实际":"actual","还没完成，但剩余记成了 0":"Not done, but time left is 0","需重新估时":"Re-estimate","明天":"Tomorrow","停止计时":"Stop timer","开始计时":"Start timer","记录进度":"Log progress","删除":"Delete","完成 {0}":"Complete {0}","正在载入你的计划…":"Loading your plan…","这天":"This day","天":"days","建一个有 deadline 的计划项目，这里每天会算出{0}的航速：照这个速度飞，就能准时落地。":"Create a project with a deadline, and Runway will work out {0}'s pace here every day: hold it and you'll touch down on time.","{0}是休息日，引擎熄火，好好休息。":"{0} is a rest day. Engines off, rest well.","{0}没有要赶的航程，自由飞行。":"{0}: nothing to chase. Free flight.","偏低，落后了":"Low, falling behind","略低":"Slightly low","在下滑道上":"On the glide path","略高，领先":"Slightly high, ahead","偏高，大幅领先":"High, well ahead","下滑道指示：{0}":"Glide path: {0}","按现在的时间，应完成约 {0}%，已完成 {1}%":"By now about {0}% should be done; you're at {1}%","✓ {0}的航速跟上了":"✓ {0}'s pace met","· 多飞了 {0}，后面几天可以松点油门":"· {0} extra, ease off the throttle for the next few days","✓ {0}的航速刚好":"✓ {0}'s pace, right on","· 照这个速度，准时落地":"· keep this up and you'll touch down on time","还差":"Still","跟上{0}的航速":"to reach {0}'s pace","{0}航速":"{0}'s pace","，照这个速度飞，准时落地":", hold it to touch down on time","{0}需要 {1} · 可投入 {2}":"{0} needs {1} · {2} available","{0}是休息日 · 仍需 {1}":"{0} is a rest day · still needs {1}","要是歇两天，之后每天多 {0}。":"Take two days off and each day after needs {0} more.","收起项目":"Hide projects","展开项目":"Show projects","已飞 {0}，航速 {1}":"Flown {0}, pace {1}","{0} · 落地":"{0} · touchdown","已安排的项目时长 /":"Scheduled project time / day","记录了 {0}，多半是计时器忘了关；统计里按 16h 计":"{0} logged, probably a timer left running. Counted as 16h in stats","有备注":"Has a note","还有 {0} 件":"+{0} more","{0}，{1} 项":"{0}, {1} items","可投入":"Available","休息日":"Rest day","超出可投入":"Over capacity","＋ 添加":"+ Add","今":"Now","{0} {1}：建议 {2}，可投入 {3}":"{0} {1}: suggested {2}, available {3}","等 {0} 天":"and more ({0} days)","{0}{1}超出可投入时间":"Over available time: {0}{1}","接下来 {0} 天每天的航速":"Daily pace for the next {0} days","你当天可投入的时间":"Your available time","夜深了":"Up late","早上好":"Good morning","中午好":"Good afternoon","下午好":"Good afternoon","晚上好":"Good evening","多":"more","少":"less","之后每天{0} {1}":"{1} {0} per day after this","昨天休息":"Rested yesterday","昨天投入 {0}":"Yesterday: {0} logged","· 剩余时间未更新":"· time left not updated","昨天推进 {0} / {1}":"Yesterday's progress {0} / {1}","· 投入 {0} · {1}":"· logged {0} · {1}","昨天推进 {0} · 超出 {1}":"Yesterday's progress {0} · {1} ahead","已调整":"Adjusted","30 分":"30 min","1 小时":"1 hr","2 小时":"2 hrs","恢复默认":"Reset","已投入":"Logged","还可安排":"Free","自定义":"Custom","连续":"On pace","天跟上航速":"days running","完成 {0} / {1}":"{0} / {1} done","今天没有安排":"Nothing scheduled today","还有 {0} 件，在「全部事项」里能看到。":"{0} more in All items.","有 {0} 件过了安排日期还没做":"{0} past their scheduled date","都放到今天":"Move all to today","重新安排剩余任务":"Reschedule the rest","7 天内截止":"Due within 7 days","还没有项目":"No projects yet","昨天的你说：":"Yesterday you said: ","今天想完成什么？卡在哪里？写一句话给自己。写完自动保存。":"What do you want to finish today? Where are you stuck? Write yourself a line. Saves automatically.","今天要做":"To do today","接下来的投入":"Coming up","14 天":"14 days","30 天":"30 days","写给今天的自己":"Note to self","未排期":"No date","更早":"Earlier","已逾期":"Overdue","本周":"This week","下周":"Next week","以后":"Later","未记录日期":"Date not recorded","按标签筛选":"Filter by tag","全部标签":"All tags","未完成 {0}":"Open {0}","有截止":"Has deadline","已完成":"Done","全部":"All","{0} 件":"{0} items","没有找到匹配的事项，换个关键词试试。":"No matches. Try another keyword.","还没有完成记录。":"Nothing completed yet.","清单是空的。按 N 新建，或右键日历上的某一天添加事项。":"The list is empty. Press N to add, or right-click a day on the calendar.","搜索标题、备注或项目":"Search titles, notes, or projects","按计划项目筛选":"Filter by project","全部项目":"All projects","独立事项":"Standalone","完成 {0}% · 已排进日历 {1}%":"{0}% done · {1}% scheduled","还剩":"Left","距 {0}":"Until {0}","接下来 30 天的负荷":"Load, next 30 days","没有独立事项":"No standalone items","＋ 新建计划项目":"+ New project","{0} 件没做 · 不属于项目的日程和提醒":"{0} open · events and reminders outside projects","其他":"Other","截止 {0}":"Due {0}","设截止日":"Set deadline","模块自己的截止日":"Module deadline","智能排期 {0} 个":"Auto-schedule {0}","已排好的也重新排一遍":"Also reschedules tasks already placed","重新排期":"Reschedule","重命名模块":"Rename module","删除模块":"Delete module","按我的速度调整剩下 {0} 个":"Fit remaining {0} to my pace","「{0}」你平均每个用":"{0}: you average","（预计 {0}，做了 {1} 个）{2}":" each (est. {0}, {1} done){2}","再做完 {0} 个并记录实际用时，就能按你的速度预计这个模块。":"Finish {0} more with actual time logged, and Runway can estimate this module at your pace.","排期":"Schedule","计时":"Timer","新任务，例如：Reading 32 + 课后题":"New task, e.g. Reading 32 + practice problems","任务名称":"Task name","小时":"Hours","预计小时":"Estimated hours","完成 {0}/{1} 件 · {2} / {3}":"{0}/{1} done · {2} / {3}","添加":"Add","＋ 一次加多个":"+ Add several","· 目标提前 {0} 天":"· aiming {0} days early","要是歇两天，之后每天多 {0}":"Take two days off and each day after needs {0} more","把全部 {0} 个未排期任务排进日历":"Schedule all {0} unscheduled tasks","■ 停止计时":"■ Stop timer","▶ 为这个项目计时":"▶ Time this project","未拆分的工作量":"Unsplit work","总共 {0} · 已记录 {1} · 还剩 {2}":"Total {0} · logged {1} · {2} left","今天记录":"Logged today","日程与截止":"Events & deadlines","‹ 所有项目":"‹ All projects","编辑项目":"Edit project","已完成 / 总量":"Done / total","每个可用日平均":"Avg per available day","完成 {0}%":"{0}% done","已排进日历 {0}%":"{0}% scheduled","还没排 {0}%":"{0}% unscheduled","✦ AI 智能拆解任务":"✦ Break down with AI","＋ 新模块":"+ New module","近 30 天":"Last 30 days","前 30 天":"the previous 30 days","上周":"Last week","前一周":"the week before","本月":"This month","{0}年{1}月":"{1}/{0}","前一个月":"the month before","今年":"This year","{0} 年":"{0}","前一年":"the year before","无对比":"No comparison","持平":"No change","上一期没有记录":"No data last period","{0} 个百分点":"{0} pts","{0}月":"{0}","{0}：投入 {1}，完成 {2} 件":"{0}: {1} logged, {2} done","投入时长趋势":"Hours over time","时间分布":"Time split","总投入":"Total","{0}：投入 {1} · 划掉 {2} 件":"{0}: {1} logged · {2} checked off","完成热力图":"Completion heatmap","{0} 平均投入 {1}，算了 {2} 个{3}":"{0}: avg {1} across {2} {3}s","，比{0}多 {1}%":", {1}% more than {0}","，比{0}少 {1}%":", {1}% less than {0}","，和{0}差不多稳":", steady with {0}","{0}划掉了 {1} 件事，投入 {2}{3}。":"{0}: {1} checked off, {2} logged{3}.","{0}还没有记录。":"{0}: nothing logged yet.","年":"Year","回到现在":"Back to now","件":"items","计划内 {0} / {1} 件":"{0} / {1} planned","含 {0} 天异常记录，按 16h 计":"Incl. {0} outlier days, counted as 16h","按有记录的天算":"Days with logs only","实际比预计久，预计可以放宽":"Taking longer than estimated; pad your estimates","比预计快":"Faster than estimated","估得很准":"Spot-on estimates","记录实际用时后显示":"Shown once actual time is logged","{0}记录了 {1}，多半是计时器忘了关。图和统计里这天按 16h 计。":"{0}: {1} logged, probably a timer left running. Counted as 16h in charts and stats.","暂无记录":"No data yet","最投入的一天：{0}":"Busiest day: {0}","还剩 {0} 天":"{0} days left","已过期":"Past due","还没有项目。":"No projects yet.","上一期":"Previous period","下一期":"Next period","完成事项":"Completed","投入时长":"Hours logged","完成率":"Completion rate","活跃天数":"Active days","/ {0} 天":"/ {0} days","日均投入":"Daily average","预计 vs 实际":"Estimate vs actual","一周节奏":"Weekly rhythm","从 {0}年{1}月开始使用算起":"Since you started in {1}/{0}","项目进度":"Project progress","✦ 周回顾":"✦ Weekly review","准备周回顾":"Start weekly review","{0} 周 · 划掉 {1} 件":"{0} weeks · {1} checked off","做过的事，都留在这里。":"Everything you've done, kept here.","点封面翻开":"Tap the cover to open","这一周，全部划掉了。":"Every task this week, checked off.","这一周划掉了 {0} 件事":"{0} things checked off this week","最投入":"Busiest","第 {0} 周 · {1} – {2}":"Week {0} · {1} – {2}","投入":"Logged","封面":"Cover","还没有记录":"Nothing logged yet","‹ 上一页":"‹ Previous","下一页 ›":"Next ›","表格 CSV":"Spreadsheet (CSV)","从":"Start","到":"to","下载 CSV":"Download CSV","日历文件 ICS":"Calendar file (ICS)","Apple 日历 · Google 日历 · Outlook":"Apple Calendar · Google Calendar · Outlook","下载 ICS":"Download ICS","项目任务清单":"Project task list","Markdown · 按模块列出":"Markdown · by module","下载清单":"Download list","完整备份":"Full backup","JSON · 全部数据":"JSON · all data","下载备份":"Download backup","从备份恢复":"Restore from backup","Google 日历":"Google Calendar","在日历上显示 Google 日历里的日程":"Show Google Calendar events on the calendar","只读":"Read-only","名画":"Paintings","跟随配色":"Match palette","配色方案":"Color scheme","主题色":"Accent color","标签名":"Tag name","标签颜色":"Tag color","删除标签 {0}":"Delete tag {0}","算作截止":"Counts as deadline","还没有标签。":"No tags yet.","昵称":"Nickname","新标签，例如：TA、求职":"New tag, e.g. TA, job search","输入「清空」两个字确认":"Type \"erase\" to confirm","每天可投入的时间":"Available time per day","0 = 休息日":"0 = rest day","每周合计 {0}":"{0} per week","日历与时间":"Calendar & time","一周从哪天开始":"Week starts on","新的一天从几点开始":"New day starts at","自动把每天的量分均匀":"Even out daily load automatically","完成项目任务时问我实际用时":"Ask for actual time when I finish a project task","打开时显示":"Open to","个性化":"Personalize","你的昵称":"Your nickname","标签":"Tags","添加标签":"Add tag","数据":"Data","备份与恢复":"Backup & restore","去导出":"Go to export","清空数据":"Erase all data","不能撤销":"Can't be undone","清空":"Erase","快捷键与小技巧":"Shortcuts & tips","新建 ·":"New ·","回到今天 ·":"Go to today ·","月/周 ·":"Month/Week ·","翻页 ·":"Previous/next ·","搜索 ·":"Search ·","撤销 · 右键或双击日历某天直接新建":"Undo · Right-click or double-click a calendar day to add","快速输入能听懂：":"Quick add understands:","明天 14:00 组会":"tomorrow 14:00 group meeting","周五交论文 2h":"Fri submit paper 2h","每周一三五 跑步 到12月1日":"every Mon Wed Fri run until 12/1","10月26日 期中考试":"10/26 midterm exam","加标签、":"adds a tag,","归入项目。":"files it under a project.","任务池是空的":"Inbox is empty","还有 {0} 项，去项目里看":"{0} more, see the project","保存失败，检查网络或存储空间":"Couldn't save. Check your connection or storage","导出备份":"Export backup","已同步到你的账户":"Synced to your account","仅保存在这个浏览器":"Saved in this browser only","所有日程和任务":"All events and tasks","把 deadline 拆成每天的时间":"Deadlines, broken into daily time","看看你走了多远":"See how far you've come","做过的事，都留在这里":"Everything you've done, kept here","表格、日历文件、清单和备份":"Spreadsheets, calendar files, lists & backups","时间、日历与外观":"Time, calendar & appearance","日历 · 月":"Calendar · Month","日历 · 周":"Calendar · Week","跳到其他月份":"Jump to another month","今日揭开 {0}%":"Revealed today {0}%","今日自由飞行":"Free flight today","十":"ten","归入":"In","今晚":"tonight","(上午|早上|中午|下午|晚上|傍晚)?\\s*(\\d{1,2})(?:[:：](\\d{0})|\\s*点\\s*(?:(半)|(\\d{1,2})\\s*分?)?)":"(上午|早上|中午|下午|晚上|傍晚)?\\s*(\\d{1,2})(?:[:：](\\d{0})|\\s*点\\s*(?:(半)|(\\d{1,2})\\s*分?)?)","\\s*(?:到|至|-|~|–)\\s*":"\\s*(?:到|至|-|~|–)\\s*","每天":"Daily","每个工作日":"Every weekday","每两周":"Every 2 weeks","每月 {0} 号":"Monthly on day {0}","每周{0}":"Weekly {0}","放进任务池":"To Inbox","已添加 {0} 次重复日程":"Added {0} recurring events","已添加到 {0}":"Added to {0}","已放进任务池":"Added to Inbox","无（归入独立事项）":"None (standalone)","编辑事项":"Edit item","新建日程 / 任务":"New event / task","重复":"Repeat","不重复":"Doesn't repeat","每周":"Weekly","每月":"Monthly","重复到":"Repeat until","标题里写 #标签名 即可添加":"Type #tagname in the title to add one","可不填":"Optional","实际用时（小时）":"Actual time (hours)","删除全部 {0} 次":"Delete all {0}","保存":"Save","关闭":"Close","例如：明天 14:00 组会、周五交论文 2h":"e.g. group meeting tomorrow 2pm, paper due fri 2h","减少 15 分钟":"15 min less","增加 15 分钟":"15 min more","可选":"Optional","要做什么":"What needs doing","日期":"Date","后天":"In 2 days","先不定日期":"No date yet","要花多久（小时）":"How long (hours)","类型":"Type","项目":"Project","模块":"Module","无":"None","更多：具体时间、重复、标签、备注":"More: time, repeat, tags, notes","开始":"Start","结束":"End","备注":"Notes","取消":"Cancel","将添加：{0} · {1}":"Will add: {0} · {1}","已保存":"Saved","再点一次删除":"Click again to delete","已删除「{0}」":"Deleted \"{0}\"","再点一次全部删除":"Click again to delete all","已删除「{0}」{1} 次":"Deleted \"{0}\" ×{1}","计划 {0} 完成（提前 {1} 天）":"Planned finish {0} ({1} days early)","不提前，计划在 {0} 前完成":"No buffer, finish by {0}","距离 Deadline 还有 {0} 天 · {1}":"{0} days to deadline · {1}","编辑计划项目":"Edit project","提前 {0} 天":"{0}d early","不提前":"No buffer","完成任务时问我实际用时":"Ask for actual time when finishing tasks","删除项目":"Delete project","创建":"Create","给项目起个名字，例如：CFA Level 1":"Name your project, e.g. CFA Level 1","名称":"Name","Deadline（当天不计入投入）":"Deadline (that day isn't counted)","提前完成天数":"Finish early by","未拆分的工作量（小时）":"Unsplit work (hours)","项目颜色":"Project color","开始日期要早于 Deadline":"Start date must be before the deadline","已保存项目修改":"Project saved","已创建 {0}":"Created {0}","再点一次：删除项目和它的 {0} 个任务":"Click again: deletes the project and its {0} tasks","已删除项目「{0}」":"Deleted project \"{0}\"","这天还缺 {0} 可投入时间":"This day is {0} short on available time","已安排超过可投入 {0}":"Scheduled {0} over available","够了 ✓ 这天还能再排 {0}":"Enough ✓ {0} still free this day","这天单独设置过":"Custom for this day","只改这一天，不影响每周默认":"This day only, weekly default unchanged","{0} 这天航速":"{0} pace this day","这天完成了 {0}":"{0} done this day","没有安排":"Nothing scheduled","没做完的 {0} 件挪到明天":"Move {0} unfinished to tomorrow","前一天":"Previous day","后一天":"Next day","这天可投入小时":"Available hours this day","在这天新建…（可以写 14:00、2h、#标签）":"Add to this day… (try 14:00, 2h, #tag)","给这一天留一句话":"Leave a line for this day","小时 · {0}":"hours · {0}","从任务池选":"Pick from Inbox","这天的留言 · 写完自动保存":"Note for this day · saves automatically","已把 {0} 件挪到 {1}":"Moved {0} to {1}","排到 {0}":"Schedule on {0}","已排 {0} / {1}":"{0} / {1} scheduled","放回任务池":"Back to Inbox","「{0}」安排到哪天？":"Which day for \"{0}\"?","排到这天":"Use this date","还剩 {0}":"{0} left","例如 0.5":"e.g. 0.5","今天投入了多久（小时，全天合计）":"Time spent today (hours, whole day)","还需要大约多久（小时，可以直接改）":"Roughly how much longer (hours, editable)","先填还需要多久，或者填 0 表示完成":"Enter time left first, or 0 if done","已完成「{0}」":"Completed \"{0}\"","今天投入 {0}，还剩 {1}":"{0} today, {1} left","已更新剩余 {0}":"Updated: {0} left","已撤销完成，还剩 {0}":"Marked not done, {0} left","已撤销完成，记得重新估一下还要多久":"Marked not done. Remember to re-estimate the time left","「{0}」之前已经投入 {1}，还剩预计 {2}，剩下这部分花了多久？":"\"{0}\": {1} logged before, {2} estimated left. How long did the rest take?","「{0}」预计 {1}，实际用了多久？":"\"{0}\" was estimated at {1}. How long did it actually take?","和预计一样":"As estimated","其他（小时）":"Other (hours)","记录实际用时":"Log actual time","记录":"Log","「{0}」完成时不再询问":"Don't ask again for \"{0}\"","跳过":"Skip","已排到 {0}":"Scheduled for {0}","「{0}」已放回任务池":"\"{0}\" moved back to Inbox","新任务算作":"New tasks count as","新加的任务算作":"New tasks count as","拆分原有工作量":"Part of unsplit work","额外增加任务":"Extra work","（已扣完）":" (all used)","已添加任务，从未拆分工作量里扣了 {0}{1}":"Task added, unsplit work reduced by {0}{1}","已添加任务（额外增加）":"Task added (extra)","例如：Reading {1-10}、真题 {1-4}":"e.g. Reading {1-10}, Mock exam {1-4}","FRA 第 1 章 FRA 第 2 章 2h":"FRA Chapter 1\nFRA Chapter 2 2h","一次加多个任务":"Add several tasks","任务名，用 {起-止} 表示编号":"Task name; use {start-end} for numbering","每个预计（小时）":"Hours each (est.)","或者每行一个（会覆盖上面）":"Or one per line (overrides above)","将添加 {0} 个：{1}{2} · 共 {3}":"Will add {0}: {1}{2} · {3} total","，从未拆分工作量里扣了":", unsplit work reduced by","（额外增加）":" (extra)","已加 {0} 个任务{1}":"Added {0} tasks{1}","这天会超出 {0}":"Over by {0} this day","在 Deadline（{0}）之后":"After the deadline ({0})","在「{0}」截止（{1}）之后":"After \"{0}\" is due ({1})","，会用掉提前缓冲":", eats into your buffer","比目标完成日晚 {0} 天{1}":"{0} days past target{1}","截止前已经没有可投入的日子，之后 45 天也排不下":"No available days before the deadline, and no room in the 45 days after","接下来 45 天都排满了":"The next 45 days are full","重新安排 {0} 件剩余任务":"Reschedule {0} remaining tasks","没有需要安排的任务":"Nothing to schedule","可以安排":"Fits","在截止前完成，当天不超量":"Done before the deadline, within each day's capacity","会超量":"Over capacity","截止前每天都不够放，放到最空的那天，当天会超出":"No day before the deadline has room. Placed on the lightest day, which will run over","会晚于目标":"Past target","截止前排不下，只能往后放":"No room before the deadline, placed after it","无法安排":"Can't schedule","先放回任务池，需要你决定：延期、砍掉或加时间":"Back to Inbox for now. Your call: postpone, cut, or add time","（未估时，按 30 分算）":" (no estimate, counted as 30 min)","{0} · {1} 件":"{0} · {1} tasks","{0} 件需要你确认":"{0} need your review","全部 {0} 件都能按时完成":"All {0} fit on time","按勾选的安排":"Schedule selected","（无法安排的放回了任务池）":" (unschedulable ones went back to Inbox)","已安排 {0} 件任务{1}":"Scheduled {0} tasks{1}","第{0}{1}":"第{0}{1}","这件要 {0}，比一天能投入的 {1} 还多，建议拆成几件":"This needs {0}, more than the {1} available in a day. Consider splitting it","比目标完成日晚 {0} 天":"{0} days past target","截止前没有可投入的日子，之后 60 天也排不下":"No available days before the deadline, and no room in the 60 days after","智能排期：有几件排不进截止前，看一下再确认":"Auto-schedule: some tasks don't fit before the deadline. Review before confirming","已把 {0} 个任务排进日历":"Added {0} tasks to the calendar","重新排期：{0}（所有没做完的任务）":"Reschedule: {0} (all unfinished tasks)","清除":"Clear","「{0}」的截止日":"Deadline for \"{0}\"","「{0}」截止 {1}":"\"{0}\" due {1}","已清除「{0}」的截止日":"Cleared deadline for \"{0}\"","先选一个日期":"Pick a date first","开始计时：{0}":"Timer started: {0}","不到 1 分钟，没有记录":"Under a minute, not logged","记录了 {0}":"Logged {0}","按投入扣减：还剩 {0}":"By time spent: {0} left","还需 30 分":"30 min more","还需 1 小时":"1 hr more","还需 2 小时":"2 hrs more","，原来估计还剩 {0}":", previously estimated {0} left","还需几小时":"Hours left","已投入 {0}":"Logged {0}","「{0}」累计投入 {1}{2}。完成了，还是还需要一些时间？":"\"{0}\": {1} logged in total{2}. Done, or need more time?","完成了":"Done","先不改剩余时间":"Keep time left as is","「{0}」记录了 {1}":"\"{0}\": logged {1}","{0} · {1} 件排不下，放回待排":"{0} · {1} didn't fit, back to Unscheduled","· {0} 件排不下":"· {0} didn't fit","排入 {0} 件{1}":"Placed {0}{1}","这天剩下的时间排不下了":"No room left in this day","剩下的时间排不下了":"No room left","没有可排的任务":"Nothing to place","已放回待排":"Back to Unscheduled","已顺延 · {0} 件排不下，放回待排":"Pushed back · {0} didn't fit, back to Unscheduled","已顺延":"Pushed back","不需要顺延":"Nothing to push back","现在":"now","放回待排":"Back to Unscheduled","完成":"Done","排入":"Place","今天的都排好了":"Today is all placed","都排好了":"All placed","没有任务":"No tasks","任务池还有 {0} 件":"{0} in Inbox","日":"Day","3 天":"3 days","从现在顺延":"Push back from now","全部排入":"Place all","往前":"Earlier","往后":"Later","计划 {0} · 实际 {1}":"Planned {0} · actual {1}","待排":"Unscheduled","已关闭":"Off","已连接，日历上的虚线框就是 Google 日历的日程":"Connected. Dashed boxes on the calendar are Google Calendar events","正在读取…":"Loading…","打开日历页时读取":"Loads when you open the calendar","这个页面现在连不上 Google 日历（只能在 Claude 里打开时使用）。":"This page can't reach Google Calendar right now (it only works when opened in Claude).","还没授权读取 Google 日历。重新打开开关，在弹出的提示里允许。":"Google Calendar access isn't granted yet. Turn the switch back on and allow it when prompted.","你的 Claude 账户里还没连接 Google 日历。":"Google Calendar isn't connected to your Claude account yet.","Google 日历需要重新登录：去 Claude 的连接设置里重新连接。":"Google Calendar needs you to sign in again: reconnect it in Claude's connector settings.","读取 Google 日历失败，稍后会自动再试。":"Couldn't load Google Calendar. Will retry automatically.","（无标题）":"(No title)","读取 Google 日历失败。":"Couldn't load Google Calendar.","全天":"All day","在 Google 日历里打开":"Open in Google Calendar","Google 日历 · {0}{1}":"Google Calendar · {0}{1}","Google 日历 · 只读":"Google Calendar · read-only","需要你允许这个页面使用 AI。":"Allow this page to use AI first.","AI 现在有点忙，过一会儿再试。":"The AI is busy right now. Try again in a moment.","已取消。":"Canceled.","这次没生成出来，稍后再试。":"Nothing came back this time. Try again later.",", 已完成":", done","（没写）":"(none)","你是学习和项目规划助手。请把下面这个项目拆成 2 到 6 个模块，每个模块 3 到 12 个具体可执行的任务。每个任务的预计用时以小时计，在 0.25 到 6 之间，按 0.25 取整。任务名用中文，专有名词可保留英文，简洁具体。不要重复已有任务。 项目：{0} 今天：{1}；Deadline：{2}（当天不计入投入）；提前完成天数：{3} 截止前可用的工作日 {4} 天，总共约 {5} 可投入时间（这个项目和其他项目共享）。 已有任务：{6} 用户描述：{7} 只输出一个 JSON 代码块，不要任何其他文字，格式严格如下： ```json {\"modules\":[{\"name\":\"模块名\",\"tasks\":[{\"title\":\"任务名\",\"hours\":1.5}]}],\"note\":\"一句话说明总量是否现实\"} ```":"You are a study and project planning assistant. Break the project below into 2 to 6 modules, each with 3 to 12 concrete, actionable tasks. Estimate each task in hours, between 0.25 and 6, rounded to 0.25. Write task names in English, concise and specific. Do not repeat existing tasks.\nProject: {0}\nToday: {1}; Deadline: {2} (the deadline day itself is not counted); Days to finish early: {3}\nAvailable workdays before the deadline: {4}, about {5} of available time in total (shared with other projects).\nExisting tasks: {6}\nUser description: {7}\n\nOutput only one JSON code block and no other text, in exactly this format:\n```json\n{\"modules\":[{\"name\":\"Module name\",\"tasks\":[{\"title\":\"Task name\",\"hours\":1.5}]}],\"note\":\"One sentence on whether the total is realistic\"}\n```","截止 {0} ·":"Due {0} ·","{0}{1} 个 · {2}":"{0}{1} tasks · {2}","拆成 {0} 个模块、{1} 个任务，共 {2}。{3}":"{0} modules, {1} tasks, {2} total. {3}","加进项目":"Add to project","先勾选至少一个模块":"Select at least one module","已加 {0} 个任务":"Added {0} tasks","例如：CFA Level 1 最后 6 周。Ethics 和 FRA 已经过完一遍，Fixed Income 和 Derivatives 还弱，想做 3 套完整模考。":"e.g. Final 6 weeks of CFA Level 1. One pass done on Ethics and FRA; Fixed Income and Derivatives still weak. Want to do 3 full mock exams.","描述":"Description","## 模块名 | 10/15&#10;- 任务 2h":"## Module name | 10/15&#10;- Task 2h","粘贴现成计划":"Paste an existing plan","开始拆解":"Break it down","预览":"Preview","没认出格式":"Format not recognized","正在拆解…":"Breaking down…","AI 没给出可用的拆解，换个说法再试一次。":"The AI didn't return a usable breakdown. Try rephrasing.","重新拆解":"Try again","1. 生成并复制提示词":"1. Generate and copy the prompt","提示词":"Prompt","2. 把 AI 返回的结果粘贴到这里":"2. Paste the AI's reply here","3. 预览拆解结果":"3. Preview the breakdown","提示词已复制，去发给你的 AI 吧":"Prompt copied. Send it to your AI","请按 ⌘C / Ctrl+C 复制已选中的提示词":"Press ⌘C / Ctrl+C to copy the selected prompt","没认出结果，请粘贴 AI 的完整回答":"Couldn't read that. Paste the AI's full reply","你是一个温和但直接的学习教练。根据下面最近7天的数据，用简体中文写200到300字周回顾，分三段：这周做得好的；落下了什么及可能的原因；下周具体建议。区分实际投入、完成任务和剩余工作，不把未完成任务等同于没有付出，没有记录也不代表没有学习。不编造原因，建议须考虑多个项目共享时间。建议投入是按当前计划回算的参考值，不是历史承诺。不要使用markdown标题。 回顾区间：{0} 至 {1} 每日数据：{2} 项目：{3} 下周每日总容量（小时）：{4}":"You are a warm but direct study coach. Based on the last 7 days of data below, write a weekly review in English, 150 to 220 words, in three paragraphs: what went well this week; what slipped and possible reasons; concrete suggestions for next week. Distinguish actual time logged, tasks completed, and remaining work. Unfinished tasks don't mean no effort, and no logs don't mean no studying. Don't invent reasons; suggestions must account for time shared across projects. Suggested hours are reference values back-calculated from the current plan, not past commitments. Don't use markdown headings.\nReview period: {0} to {1}\nDaily data: {2}\nProjects: {3}\nTotal daily capacity next week (hours): {4}","把 AI 返回的回顾粘贴到这里，也可以自己写。":"Paste the AI's review here, or write your own.","{0} 至 {1} · 已记录投入 {2} · 完成 {3} 个任务":"{0} to {1} · {2} logged · {3} tasks done","1. 复制提示词，发给你常用的 AI":"1. Copy the prompt and send it to your usual AI","复制周回顾提示词":"Copy review prompt","2. 粘贴生成的周回顾（可编辑）":"2. Paste the review (editable)","显示周回顾":"Show review","周回顾提示词已复制":"Review prompt copied","请先填写周回顾":"Write the review first","已下载 {0}":"Downloaded {0}","已取消下载":"Download canceled","这里没法直接下载。全选下面的内容复制，存成":"Can't download directly here. Select all below, copy it, and save as","复制":"Copy","已复制":"Copied","事项":"Item","预计用时（小时）":"Estimated (hours)","是":"Yes","否":"No","Runway-{0}至{1}.csv":"Runway-{0}-to-{1}.csv","项目：":"Project: ","预计":"Est.","Runway-{0}至{1}.ics":"Runway-{0}-to-{1}.ics","# {0} Deadline {1} · 共 {2} · 剩 {3} · {4}":"# {0}\n\nDeadline {1} · {2} total · {3} left · {4}","· 排在":"· scheduled","· 实际":"· actual","- [{0}] {1} · 预计 {2}{3}{4}":"- [{0}] {1} · est. {2}{3}{4}","项目清单":"Project list","还没有计划项目。":"No projects yet.","这不是 Runway 的备份文件":"This isn't a Runway backup file","备份里有 {0} 个事项、{1} 个项目、{2} 条留言（{3}）。恢复会替换现在的全部数据。":"This backup has {0} items, {1} projects, and {2} notes ({3}). Restoring replaces all current data.","替换现在的数据":"Replace current data","备份已导入":"Backup restored","撤销":"Undo","模块名，例如：Fixed Income":"Module name, e.g. Fixed Income","新模块":"New module","已添加模块「{0}」":"Added module \"{0}\"","再点一次：删除模块和里面的 {0} 个任务":"Click again: deletes the module and its {0} tasks","再点一次删除这个模块和里面的 {0} 个任务":"Click again to delete this module and its {0} tasks","已删除模块":"Module deleted","剩下 {0} 个任务已按你的实际速度调整":"Adjusted {0} remaining tasks to your actual pace","已换成「{0}」":"Switched to {0}","今天可投入多久":"Available time today","确定":"OK","已删除标签":"Tag deleted","已把 {0} 件放到今天":"Moved {0} to today","已清空全部数据":"All data erased","已添加标签 #{0}":"Added tag #{0}","新的一天从 {0}:00 开始":"New day starts at {0}:00","已打开 Google 日历显示":"Google Calendar shown","已关闭 Google 日历显示":"Google Calendar hidden","上一年":"Previous year","下一年":"Next year"};
+const I18N = (() => {
+  const exact = new Map(), rx = [], cache = new Map();
+  const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const [k, v] of Object.entries(EN_DICT)){
+    if (!/\{\d+\}/.test(k)){ exact.set(k, v); continue; }
+    const parts = k.split(/\{(\d+)\}/), order = [];
+    let re = '^';
+    parts.forEach((p, i) => { if (i % 2) { order.push(Number(p)); re += '(.*?)'; } else re += esc(p).replace(/\s+/g, '\\s*'); });
+    const staticCJK = (k.replace(/\{\d+\}/g, '').match(/[㐀-鿿]/g) || []).length;
+    rx.push({re: new RegExp(re + '$'), order, en: v, weak: staticCJK <= 3, w: k.replace(/\{\d+\}/g, '').length});
+  }
+  rx.sort((a, b) => b.w - a.w);
+  return {exact, rx, cache};
+})();
+const CJK_RE = /[㐀-鿿]/;
+const SEPS = [[' · ', ' · '], ['，', ', '], ['。', '. '], ['；', '; '], ['：', ': '], [' ', ' ']];
+const LOWER = new Set(['今天', '这天', '明天', '昨天']);
+function trText(s, depth = 0){
+  s = s.trim();
+  if (!s) return '';
+  if (!CJK_RE.test(s)) return s;
+  const c = I18N.cache.get(s); if (c !== undefined) return c;
+  let r = I18N.exact.has(s) ? I18N.exact.get(s) : null;
+  if (r == null) for (const e of I18N.rx){
+    const m = s.match(e.re); if (!m) continue;
+    const caps = m.slice(1);
+    if (e.weak && caps.some(g => CJK_RE.test(g) && !LOWER.has(g.trim()) && trText(g, depth + 1) == null)) continue;
+    r = e.en.replace(/\{(\d+)\}/g, (_, n) => {
+      const g = caps[e.order.indexOf(Number(n))] ?? '';
+      if (!CJK_RE.test(g)) return g;
+      const t = trText(g, depth + 1);
+      if (t == null) return g;
+      return LOWER.has(g.trim()) && e.en.indexOf('{' + n + '}') > 0 ? t.charAt(0).toLowerCase() + t.slice(1) : t;
+    });
+    break;
+  }
+  if (r == null && depth < 4) for (const [sep, out] of SEPS){
+    let i = s.indexOf(sep);
+    while (i > 0 && r == null){
+      const a = trText(s.slice(0, i), depth + 1), b = trText(s.slice(i + sep.length), depth + 1);
+      if (a != null && b != null) r = (a + (b ? out + b : (sep === ' ' ? '' : out.trim()))).trim();
+      i = s.indexOf(sep, i + 1);
+    }
+    if (r != null) break;
+  }
+  if (r == null && /[，。；：！？（）「」]/.test(s)){ const t = s.replace(/[「」]/g, '"'); if (t !== s) r = trText(t, depth + 1); }
+  if (r != null && depth === 0) r = r.replace(/(^|[^\d.])1 (task|item|day|module|hour|week|month|time|minute|project|tag|note)s\b/g, '$1' + '1 $2');
+  I18N.cache.set(s, r);
+  return r;
+}
+const ORIG_T = new WeakMap(), ORIG_A = new WeakMap(), TR_ATTRS = ['title', 'aria-label', 'placeholder'];
+function trNode(n){
+  if (n.nodeType === 3){
+    const v = n.nodeValue; if (!v || !CJK_RE.test(v)) return;
+    const p = n.parentNode; if (p && (p.nodeName === 'SCRIPT' || p.nodeName === 'STYLE' || p.nodeName === 'TEXTAREA')) return;
+    const t = trText(v); if (t == null) return;
+    ORIG_T.set(n, v);
+    const lead = v.match(/^\s*/)[0], trail = v.match(/\s*$/)[0];
+    n.nodeValue = lead + t + trail;
+    return;
+  }
+  if (n.nodeType !== 1) return;
+  for (const a of TR_ATTRS){
+    const v = n.getAttribute(a); if (!v || !CJK_RE.test(v)) continue;
+    const t = trText(v); if (t == null) continue;
+    const o = ORIG_A.get(n) || {}; o[a] = v; ORIG_A.set(n, o);
+    n.setAttribute(a, t);
+  }
+  for (let c = n.firstChild; c; c = c.nextSibling) trNode(c);
+}
+function untrNode(n){
+  if (n.nodeType === 3){ const o = ORIG_T.get(n); if (o != null){ n.nodeValue = o; ORIG_T.delete(n); } return; }
+  if (n.nodeType !== 1) return;
+  const o = ORIG_A.get(n); if (o){ for (const a in o) n.setAttribute(a, o[a]); ORIG_A.delete(n); }
+  for (let c = n.firstChild; c; c = c.nextSibling) untrNode(c);
+}
+const trObserver = new MutationObserver(muts => {
+  if (LANG !== 'en') return;
+  for (const m of muts){
+    if (m.type === 'childList') m.addedNodes.forEach(trNode);
+    else if (m.type === 'characterData') trNode(m.target);
+    else if (m.type === 'attributes' && CJK_RE.test(m.target.getAttribute(m.attributeName) || '')) trNode(m.target);
+  }
+});
+trObserver.observe(document.documentElement, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: TR_ATTRS});
+function wantLang(){ const s = (S.settings.main || {}); return s.lang || (SHARE && !/^zh/i.test(navigator.language || '') ? 'en' : 'zh'); }
+function setLang(l){
+  if (l === LANG) return;
+  LANG = l;
+  document.documentElement.lang = l === 'en' ? 'en' : 'zh-CN';
+  if (l === 'en'){ trNode(document.body); document.title = SHARE ? 'Runway' : 'Runway · Plan backward'; }
+  else { untrNode(document.body); document.title = SHARE ? 'Runway 分享版' : 'Runway 倒推日历'; }
+  const v = $('#view'); if (v) v._html = null; const bn = $('#banner'); if (bn) bn._html = null;
+  $$('#art-plate').forEach(e => { e._h = null; });
+}
+
 /* ================= store ================= */
 const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'burgundy', palette:'classic', nick:'', tags:[], gcal:false, home:'today', pinned:false };
 const S = { items:{}, projects:{}, notes:{}, settings:{}, timer:{}, ready:false, backend:'local' };
@@ -1139,7 +1251,7 @@ function projStatus(p, D = today()){
   res.k = k;
   res.label = k === 'good' ? '稳' : k === 'mid' ? '有点赶' : (pk === 'bad' ? '时间不够' : '会晚');
   res.text = (sText ? sText + ' ' : '') + pText;
-  const fd = res.forecast ? (res.forecast.slice(0,4) !== D.slice(0,4) ? `${res.forecast.slice(0,4)}年${cnd(res.forecast)}` : cnd(res.forecast)) : '';
+  const fd = res.forecast ? (res.forecast.slice(0,4) !== D.slice(0,4) ? L(`${res.forecast.slice(0,4)}年${cnd(res.forecast)}`, `${cnd(res.forecast)}, ${res.forecast.slice(0,4)}`) : cnd(res.forecast)) : '';
   res.short = res.forecast ? (res.early < 0 ? `按现在的速度 ${fd} 完成，晚 ${-res.early} 天` : `按现在的速度 ${fd} 完成，提前 ${res.early} 天`) + ` · 负荷 ${Math.round(press*100)}%` : `负荷 ${Math.round(press*100)}%`;
   return res;
 }
@@ -1228,7 +1340,7 @@ function bannerHTML(D = today()){
 /* ================= views ================= */
 function gridStart(cursor){ const s = settings(); const first = parse(cursor.slice(0,8) + '01'); const off = (first.getDay() - s.weekStart + 7) % 7; return add(ymd(first), -off); }
 function weekStartOf(d){ const s = settings(); const off = (parse(d).getDay() - s.weekStart + 7) % 7; return add(d, -off); }
-function dowLabels(){ const s = settings(); return Array.from({length:7}, (_,i) => WDN[(i + s.weekStart + 6) % 7]); }
+function dowLabels(){ const s = settings(); return Array.from({length:7}, (_,i) => wdn()[(i + s.weekStart + 6) % 7]); }
 
 function viewMonth(){
   const t = today(), cur = ui.cursor;
@@ -1291,13 +1403,13 @@ function paceChart(days = 14){
     const c = capOf(d);
     caps += `<line class="cap" x1="${padL + i*bw + 2}" x2="${padL + (i+1)*bw - 2}" y1="${y(c)}" y2="${y(c)}"/>`;
     if (days <= 14 || i % 3 === 0) labels += `<text x="${padL + i*bw + bw/2}" y="${H - 6}" text-anchor="middle">${d === t ? '今' : parse(d).getDate()}</text>`;
-    hits += `<rect class="bar-hit" x="${padL + i*bw}" y="${padT}" width="${bw}" height="${H - padT - padB}" data-open="${d}"><title>${cnd(d)} ${wdName(d)}：建议 ${fmtH(acc)}，可投入 ${fmtH(c)}</title></rect>`;
+    hits += `<rect class="bar-hit" x="${padL + i*bw}" y="${padT}" width="${bw}" height="${H - padT - padB}" data-open="${d}"><title>${dayL(d)}：建议 ${fmtH(acc)}，可投入 ${fmtH(c)}</title></rect>`;
   });
   const ticks = [0, maxV/2, maxV].map(v => `<line class="gridl" x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text x="${padL - 4}" y="${y(v) + 3}" text-anchor="end">${fmtH(v)}</text>`).join('');
   const over = ds.filter(d => capOf(d) > 0 ? sum(Object.values(a.byDay[d] || {})) > capOf(d) + 0.05 : false);
   return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="接下来 ${days} 天每天的航速">${ticks}${bars}${caps}${labels}${hits}</svg></div>
     <div class="legend">${dv.projects.filter(p => Object.keys(a.byProj[p.id] || {}).length).map(p => `<span><i style="background:${p.color}"></i>${esc(p.name)}</span>`).join('')}<span><i style="background:none;border-top:2px dashed var(--warn);height:0;width:12px"></i>你当天可投入的时间</span></div>
-    ${over.length ? `<div class="warnbar">${over.slice(0,3).map(cnd).join('、')}${over.length > 3 ? ` 等 ${over.length} 天` : ''}超出可投入时间</div>` : (settings().balance ? `<div class="hint"></div>` : `<div class="hint"></div>`)}`;
+    ${over.length ? `<div class="warnbar">${L(over.slice(0,3).map(cnd).join('、') + (over.length > 3 ? ` 等 ${over.length} 天` : '') + '超出可投入时间', 'Over the time available: ' + over.slice(0,3).map(cnd).join(', ') + (over.length > 3 ? ` and ${over.length - 3} more` : ''))}</div>` : (settings().balance ? `<div class="hint"></div>` : `<div class="hint"></div>`)}`;
 }
 
 function streakCount(){
@@ -1311,7 +1423,7 @@ function streakCount(){
   }
   return n;
 }
-function greeting(){ const h = new Date().getHours(); return h < 5 ? '夜深了' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好'; }
+function greeting(){ const h = new Date().getHours(); if (LANG === 'en') return h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; return h < 5 ? '夜深了' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好'; }
 
 function viewToday(){
   const t = today(), y = add(t, -1), dv = derive();
@@ -1341,7 +1453,7 @@ function viewToday(){
   const capq = `<div class="capline"><span>可投入 <b>${fmtH(capToday)}</b>${capOver ? '<i>已调整</i>' : ''}</span><span>已投入 <b>${fmtH(spentT)}</b></span><span>还可安排 <b>${fmtH(leftT)}</b></span>
       <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span></div>`;
   return `<div class="section">
-    <div class="greet"><div><h2 style="margin:0;font-size:23px">${greeting()}${nick ? '，' + esc(nick) : ''}</h2></div>${streak >= 2 ? `<span class="streak">连续 <b class="num">${streak}</b> 天跟上航速</span>` : ''}</div>
+    <div class="greet"><div><h2 style="margin:0;font-size:23px">${greeting()}${nick ? L('，', ', ') + esc(nick) : ''}</h2></div>${streak >= 2 ? `<span class="streak">连续 <b class="num">${streak}</b> 天跟上航速</span>` : ''}</div>
     ${capq}
     <h2>今天要做 <span class="hint">${its.length ? `完成 ${doneN} / ${its.length}` : ''}</span></h2>
     ${its.length ? its.map(i => rowItem(i)).join('') : `<div class="empty">今天没有安排</div>`}
@@ -1379,7 +1491,7 @@ function viewList(){
   const order = L.f === 'done' ? null : ['已逾期','今天','明天','本周','下周','以后','未排期','更早'];
   let groups;
   if (order){ groups = order.map(k => [k, arr.filter(i => bucketOf(i, t) === k).sort((a,b) => (a.date||'').localeCompare(b.date||'') || sortItems(a,b))]).filter(g => g[1].length); }
-  else { const m = new Map(); arr.sort((a,b) => (b.doneOn||'').localeCompare(a.doneOn||'')).forEach(i => { const k = i.doneOn ? `${cnd(i.doneOn)} ${wdName(i.doneOn)}` : '未记录日期'; if (!m.has(k)) m.set(k, []); m.get(k).push(i); }); groups = [...m]; }
+  else { const m = new Map(); arr.sort((a,b) => (b.doneOn||'').localeCompare(a.doneOn||'')).forEach(i => { const k = i.doneOn ? `${dayL(i.doneOn)}` : '未记录日期'; if (!m.has(k)) m.set(k, []); m.get(k).push(i); }); groups = [...m]; }
   const openN = dv.items.filter(i => !i.done).length;
   const overdueN = dv.items.filter(i => !i.done && i.date && i.date < t && i.kind === 'task').length;
   return `<div class="section">
@@ -1472,7 +1584,7 @@ function periodRange(){
   const t = today(), P = ui.stats.period, off = ui.stats.off;
   if (P === '30'){ const e = add(t, -30*off); return {from: add(e, -29), to: e, label: off ? `${cnd(add(e,-29))} – ${cnd(e)}` : '近 30 天', prevWord: '前 30 天', unit:'day'}; }
   if (P === 'week'){ const s = add(weekStartOf(t), -7*off); return {from: s, to: add(s, 6), label: off === 0 ? '本周' : off === 1 ? '上周' : `${cnd(s)} – ${cnd(add(s,6))}`, prevWord: '前一周', unit:'day'}; }
-  if (P === 'month'){ const d = parse(t); const f = new Date(d.getFullYear(), d.getMonth() - off, 1); const l = new Date(f.getFullYear(), f.getMonth()+1, 0); return {from: ymd(f), to: ymd(l), label: off === 0 ? '本月' : `${f.getFullYear()}年${f.getMonth()+1}月`, prevWord: '前一个月', unit:'day'}; }
+  if (P === 'month'){ const d = parse(t); const f = new Date(d.getFullYear(), d.getMonth() - off, 1); const l = new Date(f.getFullYear(), f.getMonth()+1, 0); return {from: ymd(f), to: ymd(l), label: off === 0 ? '本月' : ymL(f.getFullYear(), f.getMonth()+1), prevWord: '前一个月', unit:'day'}; }
   const yr = parse(t).getFullYear() - off; return {from: `${yr}-01-01`, to: `${yr}-12-31`, label: off === 0 ? '今年' : `${yr} 年`, prevWord: '前一年', unit:'month'};
 }
 function periodStats(from, to){
@@ -1503,7 +1615,7 @@ function viewStats(){
   const now = periodStats(R.from, R.to), prev = periodStats(pFrom, pTo);
   // trend
   let buckets;
-  if (R.unit === 'month'){ buckets = Array.from({length:12}, (_,m) => { const f = `${R.from.slice(0,4)}-${pad(m+1)}-01`; const l = ymd(new Date(Number(R.from.slice(0,4)), m+1, 0)); return {label: `${m+1}月`, from: f, to: l}; }); }
+  if (R.unit === 'month'){ buckets = Array.from({length:12}, (_,m) => { const f = `${R.from.slice(0,4)}-${pad(m+1)}-01`; const l = ymd(new Date(Number(R.from.slice(0,4)), m+1, 0)); return {label: monL(m+1), from: f, to: l}; }); }
   else buckets = range(R.from, R.to).map(d => ({label: String(parse(d).getDate()), from: d, to: d}));
   const rawBh = buckets.map(b => sum(range(b.from, b.to > t ? (b.from > t ? b.from : t) : b.to).map(d => b.from > t ? 0 : (dv.effort.get(d) || 0))));
   const bh = buckets.map(b => sum(range(b.from, b.to > t ? (b.from > t ? b.from : t) : b.to).map(d => b.from > t ? 0 : Math.min(16, dv.effort.get(d) || 0))));
@@ -1534,14 +1646,16 @@ function viewStats(){
   const wk = Array(7).fill(0), wn = Array(7).fill(0);
   for (const d of now.ds){ wk[monIdx(d)] += dv.effort.get(d) || 0; wn[monIdx(d)]++; }
   const wavg = wk.map((v,i) => wn[i] ? v/wn[i] : 0), wmax = Math.max(0.01, ...wavg), best = wavg.indexOf(Math.max(...wavg));
-  const rhythm = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:120px">${wavg.map((v,i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end" title="${WDN[i]} 平均投入 ${fmtH(v)}，算了 ${wn[i]} 个${WDN[i]}"><span class="mono hint">${v ? fmtH(v) : ''}</span><div style="width:70%;height:${v/wmax*80}%;min-height:2px;background:${i === best && v ? 'var(--oak)' : 'var(--accent)'};border-radius:4px 4px 2px 2px"></div><span class="hint">${WDN[i].slice(1)}</span></div>`).join('')}</div>`;
+  const rhythm = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:120px">${wavg.map((v,i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end" title="${WDN[i]} 平均投入 ${fmtH(v)}，算了 ${wn[i]} 个${WDN[i]}"><span class="mono hint">${v ? fmtH(v) : ''}</span><div style="width:70%;height:${v/wmax*80}%;min-height:2px;background:${i === best && v ? 'var(--oak)' : 'var(--accent)'};border-radius:4px 4px 2px 2px"></div><span class="hint">${L(WDN[i].slice(1), WDN_EN[i])}</span></div>`).join('')}</div>`;
   // estimate accuracy (beyond)
   const acc2 = dv.items.filter(i => i.done && i.actual != null && i.est > 0 && i.doneOn >= R.from && i.doneOn <= R.to);
   const ratio = acc2.length ? sum(acc2.map(i => i.actual))/sum(acc2.map(i => i.est)) : null;
   const msg = now.doneN || now.hours ? `${R.label}划掉了 ${now.doneN} 件事，投入 ${fmtH(now.hours)}${prev.hours ? (now.hours > prev.hours*1.05 ? `，比${R.prevWord}多 ${Math.round((now.hours/prev.hours - 1)*100)}%` : now.hours < prev.hours*.95 ? `，比${R.prevWord}少 ${Math.round((1 - now.hours/prev.hours)*100)}%` : `，和${R.prevWord}差不多稳`) : ''}。` : `${R.label}还没有记录。`;
+  const enW = w => trText(w) || w;
+  const msgEn = now.doneN || now.hours ? `${enW(R.label)}: ${now.doneN} checked off, ${fmtH(now.hours)} logged${prev.hours ? (now.hours > prev.hours*1.05 ? `, ${Math.round((now.hours/prev.hours - 1)*100)}% more than ${enW(R.prevWord).toLowerCase()}` : now.hours < prev.hours*.95 ? `, ${Math.round((1 - now.hours/prev.hours)*100)}% less than ${enW(R.prevWord).toLowerCase()}` : `, about the same as ${enW(R.prevWord).toLowerCase()}`) : ''}.` : `Nothing logged ${enW(R.label).toLowerCase()} yet.`;
   return `<div class="section">
     <div class="inline"><div class="seg">${[['30','近 30 天'],['week','周'],['month','月'],['year','年']].map(([k,l]) => `<button type="button" data-sp="${k}" aria-pressed="${ui.stats.period === k}">${l}</button>`).join('')}</div><div class="seg"><button type="button" data-soff="1" aria-label="上一期">‹</button><button type="button" data-soff="-1" aria-label="下一期" ${ui.stats.off === 0 ? 'disabled' : ''}>›</button></div>${ui.stats.off ? `<button class="link" type="button" data-soff="0">回到现在</button>` : ''}<span class="hint">${cnd(R.from)} – ${cnd(R.to)}</span></div>
-    <p style="margin:4px 0 0">${msg}</p>
+    <p style="margin:4px 0 0">${LANG === 'en' ? msgEn : msg}</p>
     <div class="kpis">
       <div class="kpi"><small>完成事项</small><b>${now.doneN}<small> 件</small></b><br>${deltaHTML(now.doneN, prev.doneN, ' 件')}</div>
       <div class="kpi"><small>投入时长</small><b>${fmtH(now.hours)}</b><br>${deltaHTML(now.hours, prev.hours, 'h')}</div>
@@ -1553,9 +1667,9 @@ function viewStats(){
     <h2>投入时长趋势</h2>${outlier ? `<p class="hint outlier">${cnd(oddDays[0])}记录了 ${fmtH(outlier)}，多半是计时器忘了关。图和统计里这天按 16h 计。</p>` : ''}${trend}
     <div class="grid2" style="align-items:start">
       <div><h2>时间分布</h2>${dist.length ? `<div class="dist">${donutSvg}<ul>${dist.map(x => `<li><span class="dot" style="background:${x.color}"></span><span style="flex:1;min-width:0">${esc(x.label)}</span><b class="mono">${Math.round(x.v/dTot*100)}%</b></li>`).join('')}</ul></div>` : '<div class="empty">暂无记录</div>'}</div>
-      <div><h2>一周节奏 <span class="hint">${wavg[best] ? `最投入的一天：${WDN[best]}` : ''}</span></h2>${rhythm}</div>
+      <div><h2>一周节奏 <span class="hint">${wavg[best] ? `最投入的一天：${wdn()[best]}` : ''}</span></h2>${rhythm}</div>
     </div>
-    <h2>完成热力图 <span class="hint">从 ${parse(first).getFullYear()}年${parse(first).getMonth()+1}月开始使用算起</span></h2>${heat}
+    <h2>完成热力图 <span class="hint">${L(`从 ${ymL(parse(first).getFullYear(), parse(first).getMonth()+1)}开始使用算起`, `since ${ymL(parse(first).getFullYear(), parse(first).getMonth()+1)}`)}</span></h2>${heat}
     <h2>项目进度</h2>${dv.projects.length ? dv.projects.map(p => { const st = projStatus(p); return `<div class="row"><span class="dot" style="background:${p.color}"></span><span class="t" data-openproj="${p.id}">${esc(p.name)}</span><div class="stack" style="width:30%;--c:${p.color}"><i class="d" style="width:${st.total ? st.done/st.total*100 : 0}%"></i></div><span class="meta">${st.total ? Math.round(st.done/st.total*100) : 0}% · ${st.left > 0 ? `还剩 ${st.left} 天` : '已过期'}</span></div>`; }).join('') : '<div class="empty">还没有项目。</div>'}
     <h2>✦ 周回顾</h2>
     <div class="card soft"><div class="inline"><button class="primary" type="button" data-act="review">准备周回顾</button></div><div class="ai-out" id="review-out" ${ui.review ? '' : 'hidden'}>${esc(ui.review || '')}</div></div>
@@ -1591,8 +1705,8 @@ function viewBook(){
     const allDone = planned.length && planned.every(x => x.done);
     const wn = Math.floor(diff(weekStartOf(`${w.ws.slice(0,4)}-01-01`), w.ws)/7) + 1;
     page = `<div class="page" id="bookpage"><p class="hint" style="margin:0">第 ${wn} 周 · ${cnd(w.ws)} – ${cnd(add(w.ws,6))}</p><h3>${allDone ? '这一周，全部划掉了。' : `这一周划掉了 ${w.done.length} 件事`}</h3>
-      <dl><dt>投入</dt><dd class="mono">${fmtH(hrs)}</dd>${per[best] ? `<dt>最投入</dt><dd>${WDN[monIdx(w.days[best])]} · ${fmtH(per[best])}</dd>` : ''}</dl>
-      ${w.days.map(d => { const its = w.done.filter(x => x.doneOn === d); const n = S.notes[d] && S.notes[d].text; if (!its.length && !n) return ''; return `<div class="day"><b>${cnd(d)} ${wdName(d)}</b>${its.length ? `<ul>${its.slice(0,8).map(x => `<li>${esc(x.title)}</li>`).join('')}${its.length > 8 ? `<li class="hint">还有 ${its.length - 8} 件</li>` : ''}</ul>` : ''}${n ? `<div class="note">${esc(n)}</div>` : ''}</div>`; }).join('')}</div>`;
+      <dl><dt>投入</dt><dd class="mono">${fmtH(hrs)}</dd>${per[best] ? `<dt>最投入</dt><dd>${wdName(w.days[best])} · ${fmtH(per[best])}</dd>` : ''}</dl>
+      ${w.days.map(d => { const its = w.done.filter(x => x.doneOn === d); const n = S.notes[d] && S.notes[d].text; if (!its.length && !n) return ''; return `<div class="day"><b>${dayL(d)}</b>${its.length ? `<ul>${its.slice(0,8).map(x => `<li>${esc(x.title)}</li>`).join('')}${its.length > 8 ? `<li class="hint">还有 ${its.length - 8} 件</li>` : ''}</ul>` : ''}${n ? `<div class="note">${esc(n)}</div>` : ''}</div>`; }).join('')}</div>`;
   }
   return `<div class="book-wrap"><div class="book">${page}</div>
     <div class="inline"><button class="ghost" type="button" data-act="book-prev" ${i === 0 ? 'disabled' : ''}>‹ 上一页</button><span class="hint">${i === 0 ? '封面' : `${i} / ${weeks.length}`}</span><button class="ghost" type="button" data-act="book-next" ${i >= weeks.length ? 'disabled' : ''}>下一页 ›</button></div>
@@ -1617,7 +1731,7 @@ function viewSettings(){
   const s = settings();
   return `<div class="section">
     <div class="card"><h3 style="margin:0">每天可投入的时间</h3><p class="hint" style="margin:0">0 = 休息日</p>
-      <div class="capgrid">${WDN.map((w,i) => `<label for="cap-${i}">${w}<input class="inp" id="cap-${i}" type="number" min="0" max="16" step="0.5" value="${s.cap[i]}" data-cap="${i}"></label>`).join('')}</div>
+      <div class="capgrid">${wdn().map((w,i) => `<label for="cap-${i}">${w}<input class="inp" id="cap-${i}" type="number" min="0" max="16" step="0.5" value="${s.cap[i]}" data-cap="${i}"></label>`).join('')}</div>
       <p class="hint" style="margin:0">每周合计 ${fmtH(sum(s.cap))}</p></div>
     <div class="card"><h3 style="margin:0">日历与时间</h3>
       <div class="setrow"><div>一周从哪天开始</div><select class="inp" id="set-ws" style="width:auto"><option value="1" ${s.weekStart === 1 ? 'selected' : ''}>周一</option><option value="0" ${s.weekStart === 0 ? 'selected' : ''}>周日</option></select></div>
@@ -1630,6 +1744,7 @@ function viewSettings(){
       <div class="setrow"><div>在日历上显示 Google 日历里的日程<small>只读</small></div><input type="checkbox" class="switch" id="set-gcal" ${s.gcal ? 'checked' : ''}></div>
       <p class="hint" style="margin:0" id="gcal-status">${gcalStatusText()}</p></div>`}
     <div class="card"><h3 style="margin:0">个性化</h3>
+      <div class="setrow"><div>语言</div><span class="seg">${[['zh','中文'],['en','English']].map(([k,l]) => `<button type="button" data-setlang="${k}" aria-pressed="${LANG === k}">${l}</button>`).join('')}</span></div>
       <div class="setrow"><div>你的昵称</div><input class="inp" id="set-nick" style="width:160px" value="${esc(s.nick)}" placeholder="昵称"></div>
       ${true ? `<div class="setrow"><div>名画</div></div><div class="artpicks artpick">${ARTS.map(([k,n,a]) => `<button type="button" data-setart="${k}" aria-pressed="${(s.art || 'study') === k}"><i></i><span>${n}</span><small>${a}</small></button>`).join('')}</div>` : `
       <div class="setrow"><div>配色方案</div></div>
@@ -1646,7 +1761,7 @@ function viewSettings(){
     </div>
     <div class="card soft"><h3 style="margin:0">快捷键与小技巧</h3>
       <p class="hint" style="margin:0"><kbd>N</kbd> 新建 · <kbd>T</kbd> 回到今天 · <kbd>M</kbd>/<kbd>W</kbd> 月/周 · <kbd>←</kbd><kbd>→</kbd> 翻页 · <kbd>/</kbd> 搜索 · <kbd>⌘Z</kbd> 撤销 · 右键或双击日历某天直接新建</p>
-      <p class="hint" style="margin:0">快速输入能听懂：<b>明天 14:00 组会</b>、<b>周五交论文 2h</b>、<b>每周一三五 跑步 到12月1日</b>、<b>10月26日 期中考试</b>、<b>#CFA</b> 加标签、<b>@632</b> 归入项目。</p></div>
+      <p class="hint" style="margin:0">${L('快速输入能听懂：<b>明天 14:00 组会</b>、<b>周五交论文 2h</b>、<b>每周一三五 跑步 到12月1日</b>、<b>10月26日 期中考试</b>、<b>#CFA</b> 加标签、<b>@632</b> 归入项目。', 'Quick add understands <b>group meeting tomorrow 2pm</b>, <b>paper due fri 2h</b>, <b>run every mon wed fri until 12/1</b>, <b>midterm Oct 26</b>, <b>#CFA</b> for a tag and <b>@632</b> for a project. Chinese works too.')}</p></div>
   </div>`;
 }
 
@@ -1678,7 +1793,7 @@ function renderPool(){
 /* ================= main render ================= */
 function renderRail(){
   const dv = derive();
-  $('#rail-projects').innerHTML = dv.projects.length ? dv.projects.map(p => { const st = projStatus(p); return `<button class="proj-row" type="button" data-openproj="${p.id}" title="${esc(p.name)} · ${st.label}"><span class="dot" style="background:${p.color}"></span><span class="n">${esc(p.name)}</span><span class="d">${st.left > 0 ? st.left + '天' : md(p.deadline)}</span></button>`; }).join('') : `<div class="hint" style="padding:4px 10px">还没有项目</div>`;
+  $('#rail-projects').innerHTML = dv.projects.length ? dv.projects.map(p => { const st = projStatus(p); return `<button class="proj-row" type="button" data-openproj="${p.id}" title="${esc(p.name)} · ${st.label}"><span class="dot" style="background:${p.color}"></span><span class="n">${esc(p.name)}</span><span class="d">${st.left > 0 ? st.left + L('天', 'd') : md(p.deadline)}</span></button>`; }).join('') : `<div class="hint" style="padding:4px 10px">还没有项目</div>`;
   $$('[data-go]').forEach(b => b.setAttribute('aria-current', String(b.dataset.go === ui.go)));
   $('#sync-dot').className = 'sync' + (saveErr ? ' err' : (S.backend === 'db' && S.ready) ? ' on' : '');
   $('#sync-text').innerHTML = saveErr
@@ -1708,12 +1823,12 @@ function render(){
   let html = '';
   if (isCal){
     $('#eyebrow').textContent = ui.mode === 'month' ? '日历 · 月' : '日历 · 周';
-    if (ui.mode === 'month') $('#title').innerHTML = `<button type="button" id="title-pick" aria-label="跳到其他月份">${cur.getFullYear()}年${cur.getMonth()+1}月</button>`;
+    if (ui.mode === 'month') $('#title').innerHTML = `<button type="button" id="title-pick" aria-label="跳到其他月份">${ymL(cur.getFullYear(), cur.getMonth()+1)}</button>`;
     else { const s = weekStartOf(ui.cursor), e = add(s, 6); $('#title').textContent = `${cnd(s)} – ${cnd(e)}`; }
     html = ui.mode === 'month' ? viewMonth() : viewWeek();
     gcalEnsure(ui.mode === 'month' ? gridStart(ui.cursor) : weekStartOf(ui.cursor), ui.mode === 'month' ? add(gridStart(ui.cursor), 41) : add(weekStartOf(ui.cursor), 6));
-  } else if (ui.go === 'day'){ const ds = tlDays(), a = ds[0], b = ds[ds.length - 1]; $('#eyebrow').textContent = '时间线'; $('#title').textContent = ds.length === 1 ? `${cnd(a)} ${wdName(a)}` : `${cnd(a)} – ${cnd(b)}`; html = viewDay(); gcalEnsure(a, b); }
-  else if (ui.go === 'today'){ $('#eyebrow').textContent = '今日概览'; $('#title').textContent = `${cnd(today())} ${wdName(today())}`; html = viewToday(); gcalEnsure(today(), add(today(), 6)); }
+  } else if (ui.go === 'day'){ const ds = tlDays(), a = ds[0], b = ds[ds.length - 1]; $('#eyebrow').textContent = '时间线'; $('#title').textContent = ds.length === 1 ? `${dayL(a)}` : `${cnd(a)} – ${cnd(b)}`; html = viewDay(); gcalEnsure(a, b); }
+  else if (ui.go === 'today'){ $('#eyebrow').textContent = '今日概览'; $('#title').textContent = `${dayL(today())}`; html = viewToday(); gcalEnsure(today(), add(today(), 6)); }
   else {
     const [a,b] = TITLES[ui.go] || ['',''];
     const inProj = ui.go === 'projects' && ui.proj && derive().projMap.get(ui.proj);
@@ -1762,7 +1877,23 @@ function parseQuick(text, base){
   let s = ' ' + text + ' ';
   const take = (re, fn) => { s = s.replace(re, (...m) => { fn(...m); return ' '; }); };
   take(/#([^\s#@]+)/g, (_, n) => r.tagNames.push(n));
-  take(/@([^\s#@]+)/g, (_, n) => { const p = derive().projects.find(p => p.name.toLowerCase().includes(n.toLowerCase())); if (p){ r.project = p.id; r.bits.push('归入 ' + p.name); } });
+  take(/@([^\s#@]+)/g, (_, n) => { const p = derive().projects.find(p => p.name.toLowerCase().includes(n.toLowerCase())); if (p){ r.project = p.id; r.bits.push(L('归入 ', 'In ') + p.name); } });
+  // English (shared by both languages): repeats, durations
+  const EWD = {mon:0,monday:0,tue:1,tues:1,tuesday:1,wed:2,weds:2,wednesday:2,thu:3,thur:3,thurs:3,thursday:3,fri:4,friday:4,sat:5,saturday:5,sun:6,sunday:6};
+  const EMO = {jan:1,january:1,feb:2,february:2,mar:3,march:3,apr:4,april:4,may:5,jun:6,june:6,jul:7,july:7,aug:8,august:8,sep:9,sept:9,september:9,oct:10,october:10,nov:11,november:11,dec:12,december:12};
+  const WDRE = '(mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)';
+  const MORE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
+  const ymdFix = (m, d) => { const y = parse(t).getFullYear(); let v = `${y}-${pad(m)}-${pad(d)}`; if (v < add(t, -60)) v = `${y+1}-${pad(m)}-${pad(d)}`; return v; };
+  take(new RegExp('\\b(?:until|till|thru|through)\\s+(?:' + MORE + '\\s*(\\d{1,2})|(\\d{1,2})\\/(\\d{1,2}))', 'i'), (_, mo, d1, m2, d2) => { r.until = mo ? ymdFix(EMO[mo.toLowerCase()], d1) : ymdFix(m2, d2); });
+  take(/\bevery\s*weekdays?\b|\bweekdays\b/i, () => r.rep = {type:'weekdays'});
+  take(/\bevery\s*day\b|\bdaily\b/i, () => r.rep = {type:'daily'});
+  take(/\bevery\s+month\s+on\s+the\s+(\d{1,2})(?:st|nd|rd|th)?\b|\bmonthly\s+on\s+(\d{1,2})\b/i, (_, a, b) => r.rep = {type:'monthly', dom: Number(a || b)});
+  take(/\bevery\s+other\s+week\b|\bbiweekly\b/i, () => r.rep = {type:'biweekly', wd: null});
+  take(new RegExp('\\bevery\\s+((?:' + WDRE + '\\b(?:\\s*(?:,|and|&)?\\s*))+)', 'i'), (_, ws) => r.rep = {type:'weekly', days: (ws.toLowerCase().match(/[a-z]+/g) || []).filter(w => w in EWD).map(w => EWD[w])});
+  take(/\bevery\s*week\b|\bweekly\b/i, () => r.rep = r.rep || {type:'weekly', days:[]});
+  take(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)(?![a-z])(?:\s*(\d{1,2})\s*(?:m|mins?|minutes?)(?![a-z]))?/i, (_, h, m) => r.hours = Number(h) + (m ? Number(m)/60 : 0));
+  take(/(\d{1,3})\s*(?:m|mins?|minutes?)(?![a-z])/i, (_, m) => r.hours = Number(m)/60);
+  take(/\bhalf\s+an?\s+hour\b/i, () => r.hours = 0.5);
   // repeat
   take(/(?:到|直到)\s*(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/, (_, m, d) => { const y = parse(t).getFullYear(); let u = `${y}-${pad(m)}-${pad(d)}`; if (u < t) u = `${y+1}-${pad(m)}-${pad(d)}`; r.until = u; });
   take(/每个?工作日/, () => r.rep = {type:'weekdays'});
@@ -1787,6 +1918,20 @@ function parseQuick(text, base){
   take(/(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/, (_, y, m, d) => r.date = `${y}-${pad(m)}-${pad(d)}`);
   take(/(\d{1,2}|[一二三四五六七八九十]{1,3})\s*月\s*(\d{1,2}|[一二三四五六七八九十]{1,3})\s*[日号]?/, (_, m, d) => { const y = parse(t).getFullYear(); let v = `${y}-${pad(cnNum(m))}-${pad(cnNum(d))}`; if (v < add(t, -60)) v = `${y+1}-${pad(cnNum(m))}-${pad(cnNum(d))}`; r.date = v; });
   take(/(?:^|\s)(\d{1,2})\/(\d{1,2})(?=\s)/, (_, m, d) => { const y = parse(t).getFullYear(); let v = `${y}-${pad(m)}-${pad(d)}`; if (v < add(t, -60)) v = `${y+1}-${pad(m)}-${pad(d)}`; r.date = v; });
+  // English: repeats, durations, dates, times
+  // English dates and times
+  take(/\btonight\b/i, () => { r.date = t; ampm = 'pm'; });
+  take(/\bday\s+after\s+tomorrow\b/i, () => r.date = add(t, 2));
+  take(/\b(?:tomorrow|tmrw?|tmr)\b/i, () => r.date = add(t, 1));
+  take(/\btoday\b/i, () => r.date = t);
+  take(new RegExp('\\b(next\\s+|this\\s+)?' + WDRE + '\\b', 'i'), (_, pre, w) => { const wd = EWD[w.toLowerCase()]; const off = !pre ? null : /next/i.test(pre) ? 1 : 0; r.date = nextWeekday(t, wd, off); if (r.rep && r.rep.type === 'biweekly' && r.rep.wd == null) r.rep.wd = wd; });
+  take(new RegExp('\\b' + MORE + '\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b', 'i'), (_, mo, d) => r.date = ymdFix(EMO[mo.toLowerCase()], d));
+  take(new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+' + MORE + '\\b', 'i'), (_, d, mo) => r.date = ymdFix(EMO[mo.toLowerCase()], d));
+  const etm = (h, mm, ap) => { let H = Number(h) % 12; if (/p/i.test(ap)) H += 12; if (!/p/i.test(ap) && Number(h) === 12) H = 0; return `${pad(H)}:${pad(mm || 0)}`; };
+  take(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i, (_, h1, m1, a1, h2, m2, a2) => { r.time = etm(h1, m1, a1 || a2); r.end = etm(h2, m2, a2); });
+  if (!r.time) take(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i, (_, h, m, ap) => { r.time = etm(h, m, ap); });
+  if (!r.time) take(/\bat\s+(\d{1,2})(?::(\d{2}))?\b/i, (_, h, m) => { let H = Number(h); if ((H >= 1 && H <= 6) || (ampm === 'pm' && H < 12)) H += 12; r.time = `${pad(H)}:${pad(m || 0)}`; });
+  if (!r.time) take(/\b(?:at\s+)?noon\b/i, () => { r.time = '12:00'; });
   // times
   const tm = (pre, h, mm, half) => { let H = Number(h); const P = pre || ampm; if (P && /下午|晚上|傍晚|pm/.test(P) && H < 12) H += 12; if (P && /中午/.test(P) && H < 6) H += 12; if (!P && H >= 1 && H <= 6) H += 12; const Mi = half ? 30 : (mm ? Number(mm) : 0); return `${pad(clamp(H,0,23))}:${pad(clamp(Mi,0,59))}`; };
   const T = '(上午|早上|中午|下午|晚上|傍晚)?\\s*(\\d{1,2})(?:[:：](\\d{2})|\\s*点\\s*(?:(半)|(\\d{1,2})\\s*分?)?)';
@@ -1797,17 +1942,23 @@ function parseQuick(text, base){
   else if (/截止|ddl|due|deadline|交(?!流|通)/i.test(text)) r.kind = 'deadline';
   else if (r.time) r.kind = 'event';
   r.title = s.replace(/\s+/g, ' ').replace(/^[\s,，。、:：]+|[\s,，。、:：]+$/g, '').trim();
+  r.title = r.title.replace(/\s+(?:at|on|by|from|every|for)$/i, '').replace(/^(?:at|on|by)\s+/i, '').trim();
   const tags = settings().tags;
   r.tags = r.tagNames.map(n => (tags.find(x => x.name.toLowerCase() === n.toLowerCase()) || {}).id || ('new:' + n));
   return r;
 }
 function describeParsed(r){
   const bits = [];
-  if (r.rep){ const map = {daily:'每天', weekdays:'每个工作日', biweekly:'每两周', monthly: `每月 ${r.rep.dom} 号`}; bits.push(r.rep.type === 'weekly' ? `每周${(r.rep.days.length ? r.rep.days : [monIdx(r.date || today())]).map(d => WDN[d].slice(1)).join('')}` : map[r.rep.type]); if (r.until) bits.push('到 ' + cnd(r.until)); }
-  if (r.date) bits.push(cnd(r.date) + ' ' + wdName(r.date)); else if (!r.rep) bits.push('放进任务池');
+  if (r.rep){
+    const days = (r.rep.days && r.rep.days.length ? r.rep.days : [monIdx(r.date || today())]);
+    const map = {daily: L('每天','Every day'), weekdays: L('每个工作日','Weekdays'), biweekly: L('每两周','Every 2 weeks'), monthly: L(`每月 ${r.rep.dom} 号`, `Monthly on the ${r.rep.dom}${[,'st','nd','rd'][r.rep.dom % 10 * (r.rep.dom % 100 < 11 || r.rep.dom % 100 > 13)] || 'th'}`)};
+    bits.push(r.rep.type === 'weekly' ? L(`每周${days.map(d => WDN[d].slice(1)).join('')}`, 'Every ' + days.map(d => WDN_EN[d]).join(' ')) : map[r.rep.type]);
+    if (r.until) bits.push(L('到 ', 'until ') + cnd(r.until));
+  }
+  if (r.date) bits.push(dayL(r.date)); else if (!r.rep) bits.push(L('放进任务池', 'To the pool'));
   if (r.time) bits.push(r.time + (r.end ? '–' + r.end : ''));
   if (r.hours) bits.push(fmtH(r.hours));
-  if (r.kind && r.kind !== 'task') bits.push(KIND[r.kind]);
+  if (r.kind && r.kind !== 'task') bits.push(L(KIND[r.kind], KIND_EN[r.kind]));
   r.tagNames.forEach(n => bits.push('#' + n));
   return bits.concat(r.bits).join(' · ');
 }
@@ -1832,7 +1983,7 @@ function ensureTags(ids){
 }
 function createFromParsed(r, overrides = {}){
   const tg = ensureTags(r.tags);
-  const base = { title: r.title || '未命名', time: r.time, end: r.end, hours: r.hours, est: r.hours, kind: r.kind || 'task', project: r.project, module:'', tags: tg.ids, note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9, ...overrides };
+  const base = { title: r.title || L('未命名', 'Untitled'), time: r.time, end: r.end, hours: r.hours, est: r.hours, kind: r.kind || 'task', project: r.project, module:'', tags: tg.ids, note:'', done:false, actual:null, doneOn:null, order: Date.now() % 1e9, ...overrides };
   if (base.est == null || overrides.hours != null) base.est = base.hours;
   const changes = tg.change ? [tg.change] : [];
   if (r.rep){
@@ -1891,7 +2042,7 @@ function editItem(id, preset = {}){
       <div class="actions">${id ? `<button class="danger push" type="button" id="f-del">删除</button>${sameRep > 1 ? `<button class="danger" type="button" id="f-delall">删除全部 ${sameRep} 次</button>` : ''}` : ''}<button class="ghost" type="button" data-close>取消</button><button class="primary" type="submit">${id ? '保存' : '添加'}</button></div>
     </form>`);
   const title = $('#f-title'), parsedEl = $('#f-parsed');
-  const live = () => { if (id) return; const r = parseQuick(title.value, $('#f-date').value || today()); const d = describeParsed(r); parsedEl.textContent = title.value.trim() && (r.date || r.time || r.rep || r.hours || r.tagNames.length || r.kind) ? `将添加：${r.title || '…'} · ${d}` : ''; };
+  const live = () => { if (id) return; const r = parseQuick(title.value, $('#f-date').value || today()); const d = describeParsed(r); parsedEl.textContent = title.value.trim() && (r.date || r.time || r.rep || r.hours || r.tagNames.length || r.kind) ? `${L('将添加：', 'Adding: ')}${r.title || '…'} · ${d}` : ''; };
   title.addEventListener('input', live); live();
   $('#f-dq').addEventListener('click', e => { const b = e.target.closest('[data-d]'); if (b) $('#f-date').value = b.dataset.d; });
   $$('#sheet [data-step]').forEach(b => b.addEventListener('click', () => { const h = $('#f-hours'); h.value = Math.max(0, r2((Number(h.value)||0) + Number(b.dataset.step))); }));
@@ -1973,7 +2124,7 @@ function openDay(d){
     const unfinished = its.filter(i => !i.done && i.kind === 'task');
     let fit = '';
     if (d >= t && need > 0.01){ fit = cap === 0 ? `<div class="warnbar">休息日</div>` : need > cap + 0.05 ? `<div class="warnbar">这天还缺 ${fmtH(need - cap)} 可投入时间</div>` : sched > cap + 0.05 ? `<div class="warnbar">已安排超过可投入 ${fmtH(sched - cap)}</div>` : `<div class="okbar">够了 ✓ 这天还能再排 ${fmtH(Math.max(0, cap - sched))}</div>`; }
-    return `<h2><span style="display:flex;align-items:center;gap:6px"><button class="icon" type="button" data-dayjump="${add(d,-1)}" aria-label="前一天">‹</button>${cnd(d)} ${wdName(d)}<button class="icon" type="button" data-dayjump="${add(d,1)}" aria-label="后一天">›</button></span><button class="x" type="button" data-close aria-label="关闭">×</button></h2>
+    return `<h2><span style="display:flex;align-items:center;gap:6px"><button class="icon" type="button" data-dayjump="${add(d,-1)}" aria-label="前一天">‹</button>${dayL(d)}<button class="icon" type="button" data-dayjump="${add(d,1)}" aria-label="后一天">›</button></span><button class="x" type="button" data-close aria-label="关闭">×</button></h2>
       <div class="inline hint"><span>可投入</span><input class="inp" id="day-cap" type="number" min="0" max="20" step="0.5" value="${cap}" style="width:70px" aria-label="这天可投入小时"><span>小时 · ${s.over[d] != null ? '这天单独设置过 <button class="link" type="button" id="day-capreset">恢复默认</button>' : '只改这一天，不影响每周默认'}</span></div>
       ${Object.keys(by).length ? `<div class="quota">${Object.entries(by).map(([pid,q]) => { const p = derive().projMap.get(pid); return p ? `<div><span><span class="dot" style="background:${p.color}"></span> ${esc(p.name)} 这天航速</span><b>${fmtH(q)}</b></div>` : ''; }).join('')}</div>` : ''}
       ${fit}${d < t && doneH ? `<div class="okbar">这天完成了 ${fmtH(doneH)}</div>` : ''}
@@ -1984,7 +2135,7 @@ function openDay(d){
   };
   const wire = () => {
     const inp = $('#day-input');
-    inp.addEventListener('input', () => { const r = parseQuick(inp.value, d); $('#day-parsed').textContent = inp.value.trim() ? `将添加：${r.title || '…'} · ${describeParsed({...r, date: r.date || d})}` : ''; });
+    inp.addEventListener('input', () => { const r = parseQuick(inp.value, d); $('#day-parsed').textContent = inp.value.trim() ? `${L('将添加：', 'Adding: ')}${r.title || '…'} · ${describeParsed({...r, date: r.date || d})}` : ''; });
     $('#day-add').addEventListener('submit', e => { e.preventDefault(); const v = inp.value.trim(); if (!v) return; const r = parseQuick(v, d); createFromParsed(r, r.date ? {} : {date: d}); refresh(); });
     $('#day-cap').addEventListener('change', e => { const v = Number(e.target.value); const s = settings(); const over = {...s.over, [d]: Math.max(0, v || 0)}; saveSettings({over}); refresh(); });
     const cr = $('#day-capreset'); cr && cr.addEventListener('click', () => { const s = settings(); const over = {...s.over}; delete over[d]; saveSettings({over}); refresh(); });
@@ -2144,7 +2295,7 @@ function bulkAdd(pid, mid){
     for (let k = a; k <= Math.min(b, a + 99); k++) out.push({title: v.replace(m[0], k), hours: H});
     return out;
   };
-  const prev = () => { const g = gen(); $('#bk-prev').textContent = g.length ? `将添加 ${g.length} 个：${g.slice(0,4).map(x => x.title).join('、')}${g.length > 4 ? '…' : ''} · 共 ${fmtH(sum(g.map(x => x.hours)))}` : ''; };
+  const prev = () => { const g = gen(); $('#bk-prev').textContent = g.length ? `将添加 ${g.length} 个：${g.slice(0,4).map(x => x.title).join(L('、', ', '))}${g.length > 4 ? '…' : ''} · 共 ${fmtH(sum(g.map(x => x.hours)))}` : ''; };
   ['bk-name','bk-h','bk-lines'].forEach(i => $('#' + i).addEventListener('input', prev)); prev();
   $('#bk-ok').addEventListener('click', () => {
     const g = gen(); if (!g.length) return; const base = Date.now() % 1e9; closeSheet();
@@ -2504,7 +2655,7 @@ function viewDay(){
       <span class="seg">${[[1,'日'],[3,'3 天'],[7,'周']].map(([v,l]) => `<button type="button" data-tln="${v}" aria-pressed="${n === v}">${l}</button>`).join('')}</span>
       <span class="hint">计划 ${fmtH(planned)} · 实际 ${fmtH(spent)}</span>
       <span class="push"></span>
-      <label class="hint tl-from">从 <select id="tl-from">${Array.from({length:17}, (_, k) => fromMin((k+6)*60)).map(v => `<option ${v === df ? 'selected' : ''}>${v}</option>`).join('')}</select> 开始</label>
+      <label class="hint tl-from">${L('从', 'Start at')} <select id="tl-from">${Array.from({length:17}, (_, k) => fromMin((k+6)*60)).map(v => `<option ${v === df ? 'selected' : ''}>${v}</option>`).join('')}</select>${L(' 开始', '')}</label>
       ${late ? '<button class="ghost sm" type="button" data-act="tl-shift">从现在顺延</button>' : ''}
     </div>
     <div class="tl-grid2 ${tray.length ? '' : 'tray-empty'}">
@@ -2639,7 +2790,18 @@ function sampleErr(e){ const c = e && e.code; return c === 'not_granted' ? '需�
    build a prompt, copy it to any AI, paste the answer back, preview, add. */
 function aiPrompt(p, desc){
   const t = today(), wd = workdays(p, t);
-  const existing = projTasks(p.id).map(i => `${i.title} (${i.est}h${i.done ? ', 已完成' : ''})`).slice(0, 60).join('; ');
+  const existing = projTasks(p.id).map(i => `${i.title} (${i.est}h${i.done ? L(', 已完成', ', done') : ''})`).slice(0, 60).join('; ');
+  if (LANG === 'en') return `You are a planning assistant for study and projects. Break the project below into 2 to 6 modules, each with 3 to 12 concrete, doable tasks. Estimate each task in hours, between 0.25 and 6, rounded to 0.25. Write task names in English, short and specific. Do not repeat existing tasks.
+Project: ${p.name}
+Today: ${t}; Deadline: ${p.deadline} (no work counted on that day); finish early by: ${p.buffer} days
+Workdays left before the deadline: ${wd.length}, about ${fmtH(sum(wd.map(capOf)))} of time in total (shared with other projects).
+Existing tasks: ${existing || 'none'}
+Description: ${desc || '(none)'}
+
+Output a single JSON code block and nothing else, in exactly this format:
+\`\`\`json
+{"modules":[{"name":"Module name","tasks":[{"title":"Task name","hours":1.5}]}],"note":"One sentence on whether the total is realistic"}
+\`\`\``;
   return `你是学习和项目规划助手。请把下面这个项目拆成 2 到 6 个模块，每个模块 3 到 12 个具体可执行的任务。每个任务的预计用时以小时计，在 0.25 到 6 之间，按 0.25 取整。任务名用中文，专有名词可保留英文，简洁具体。不要重复已有任务。
 项目：${p.name}
 今天：${t}；Deadline：${p.deadline}（当天不计入投入）；提前完成天数：${p.buffer}
@@ -2671,7 +2833,7 @@ function parseBreakdown(txt){
     const h = line.match(/^#{1,4}\s*(.+)$/) || line.match(/^(?:模块|Module)\s*[:：]?\s*(.+)$/i);
     if (h){ let name = h[1].replace(/[*_]/g,'').trim(), due = null; const dm = name.match(/\s*[|｜@·]\s*(?:截止|due)?\s*(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}\/\d{1,2})\s*$/i); if (dm){ due = dueOf(dm[1]); name = name.slice(0, dm.index).trim(); } cur = {name, due, tasks: []}; mods.push(cur); continue; }
     const t = line.match(/^(?:[-*•]|\d+[.)])\s*(.+?)(?:\s*[|｜,，·]\s*|\s+)(\d+(?:\.\d+)?)\s*(?:h|小时|hrs?)?\s*$/i);
-    if (t){ if (!cur){ cur = {name:'任务', tasks: []}; mods.push(cur); } cur.tasks.push({title: t[1].replace(/[*_]/g,'').trim(), hours: Number(t[2])}); }
+    if (t){ if (!cur){ cur = {name: L('任务', 'Tasks'), tasks: []}; mods.push(cur); } cur.tasks.push({title: t[1].replace(/[*_]/g,'').trim(), hours: Number(t[2])}); }
   }
   const ok = mods.filter(m => m.tasks.length);
   return ok.length ? {mods: ok, note: ''} : null;
@@ -2745,7 +2907,12 @@ function weeklyReview(){
   const t = today(), dv = derive();
   const days = range(add(t, -6), t).map(d => ({日期:d, 星期:wdName(d), 建议投入小时:r2(sum(dv.projects.map(p => quota(p.id,d)))), 实际投入小时:r2(dv.effort.get(d)||0), 完成任务:dv.items.filter(i => i.done && i.doneOn === d).map(i => i.title), 留言:(S.notes[d] && S.notes[d].text)||''}));
   const projs = dv.projects.map(p => { const st = projStatus(p); return {名称:p.name, 截止日期:p.deadline, 状态:st.label, 说明:st.text, 剩余小时:r2(st.rem)}; });
-  const prompt = `你是一个温和但直接的学习教练。根据下面最近7天的数据，用简体中文写200到300字周回顾，分三段：这周做得好的；落下了什么及可能的原因；下周具体建议。区分实际投入、完成任务和剩余工作，不把未完成任务等同于没有付出，没有记录也不代表没有学习。不编造原因，建议须考虑多个项目共享时间。建议投入是按当前计划回算的参考值，不是历史承诺。不要使用markdown标题。
+  const promptEn = `You are a warm but direct study coach. Using the last 7 days of data below, write a 150 to 250 word weekly review in English, in three paragraphs: what went well this week; what slipped and the likely reasons; concrete suggestions for next week. Keep time actually spent, tasks completed and work remaining distinct: unfinished tasks do not mean no effort, and no log does not mean no studying. Do not invent reasons, and make suggestions that account for several projects sharing the same time. Suggested hours are a reference worked back from the current plan, not a past commitment. Do not use markdown headings.
+Period: ${add(t,-6)} to ${t}
+Daily data: ${JSON.stringify(days.map(d => ({date:d.日期, weekday:WDN_EN[monIdx(d.日期)], suggestedHours:d.建议投入小时, actualHours:d.实际投入小时, tasksDone:d.完成任务, note:d.留言})))}
+Projects: ${JSON.stringify(dv.projects.map(p => { const st = projStatus(p); return {name:p.name, deadline:p.deadline, status: trText(st.label) || st.label, remainingHours:r2(st.rem)}; }))}
+Daily capacity next week (hours): ${JSON.stringify(range(add(t,1),add(t,7)).map(d => ({date:d, hours:capOf(d)})))}`;
+  const prompt = LANG === 'en' ? promptEn : `你是一个温和但直接的学习教练。根据下面最近7天的数据，用简体中文写200到300字周回顾，分三段：这周做得好的；落下了什么及可能的原因；下周具体建议。区分实际投入、完成任务和剩余工作，不把未完成任务等同于没有付出，没有记录也不代表没有学习。不编造原因，建议须考虑多个项目共享时间。建议投入是按当前计划回算的参考值，不是历史承诺。不要使用markdown标题。
 回顾区间：${add(t,-6)} 至 ${t}
 每日数据：${JSON.stringify(days)}
 项目：${JSON.stringify(projs)}
@@ -2775,7 +2942,7 @@ async function deliver(filename, data, mime){
   let dl = null; try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch(e){}
   if (dl){ try { await dl.save({filename, data: new Blob([data], {type: mime})}); toast(`已下载 ${filename}`); return; } catch(e){ if (e && e.code === 'declined') { toast('已取消下载'); return; } } }
   const fb = $('#export-fallback');
-  if (fb){ fb.innerHTML = `<div class="card"><p class="hint" style="margin:0">这里没法直接下载。全选下面的内容复制，存成 <b>${esc(filename)}</b>。</p><textarea class="inp" style="min-height:200px;font-family:var(--f-mono);font-size:12px" readonly id="fb-text">${esc(data)}</textarea><div class="inline"><button class="ghost" type="button" id="fb-copy">复制</button></div></div>`; $('#fb-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(data); toast('已复制'); } catch(e){ $('#fb-text').select(); } }); fb.scrollIntoView({behavior:'smooth'}); }
+  if (fb){ fb.innerHTML = `<div class="card"><p class="hint" style="margin:0">${L('这里没法直接下载。全选下面的内容复制，存成 ', 'Can\'t download directly here. Select all below, copy it, and save as ')}<b>${esc(filename)}</b>${L('。', '.')}</p><textarea class="inp" style="min-height:200px;font-family:var(--f-mono);font-size:12px" readonly id="fb-text">${esc(data)}</textarea><div class="inline"><button class="ghost" type="button" id="fb-copy">复制</button></div></div>`; $('#fb-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(data); toast('已复制'); } catch(e){ $('#fb-text').select(); } }); fb.scrollIntoView({behavior:'smooth'}); }
 }
 const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; };
 function exportData(kind){
@@ -2786,21 +2953,21 @@ function exportData(kind){
   const mn = (pid, mid) => ((dv.projMap.get(pid) || {modules:[]}).modules.find(m => m.id === mid) || {}).name || '';
   const tn = ids => ids.map(id => (s.tags.find(x => x.id === id) || {}).name).filter(Boolean).join(' ');
   if (kind === 'csv'){
-    const head = ['日期','开始','结束','事项','类型','项目','模块','标签','预计用时（小时）','实际用时（小时）','完成','备注'];
-    const lines = [head, ...rows.map(i => [i.date, i.time, i.end, i.title, KIND[i.kind], pn(i.project), mn(i.project, i.module), tn(i.tags), i.est || '', i.actual ?? '', i.done ? '是' : '否', i.note])].map(r => r.map(csvCell).join(','));
-    deliver(`Runway-${from}至${to}.csv`, '\ufeff' + lines.join('\r\n'), 'text/csv'); return;
+    const head = LANG === 'en' ? ['Date','Start','End','Item','Type','Project','Module','Tags','Estimate (h)','Actual (h)','Done','Note'] : ['日期','开始','结束','事项','类型','项目','模块','标签','预计用时（小时）','实际用时（小时）','完成','备注'];
+    const lines = [head, ...rows.map(i => [i.date, i.time, i.end, i.title, L(KIND[i.kind], KIND_EN[i.kind]), pn(i.project), mn(i.project, i.module), tn(i.tags), i.est || '', i.actual ?? '', i.done ? L('是', 'Yes') : L('否', 'No'), i.note])].map(r => r.map(csvCell).join(','));
+    deliver(`Runway-${from}${L('至', '_to_')}${to}.csv`, '\ufeff' + lines.join('\r\n'), 'text/csv'); return;
   }
   if (kind === 'ics'){
     const icsEsc = v => String(v || '').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n');
     const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
-    const ev = rows.map(i => { const d = i.date.replace(/-/g,''); const lines = ['BEGIN:VEVENT', `UID:${i.id}@runway`, `DTSTAMP:${stamp}`]; if (i.time){ lines.push(`DTSTART:${d}T${i.time.replace(':','')}00`); const endT = i.end || (() => { const [H,Mi] = i.time.split(':').map(Number); const m = H*60 + Mi + Math.round((i.hours || 1)*60); return `${pad(Math.min(23, Math.floor(m/60)))}:${pad(m%60)}`; })(); lines.push(`DTEND:${d}T${endT.replace(':','')}00`); } else { lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${add(i.date,1).replace(/-/g,'')}`); } lines.push(`SUMMARY:${icsEsc((i.done ? '✓ ' : '') + i.title)}`); const desc = [pn(i.project) && '项目：' + pn(i.project), i.est && '预计 ' + fmtH(i.est), i.note].filter(Boolean).join('\n'); if (desc) lines.push(`DESCRIPTION:${icsEsc(desc)}`); lines.push('END:VEVENT'); return lines.join('\r\n'); });
-    deliver(`Runway-${from}至${to}.ics`, ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Runway//CN','X-WR-CALNAME:Runway', ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar'); return;
+    const ev = rows.map(i => { const d = i.date.replace(/-/g,''); const lines = ['BEGIN:VEVENT', `UID:${i.id}@runway`, `DTSTAMP:${stamp}`]; if (i.time){ lines.push(`DTSTART:${d}T${i.time.replace(':','')}00`); const endT = i.end || (() => { const [H,Mi] = i.time.split(':').map(Number); const m = H*60 + Mi + Math.round((i.hours || 1)*60); return `${pad(Math.min(23, Math.floor(m/60)))}:${pad(m%60)}`; })(); lines.push(`DTEND:${d}T${endT.replace(':','')}00`); } else { lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${add(i.date,1).replace(/-/g,'')}`); } lines.push(`SUMMARY:${icsEsc((i.done ? '✓ ' : '') + i.title)}`); const desc = [pn(i.project) && L('项目：', 'Project: ') + pn(i.project), i.est && L('预计 ', 'Estimate ') + fmtH(i.est), i.note].filter(Boolean).join('\n'); if (desc) lines.push(`DESCRIPTION:${icsEsc(desc)}`); lines.push('END:VEVENT'); return lines.join('\r\n'); });
+    deliver(`Runway-${from}${L('至', '_to_')}${to}.ics`, ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Runway//CN','X-WR-CALNAME:Runway', ...ev, 'END:VCALENDAR'].join('\r\n'), 'text/calendar'); return;
   }
   if (kind === 'md'){
     const pid = ($('#ex-proj') || {}).value;
     const ps = pid ? [dv.projMap.get(pid)] : dv.projects;
-    const md2 = ps.map(p => { const st = projStatus(p); const ts = projTasks(p.id); const mods = [...p.modules, {id:'', name:'其他'}]; return `# ${p.name}\n\nDeadline ${p.deadline} · 共 ${fmtH(st.total)} · 剩 ${fmtH(st.rem)} · ${st.label}\n\n` + mods.map(m => { const list = ts.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module))); if (!list.length) return ''; return `## ${m.name}\n\n` + list.map(i => `- [${i.done ? 'x' : ' '}] ${i.title} · 预计 ${fmtH(i.est)}${i.date ? ' · 排在 ' + i.date : ''}${i.actual != null ? ' · 实际 ' + fmtH(i.actual) : ''}`).join('\n') + '\n'; }).join('\n'); }).join('\n\n');
-    deliver(`Runway-${pid ? dv.projMap.get(pid).name : '项目清单'}.md`, md2 || '还没有计划项目。', 'text/markdown'); return;
+    const md2 = ps.map(p => { const st = projStatus(p); const ts = projTasks(p.id); const mods = [...p.modules, {id:'', name: L('其他', 'Other')}]; return `# ${p.name}\n\nDeadline ${p.deadline} · ${L('共', 'total')} ${fmtH(st.total)} · ${L('剩', 'left')} ${fmtH(st.rem)} · ${LANG === 'en' ? (trText(st.label) || st.label) : st.label}\n\n` + mods.map(m => { const list = ts.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module))); if (!list.length) return ''; return `## ${m.name}\n\n` + list.map(i => `- [${i.done ? 'x' : ' '}] ${i.title} · ${L('预计', 'est.')} ${fmtH(i.est)}${i.date ? L(' · 排在 ', ' · on ') + i.date : ''}${i.actual != null ? L(' · 实际 ', ' · actual ') + fmtH(i.actual) : ''}`).join('\n') + '\n'; }).join('\n'); }).join('\n\n');
+    deliver(`Runway-${pid ? dv.projMap.get(pid).name : L('项目清单', 'projects')}.md`, md2 || L('还没有计划项目。', 'No projects yet.'), 'text/markdown'); return;
   }
   if (kind === 'json'){ deliver(`Runway-backup-${t}.json`, JSON.stringify({app:'runway', version:2, exportedAt: new Date().toISOString(), items:S.items, projects:S.projects, notes:S.notes, settings:S.settings}, null, 1), 'application/json'); }
 }
@@ -2836,7 +3003,7 @@ function toast(msg, undoFn){
   if (undoFn) $('#toast-undo').onclick = () => { hideToast(); undoFn(); };
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, undoFn ? 5000 : 2400);
 }
-function applyAccent(){ const s = settings(), b = document.body; { const a = s.art && s.art !== 'study' ? s.art : ''; if (a) document.documentElement.dataset.art = a; else delete document.documentElement.dataset.art; } const pal = s.palette && s.palette !== 'classic' ? s.palette : ''; if (pal) b.dataset.palette = pal; else delete b.dataset.palette; const a = s.accent || 'burgundy'; if (a === 'auto' && pal) delete b.dataset.accent; else b.dataset.accent = a === 'auto' ? 'burgundy' : a; }
+function applyAccent(){ setLang(wantLang()); const s = settings(), b = document.body; { const a = s.art && s.art !== 'study' ? s.art : ''; if (a) document.documentElement.dataset.art = a; else delete document.documentElement.dataset.art; } const pal = s.palette && s.palette !== 'classic' ? s.palette : ''; if (pal) b.dataset.palette = pal; else delete b.dataset.palette; const a = s.accent || 'burgundy'; if (a === 'auto' && pal) delete b.dataset.accent; else b.dataset.accent = a === 'auto' ? 'burgundy' : a; }
 
 /* ================= events ================= */
 let suppressClick = false;
@@ -2882,6 +3049,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-soff]'))){ const v = Number(el.dataset.soff); ui.stats.off = v === 0 ? 0 : Math.max(0, ui.stats.off + v); render(); return; }
   if ((el = c('[data-export]'))){ exportData(el.dataset.export); return; }
   if ((el = c('[data-setaccent]'))){ saveSettings({accent: el.dataset.setaccent}); return; }
+  if ((el = c('[data-setlang]'))){ saveSettings({lang: el.dataset.setlang}); return; }
   if ((el = c('[data-setart]'))){ const k = el.dataset.setart, n = (ARTS.find(x => x[0] === k) || [])[1]; saveSettings({art: k}, n ? `已换成「${n}」` : ''); return; }
   if ((el = c('[data-setpalette]'))){ const k = el.dataset.setpalette; saveSettings({palette: k, accent: k === 'classic' ? 'burgundy' : 'auto'}); return; }
   if ((el = c('[data-capq]'))){
@@ -2919,7 +3087,7 @@ document.addEventListener('click', e => {
     else if (a === 'book-next' || a === 'book-prev') turnPage(a === 'book-next' ? 1 : -1);
     else if (a === 'overdue-today'){ const t0 = today(); const od = derive().items.filter(i => !i.done && i.date && i.date < t0 && i.kind === 'task'); commit(od.map(i => ({col:'items', id:i.id, data:{...S.items[i.id], date: t0}})), `已把 ${od.length} 件放到今天`); }
     else if (a === 'overdue-resched'){ const t0 = today(); openReschedule(derive().items.filter(i => !i.done && i.date && i.date < t0 && i.kind === 'task')); }
-    else if (a === 'clear'){ if ($('#clear-confirm').value.trim() !== '清空'){ toast('输入「清空」两个字确认'); return; } const ch = []; for (const col of ['items','projects','notes','settings','timer']) for (const id of Object.keys(S[col])) ch.push({col, id, data:null}); commit(ch, '已清空全部数据', {undo:true}); }
+    else if (a === 'clear'){ if (!['清空', 'erase'].includes($('#clear-confirm').value.trim().toLowerCase())){ toast('输入「清空」两个字确认'); return; } const ch = []; for (const col of ['items','projects','notes','settings','timer']) for (const id of Object.keys(S[col])) ch.push({col, id, data:null}); commit(ch, '已清空全部数据', {undo:true}); }
     return;
   }
   if ((el = c('.chip[data-item]'))){ editItem(el.dataset.item); return; }
@@ -2955,7 +3123,7 @@ const noteTimers = {};
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'list-q'){ clearTimeout(searchTimer); searchTimer = setTimeout(() => { ui.list.q = t.value; const pos = t.selectionStart; t.blur(); render(); const n = $('#list-q'); if (n){ n.focus(); n.setSelectionRange(pos, pos); } }, 250); return; }
-  if (t.id === 'quick-input'){ const r = parseQuick(t.value); $('#quick-parsed').textContent = t.value.trim() ? `将添加：${r.title || '…'} · ${describeParsed(r)}` : ''; return; }
+  if (t.id === 'quick-input'){ const r = parseQuick(t.value); $('#quick-parsed').textContent = t.value.trim() ? `${L('将添加：', 'Adding: ')}${r.title || '…'} · ${describeParsed(r)}` : ''; return; }
   const n = t.closest('[data-note]'); if (!n) return;
   const d = n.dataset.note;
   clearTimeout(noteTimers[d]);
@@ -3036,7 +3204,7 @@ function monthPicker(btn){
   pop.style.left = Math.max(8, r.left - vr.left) + 'px'; pop.style.top = (r.bottom - vr.top + $('.main').scrollTop + 6) + 'px';
   $('.main').style.position = 'relative'; $('.main').appendChild(pop); fillPicker(pop);
 }
-function fillPicker(pop){ const y = Number(pop.dataset.y), cur = ui.cursor.slice(0,7); pop.innerHTML = `<div class="yr"><button class="icon" type="button" data-ypick="-1" aria-label="上一年">‹</button><b>${y} 年</b><button class="icon" type="button" data-ypick="1" aria-label="下一年">›</button></div><div class="mgrid">${Array.from({length:12}, (_,m) => `<button type="button" data-mpick="${y}-${pad(m+1)}-01" aria-current="${cur === `${y}-${pad(m+1)}`}">${m+1}月</button>`).join('')}</div>`; }
+function fillPicker(pop){ const y = Number(pop.dataset.y), cur = ui.cursor.slice(0,7); pop.innerHTML = `<div class="yr"><button class="icon" type="button" data-ypick="-1" aria-label="上一年">‹</button><b>${yearL(y)}</b><button class="icon" type="button" data-ypick="1" aria-label="下一年">›</button></div><div class="mgrid">${Array.from({length:12}, (_,m) => `<button type="button" data-mpick="${y}-${pad(m+1)}-01" aria-current="${cur === `${y}-${pad(m+1)}`}">${monL(m+1)}</button>`).join('')}</div>`; }
 
 /* book page turn + swipe */
 function turnPage(dir){
