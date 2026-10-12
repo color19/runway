@@ -804,6 +804,39 @@ body,body[data-palette],:root[data-theme] body[data-palette]{--mid-soft:#4E4A2E;
 .tl-grid2.tray-empty .tl-tray .empty{padding:6px 12px;border:0;background:none;text-align:left}
 .tl-grid2.tray-empty .tl-tray .empty br{display:none}
 .tl-grid2.tray-empty .tl-tray .empty small{margin-left:10px}
+/* examples & guide */
+.demo-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;margin:0 0 14px;border:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);border-radius:8px;font-size:13px;color:var(--muted);background:color-mix(in srgb,var(--accent) 7%,transparent)}.demo-bar span{flex:1;min-width:200px}
+.guide{display:flex;flex-direction:column;gap:14px}.guide .eyebrow-s{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:st}
+.steps li{counter-increment:st;display:grid;grid-template-columns:28px 1fr;column-gap:12px;align-items:baseline}
+.steps li::before{content:counter(st);grid-row:span 2;font-family:var(--f-display);font-size:23px;line-height:1;color:var(--accent)}
+.steps li b{font-weight:500;font-size:15px;color:var(--ink)}.steps li span{font-size:13px;color:var(--muted);line-height:1.6}
+.guide .steps{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.steps.help{gap:16px;margin:4px 0 8px}.steps code{font-family:var(--f-mono);font-size:12px;padding:1px 6px;border-radius:4px;background:var(--sunk);color:var(--ink);white-space:nowrap}
+@media (max-width:820px){.guide .steps{grid-template-columns:minmax(0,1fr)}}
+/* count goals */
+.cnt-row{display:flex;align-items:center;gap:14px;padding:12px 5px;border-bottom:1px solid var(--e96)}
+.cnt-name{display:flex;align-items:baseline;gap:8px;min-width:0;flex:1;background:none;border:0;padding:0;color:inherit;text-align:left;cursor:pointer;font:inherit}
+.cnt-name .dot{width:8px;height:8px;border-radius:50%;align-self:center;flex:none}
+.cnt-name b{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cnt-name small{font-size:11px;color:var(--muted);white-space:nowrap}
+.cnt-row .late,.cnt-card .late{color:var(--warn)}
+.cnt-v{font-size:12px;color:var(--muted);white-space:nowrap;display:flex;align-items:baseline;gap:5px}.cnt-v b{font-size:23px;line-height:1;color:var(--ink);font-weight:400}
+.cnt-bar{width:110px;height:3px;background:var(--sunk);border-radius:2px;overflow:hidden;flex:none}.cnt-bar i{display:block;height:100%;background:var(--c);transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.cnt-row.met .cnt-bar i{background:var(--good)}.cnt-row.met .cnt-v b{color:var(--good)}
+.cnt-ctl{display:inline-flex;gap:4px;flex:none}.cnt-ctl .sm{min-width:38px;justify-content:center}.cnt-ctl .sm:disabled{opacity:.35;cursor:default}
+.cnt-card{display:flex;flex-direction:column;gap:14px}
+.cnt-strip{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:4px}
+.cs-day{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 6px;background:none;border:1px solid transparent;border-radius:6px;color:var(--muted);cursor:pointer;font:inherit;min-width:0}
+.cs-day:hover{background:color-mix(in srgb,var(--c) 6%,transparent)}
+.cs-day.sel{border-color:color-mix(in srgb,var(--c) 70%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent);color:var(--ink)}
+.cs-bars{position:relative;width:60%;max-width:16px;height:56px}
+.cs-bars i{position:absolute;bottom:0;left:0;right:0;border-radius:2px 2px 0 0}
+.cs-bars i.g{border:1px dashed color-mix(in srgb,var(--c) 75%,transparent);border-bottom:0}
+.cs-bars i.n{background:var(--c)}.cs-day.met .cs-bars i.n{background:var(--good)}.cs-day.short .cs-bars i.n{background:color-mix(in srgb,var(--c) 55%,transparent)}
+.cs-day b{font-size:12px;color:var(--ink);font-weight:500}.cs-day.fut{cursor:default;opacity:.55}.cs-day.fut:hover{background:none}.cs-day.fut b{color:var(--muted);font-weight:400}.cs-day small{font-size:11px;white-space:nowrap}
+.cnt-edit{display:flex;flex-direction:column;gap:10px}.cnt-edit .setrow .hint{font-size:12px;margin-top:2px}#p-cbox{display:flex;flex-direction:column;gap:4px}#p-cbox[hidden]{display:none}.cplan{display:flex;flex-direction:column;gap:8px;margin:10px 0 6px}.cplan-row{gap:8px;flex-wrap:nowrap}.cplan-row input[type=date]{flex:1;min-width:0}
+@media (max-width:640px){.cnt-row{flex-wrap:wrap;row-gap:8px}.cnt-name{flex-basis:100%}.cnt-bar{flex:1;width:auto}.cnt-strip{gap:2px}.cs-day small{font-size:11px}.cs-bars{height:44px}}
 @media (max-width:820px){.top .eyebrow,.top h1{text-shadow:0 1px 8px #000c}.rings{row-gap:12px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
@@ -891,6 +924,7 @@ const wdName = s => (LANG === 'en' ? WDN_EN : WDN)[monIdx(s)];
 const md = s => { const d = parse(s); return `${d.getMonth()+1}/${d.getDate()}`; };
 const cnd = s => { const d = parse(s); return LANG === 'en' ? `${MON_EN[d.getMonth()]} ${d.getDate()}` : `${d.getMonth()+1}月${d.getDate()}日`; };
 const r2 = x => Math.round(x*100)/100;
+const r1 = x => Math.round(x*10)/10;
 const fmtH = h => { h = Math.max(0, h||0); if (h < 0.995) return Math.round(h*60) + 'm'; const H = Math.floor(h + 1e-9), M = Math.round((h-H)*60); return M ? (M===60 ? (H+1)+'h' : `${H}h${M}m`) : H+'h'; };
 const uid = p => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 const range = (a,b) => { const out=[]; for(let d=a; d<=b; d=add(d,1)) out.push(d); return out; };
@@ -1121,7 +1155,10 @@ function normItem(id, it){
 function normProj(id, p){
   return { id, name: p.name || '未命名项目', start: p.start || today(), deadline: p.deadline || add(today(),30), color: p.color || COLORS[0][1],
     buffer: Number(p.buffer)||0, lump: p.lump != null ? Number(p.lump)||0 : (Number(p.totalHours)||0), log: p.log || {},
-    modules: Array.isArray(p.modules) ? p.modules : [], note: p.note || '', askActual: p.askActual !== false };
+    modules: Array.isArray(p.modules) ? p.modules : [], note: p.note || '', askActual: p.askActual !== false,
+    count: p.count && typeof p.count === 'object' ? { unit: p.count.unit != null ? String(p.count.unit) : '份', mins: Number(p.count.mins) || 10,
+      plan: (Array.isArray(p.count.plan) ? p.count.plan : []).filter(x => x && /^\d{4}-\d{2}-\d{2}$/.test(x.from || '')).map(x => ({from: x.from, n: Math.max(0, Math.round(Number(x.n) || 0))})).sort((a,b) => a.from.localeCompare(b.from)),
+      log: p.count.log && typeof p.count.log === 'object' ? p.count.log : {} } : null };
 }
 function today(){ const s = (S.settings.main && S.settings.main.dayStart) || 0; return ymd(new Date(Date.now() - s*3600e3)); }
 function rawToItemData(n){ const {id, ...rest} = n; return rest; }
@@ -1141,7 +1178,9 @@ function derive(){
   const effort = new Map();              // date -> real hours (actual ?? estimate) + logs
   const doneCount = new Map();
   const bump = (m,k,v) => m.set(k, (m.get(k)||0) + v);
-  for (const p of projects){ const pm = new Map(); progress.set(p.id, pm); for (const [d,h] of Object.entries(p.log)){ const v = Number(h)||0; if (v){ bump(pm, d, v); bump(effort, d, v); } } }
+  const cprog = new Map();               // pid -> Map(date -> hours worth of counted units)
+  for (const p of projects){ const pm = new Map(); progress.set(p.id, pm); for (const [d,h] of Object.entries(p.log)){ const v = Number(h)||0; if (v){ bump(pm, d, v); bump(effort, d, v); } }
+    if (p.count){ const cm = new Map(); cprog.set(p.id, cm); for (const [d,n] of Object.entries(p.count.log)){ const v = (Number(n)||0) * p.count.mins / 60; if (v){ bump(cm, d, v); bump(effort, d, v); } } } }
   for (const it of items){
     const hasLog = it.log && Object.keys(it.log).length > 0;
     if (hasLog) for (const [d,h] of Object.entries(it.log)){ const v = Number(h)||0; if (v) bump(effort, d, v); }
@@ -1153,7 +1192,7 @@ function derive(){
     if (!hasLog){ const real = it.actual != null ? it.actual : it.est; bump(effort, it.doneOn, real); }
     if (!it.burn && it.project && progress.has(it.project)) bump(progress.get(it.project), it.doneOn, it.est);
   }
-  M = { t, items, projects, projMap, byDate, progress, effort, doneCount, alloc: new Map() };
+  M = { t, items, projects, projMap, byDate, progress, cprog, effort, doneCount, alloc: new Map(), cnt: new Map() };
   return M;
 }
 function sortItems(a,b){ const r = k => ({exam:0,deadline:1,event:2,task:3})[k]; const g = i => !i.time && (i.kind === 'exam' || i.kind === 'deadline') ? 0 : i.time ? 1 : 2; return (a.done - b.done) || (g(a) - g(b)) || (a.time||'').localeCompare(b.time||'') || (r(a.kind)-r(b.kind)) || (a.order-b.order) || a.title.localeCompare(b.title); }
@@ -1163,7 +1202,7 @@ function projTasks(pid){ return derive().items.filter(i => i.project === pid && 
 function logSum(p){ return sum(Object.values(p.log).map(Number)); }
 function remNow(p){ return sum(projTasks(p.id).filter(i => !i.done).map(i => i.hours)) + Math.max(0, p.lump - logSum(p)); }
 function totalOf(p){ return sum(projTasks(p.id).map(i => i.est)) + Math.max(p.lump, logSum(p)); }
-function progOn(pid, d){ const m = derive().progress.get(pid); return m ? (m.get(d) || 0) : 0; }
+function progOn(pid, d){ const dv = derive(), m = dv.progress.get(pid), c = dv.cprog.get(pid); return (m ? (m.get(d) || 0) : 0) + (c ? (c.get(d) || 0) : 0); }
 function remStart(p, D){ let r = remNow(p); const m = derive().progress.get(p.id); if (m) for (const [d,h] of m) if (d >= D) r += h; return r; }
 function windowOf(p, D){
   const start = p.start > D ? p.start : D;
@@ -1180,9 +1219,18 @@ function allocate(D){
   const s = settings();
   const byProj = {}, byDay = {}, free = {};
   for (const p of dv.projects){
+    byProj[p.id] = {};
+    if (!cntOf(p)) continue;
+    for (let d = D, k = 0; d < p.deadline && k < 400; d = add(d, 1), k++){
+      const n = cntTgt(p, d); if (!n) continue;
+      const h = n * p.count.mins / 60;
+      byProj[p.id][d] = h; (byDay[d] = byDay[d] || {})[p.id] = h;
+      free[d] = (free[d] != null ? free[d] : capOf(d)) - h;
+    }
+  }
+  for (const p of dv.projects){
     const rem = remStart(p, D);
     const w = windowOf(p, D);
-    byProj[p.id] = {};
     if (!w || rem <= 1e-6 || p.deadline <= D) continue;
     const days = range(w[0], w[1]);
     let wts = days.map(d => s.balance ? Math.max(0, free[d] != null ? free[d] : capOf(d)) : capOf(d));
@@ -1191,7 +1239,7 @@ function allocate(D){
     const tot = sum(wts);
     days.forEach((d,i) => {
       const h = rem * wts[i] / tot; if (h < 1e-6) return;
-      byProj[p.id][d] = h; (byDay[d] = byDay[d] || {})[p.id] = h;
+      byProj[p.id][d] = (byProj[p.id][d] || 0) + h; const bd = (byDay[d] = byDay[d] || {}); bd[p.id] = (bd[p.id] || 0) + h;
       free[d] = (free[d] != null ? free[d] : capOf(d)) - h;
     });
   }
@@ -1204,6 +1252,51 @@ const dayNeed = (d, D = today()) => sum(Object.values(allocate(D).byDay[d] || {}
 const progDay = d => sum(derive().projects.map(p => progOn(p.id, d)));
 function workdays(p, D){ const w = windowOf(p, D); return w ? range(w[0], w[1]).filter(d => capOf(d) > 0) : []; }
 
+/* ---------- count goals: a number per day (applications, problems…) instead of hours ---------- */
+const cntOf = p => p && p.count && p.count.plan.length ? p.count : null;
+function cntTgt(p, d){
+  const c = cntOf(p); if (!c || d < p.start || d >= p.deadline || capOf(d) <= 0) return 0;
+  let n = 0; for (const x of c.plan) if (x.from <= d) n = x.n; return n;
+}
+const cntDone = (p, d) => Math.max(0, Number(((cntOf(p) || {}).log || {})[d]) || 0);
+const cntU = p => { const u = ((cntOf(p) || p.count || {}).unit || '').trim(); return LANG === 'en' && /^[份个件道篇次]$/.test(u) ? '' : u; };
+const cntN = (n, p) => { const u = cntU(p); return u ? `${n} ${u}` : String(n); };
+function cntStat(p, D = today()){
+  const dv = derive(), key = p.id + D;
+  if (dv.cnt.has(key)) return dv.cnt.get(key);
+  const c = cntOf(p), first = c.plan[0].from;
+  let exp = 0, got = 0, wk = 0, wkDays = 0;
+  for (const [d, n] of Object.entries(c.log)) if (d < D && d >= p.start) got += Number(n) || 0;
+  for (let d = first > p.start ? first : p.start, k = 0; d < D && k < 800; d = add(d, 1), k++) exp += cntTgt(p, d);
+  for (let k = 1; k <= 7; k++){ const d = add(D, -k); if (d < p.start || d < first) break; wk += cntDone(p, d); wkDays++; }
+  const tT = cntTgt(p, D), tD = cntDone(p, D);
+  let cur = 0, next = null; for (const x of c.plan){ if (x.from <= D) cur = x.n; else if (!next) next = x; }
+  const r = { exp, got, debt: Math.max(0, exp - got), ahead: Math.max(0, got - exp), tT, tD, cur, next, first, avg7: wkDays ? wk / wkDays : null, total: got + tD };
+  dv.cnt.set(key, r);
+  return r;
+}
+function cntStatus(p, D, res){
+  const cs = cntStat(p, D); res.cnt = cs;
+  const plan = () => [cs.cur ? L(`每天 ${cntN(cs.cur, p)}`, `${cntN(cs.cur, p)} a day`) : '', cs.next ? L(`${cnd(cs.next.from)} 起每天 ${cs.next.n}`, `${cs.next.n} a day from ${cnd(cs.next.from)}`) : ''].filter(Boolean).join(' · ');
+  if (res.left <= 0){ res.k = 'flat'; res.label = L('已结束', 'Ended'); res.text = res.short = L(`累计 ${cntN(cs.total, p)}`, `${cntN(cs.total, p)} in total`); return res; }
+  if (D < cs.first && !cs.total){ res.k = 'flat'; res.label = L('还没开始', 'Not started'); const n0 = cntOf(p).plan[0].n; res.text = res.short = L(`${cnd(cs.first)} 开始，每天 ${cntN(n0, p)}`, `Starts ${cnd(cs.first)}, ${cntN(n0, p)} a day`); return res; }
+  const w = windowOf(p, D), A = allocate(D).byDay, ds = w ? range(w[0], w[1]) : [];
+  const load = sum(ds.map(d => sum(Object.values(A[d] || {})))), capW = sum(ds.map(capOf));
+  const press = capW > 0 ? load / capW : 9; res.press = press;
+  const day = Math.max(1, cs.tT || cs.cur);
+  let k, label;
+  if (cs.debt > 0){ k = cs.debt > day ? 'bad' : 'mid'; label = L(`欠 ${cntN(cs.debt, p)}`, `${cs.debt} behind`); }
+  else if (press > 1 + 1e-6){ k = 'bad'; label = L('时间不够', 'Not enough time'); }
+  else if (press > .7){ k = 'mid'; label = L('有点赶', 'Tight'); }
+  else { k = 'good'; label = L('稳', 'On track'); }
+  res.k = k; res.label = label;
+  const avg = cs.avg7 != null ? L(`最近 7 天平均 ${r1(cs.avg7)}/天`, `last 7 days ${r1(cs.avg7)}/day`) : '';
+  res.short = [cs.exp ? L(`到昨天 ${cs.got} / 应有 ${cs.exp}`, `${cs.got} of ${cs.exp} by yesterday`) : plan(), avg, L(`负荷 ${Math.round(press*100)}%`, `Load ${Math.round(press*100)}%`)].filter(Boolean).join(' · ');
+  res.text = L(`今天 ${cs.tD} / ${cntN(cs.tT, p)}。到昨天应有 ${cs.exp}，实际 ${cs.got}${cs.debt ? `，欠 ${cs.debt}` : cs.ahead ? `，多 ${cs.ahead}` : ''}。${plan()}，每个按 ${p.count.mins} 分钟算进时间。截止前所有项目加起来占可用时间的 ${Math.round(press*100)}%。`,
+    `Today ${cs.tD} / ${cntN(cs.tT, p)}. ${cs.exp} due by yesterday, ${cs.got} done${cs.debt ? `, ${cs.debt} behind` : cs.ahead ? `, ${cs.ahead} ahead` : ''}. ${plan()}, each counted as ${p.count.mins} min. All projects together use ${Math.round(press*100)}% of your time before the deadline.`);
+  return res;
+}
+
 function projStatus(p, D = today()){
   const rem = remNow(p), total = totalOf(p);
   const left = diff(D, p.deadline);
@@ -1212,6 +1305,7 @@ function projStatus(p, D = today()){
   const avgCap = wd.length ? sum(wd.map(capOf))/wd.length : 0;
   res.need = wd.length ? remStart(p, D)/wd.length : rem;
   res.planEnd = add(p.deadline, -p.buffer);
+  if (cntOf(p)) return cntStatus(p, D, res);
   if (total < 1e-6){ res.k = 'flat'; res.label = '待加任务'; res.text = '还没有任务或工作量。点进项目添加任务，或填一个总工作量。'; return res; }
   const reestN = projTasks(p.id).filter(needsReest).length;
   res.reest = reestN;
@@ -1331,10 +1425,84 @@ function bannerHTML(D = today()){
   }
   const msg = met ? (done - line > 0.05 ? `<b>✓ ${word}的航速跟上了</b> · 多飞了 ${fmtH(done-line)}，后面几天可以松点油门` : `<b>✓ ${word}的航速刚好</b> · 照这个速度，准时落地`) : (done > 0 ? `还差 <span class="big">${fmtH(line-done)}</span> 跟上${word}的航速` : `${word}航速 <span class="big">${fmtH(line)}</span>，照这个速度飞，准时落地`);
   const overCap = cap > 0 && line > cap + 0.05 ? `<div class="warnbar">${word}需要 ${fmtH(line)} · 可投入 ${fmtH(cap)}</div>` : cap === 0 && line > 0 ? `<div class="warnbar">${word}是休息日 · 仍需 ${fmtH(line)}</div>` : '';
-  const rings = dv.projects.length ? `<div class="rings${ui.expand ? '' : ' collapsed'}">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D); const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; const tip = `${st.text}${later && later - st.need >= 1/60 ? ` 要是歇两天，之后每天多 ${fmtH(later - st.need)}。` : ''}`; return `<button type="button" class="ring" data-openproj="${p.id}" title="${esc(tip)}" aria-label="${esc(p.name + '：' + fmtH(d) + ' / ' + fmtH(q) + '，' + st.label + '。' + tip)}">${donut(q ? d/q : 1, p.color, 34, 5)}<div class="ring-t"><b>${esc(p.name)}</b><span><span class="mono">${fmtH(d)} / ${fmtH(q)}</span><span class="pill ${st.k}">${st.label}</span></span></div></button>`; }).join('')}</div>` : '';
+  const rings = dv.projects.length ? `<div class="rings${ui.expand ? '' : ' collapsed'}">${ps.map(p => { const q = quota(p.id, D), d = progOn(p.id, D); const st = projStatus(p, D);
+    if (st.cnt){ const cs = st.cnt; return `<button type="button" class="ring" data-openproj="${p.id}" title="${esc(st.text)}" aria-label="${esc(p.name + '：' + cs.tD + ' / ' + cntN(cs.tT, p) + '，' + st.label + '。' + st.text)}">${donut(cs.tT ? cs.tD/cs.tT : 1, p.color, 34, 5)}<div class="ring-t"><b>${esc(p.name)}</b><span><span class="mono">${cs.tD} / ${cntN(cs.tT, p)}</span><span class="pill ${st.k}">${esc(st.label)}</span></span></div></button>`; }
+    const wd = workdays(p, D).length; const later = wd > 2 ? remStart(p, D)/(wd-2) : null; const tip = `${st.text}${later && later - st.need >= 1/60 ? ` 要是歇两天，之后每天多 ${fmtH(later - st.need)}。` : ''}`; return `<button type="button" class="ring" data-openproj="${p.id}" title="${esc(tip)}" aria-label="${esc(p.name + '：' + fmtH(d) + ' / ' + fmtH(q) + '，' + st.label + '。' + tip)}">${donut(q ? d/q : 1, p.color, 34, 5)}<div class="ring-t"><b>${esc(p.name)}</b><span><span class="mono">${fmtH(d)} / ${fmtH(q)}</span><span class="pill ${st.k}">${st.label}</span></span></div></button>`; }).join('')}</div>` : '';
   return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="ghost sm expand-btn" type="button" data-act="expand" aria-expanded="${ui.expand}">${ui.expand ? '收起项目' : '展开项目'}</button></div></div>
     ${papi ? `<div class="papi-row">${papi}</div>` : ''}<div class="runway ${met ? 'met' : ''} ${papi ? 'with-papi' : ''}" role="img" aria-label="已飞 ${fmtH(done)}，航速 ${fmtH(line)}"><div class="edge"></div><div class="dash"></div><div class="fill" style="width:${pct}%"></div><div class="thr" style="left:calc(${lp}% - 30px)"></div><div class="line ${lp > 85 ? 'end' : ''}" style="left:calc(${lp}% - 1px)"><span>${fmtH(line)} · 落地</span></div><div class="plane ${met ? 'up' : ''}" style="left:clamp(14px, ${pct}%, calc(100% - 14px))">${ICON.plane}</div></div>
     ${overCap}${rings}`;
+}
+
+/* ================= examples & how-to (mainly for the share build) ================= */
+const isDemo = id => String(id).startsWith('demo-');
+const hasDemo = () => Object.keys(S.projects).some(isDemo) || Object.keys(S.items).some(isDemo);
+function demoSeed(){
+  const t = today(), d = n => add(t, n), it = (id, o) => ({col:'items', id:'demo-' + id, data:{title:'', date:null, time:'', end:'', hours:0, est:0, kind:'task', project:'', module:'', tags:[], note:'', done:false, actual:null, doneOn:null, order:0, ...o, est: o.est != null ? o.est : (o.hours || 0)}});
+  const ex = 'demo-p-exam', job = 'demo-p-job', pap = 'demo-p-paper';
+  const ch = [
+    {col:'projects', id:ex, data:{name: L('期末考试：公司金融', 'Final exam: Corporate Finance'), start: d(-7), deadline: d(21), buffer: 2, color:'#6B8FB8', lump: 0, log:{}, askActual: true,
+      note: L('示例：把一门考试拆成章节，每章写预计几小时。', 'Example: an exam split into chapters, each with an hour estimate.'),
+      modules:[{id:'demo-m1', name: L('第 1–4 章', 'Chapters 1–4')}, {id:'demo-m2', name: L('第 5–8 章', 'Chapters 5–8'), due: d(12)}, {id:'demo-m3', name: L('真题与模考', 'Past papers and mocks')}]}},
+    it('e1', {title: L('第 1 章 货币时间价值', 'Ch 1 Time value of money'), hours: 0, est: 1.5, project: ex, module:'demo-m1', done: true, doneOn: d(-6), actual: 1.75, date: d(-6)}),
+    it('e2', {title: L('第 2 章 债券估值', 'Ch 2 Bond valuation'), hours: 0, est: 1.5, project: ex, module:'demo-m1', done: true, doneOn: d(-4), actual: 1.5, date: d(-4)}),
+    it('e3', {title: L('第 3 章 股票估值', 'Ch 3 Stock valuation'), hours: 0, est: 2, project: ex, module:'demo-m1', done: true, doneOn: d(-3), actual: 2.25, date: d(-3)}),
+    it('e4', {title: L('第 4 章 资本预算', 'Ch 4 Capital budgeting'), hours: 0, est: 2, project: ex, module:'demo-m1', done: true, doneOn: d(-1), actual: 1.75, date: d(-1)}),
+    it('e5', {title: L('第 5 章 资本成本', 'Ch 5 Cost of capital'), hours: 2, project: ex, module:'demo-m2', date: t, order: 5}),
+    it('e6', {title: L('第 6 章 资本结构', 'Ch 6 Capital structure'), hours: 2, project: ex, module:'demo-m2', date: d(1), order: 6}),
+    ...[7,8].map(n => it('e' + n, {title: L(`第 ${n} 章`, `Ch ${n}`), hours: 2, project: ex, module:'demo-m2', order: n})),
+    ...[1,2,3].map(n => it('q' + n, {title: L(`真题 ${n}`, `Past paper ${n}`), hours: 2, project: ex, module:'demo-m3', order: n})),
+    it('mock', {title: L('整套模考', 'Full mock exam'), hours: 3, project: ex, module:'demo-m3', order: 9}),
+    it('exam', {title: L('公司金融期末考试', 'Corporate Finance final'), kind:'exam', project: ex, date: d(21), time:'09:00', end:'11:00'}),
+    {col:'projects', id:job, data:{name: L('求职投递', 'Job applications'), start: d(-5), deadline: d(60), buffer: 0, color:'#8A9A4A', lump: 0, log:{}, askActual: true,
+      note: L('示例：按数量计。每天投 10 份，在今天页点 +1 记录。', 'Example: a count goal. 10 applications a day, logged with +1 on Today.'),
+      modules:[{id:'demo-m4', name: L('材料', 'Materials')}],
+      count:{unit: L('份', 'apps'), mins: 10, plan:[{from: d(-5), n: 10}], log:{[d(-5)]: 12, [d(-4)]: 9, [d(-3)]: 10, [d(-2)]: 7, [d(-1)]: 10, [t]: 3}}}},
+    it('j1', {title: L('简历改成一页', 'Cut the résumé to one page'), hours: 0, est: 1, project: job, module:'demo-m4', done: true, doneOn: d(-5), actual: 1.25, date: d(-5)}),
+    it('j2', {title: L('写 cover letter 模板', 'Write a cover letter template'), hours: 1.5, project: job, module:'demo-m4', date: d(1)}),
+    {col:'projects', id:pap, data:{name: L('课程论文', 'Term paper'), start: t, deadline: d(30), buffer: 3, color:'#C2643F', lump: 12, log:{}, askActual: true, modules:[],
+      note: L('示例：还没拆任务，先填一个总工作量 12h，也能算出每天的航速。', 'Example: not split yet. A 12h total is enough to work out a daily pace.')}},
+    it('ev', {title: L('小组讨论', 'Study group'), kind:'event', date: t, time:'14:00', end:'15:30', hours: 1.5}),
+    it('due', {title: L('作业 3 截止', 'Problem set 3 due'), kind:'deadline', date: d(3)}),
+    it('pool', {title: L('整理错题本', 'Review the mistakes notebook'), hours: 1}),
+  ];
+  return ch;
+}
+function demoLoad(){ if (hasDemo()) return; ui.go = 'today'; ui.proj = null; commit(demoSeed(), L('已载入示例：3 个项目', 'Example loaded: 3 projects')); }
+function demoClear(){
+  const ch = [...Object.keys(S.items).filter(isDemo).map(id => ({col:'items', id, data:null})), ...Object.keys(S.projects).filter(isDemo).map(id => ({col:'projects', id, data:null}))];
+  if (ui.proj && isDemo(ui.proj)) ui.proj = null;
+  commit(ch, L('示例已清除', 'Example cleared'));
+}
+function demoBar(){
+  return hasDemo() ? `<div class="demo-bar"><span>${L('你在看示例数据，随便点、随便改。', "You're looking at example data. Click and change anything.")}</span><button class="link" type="button" data-act="help">${L('使用说明', 'How it works')}</button><button class="ghost sm" type="button" data-act="demo-clear">${L('清除示例，开始用', 'Clear it and start')}</button></div>` : '';
+}
+function guideCard(){
+  const steps = [
+    [L('建一个有 deadline 的项目', 'Make a project with a deadline'), L('考试、论文、求职都行。Runway 从 deadline 往回算，告诉你每天要投入多少。', 'An exam, a paper, a job search. Runway works back from the deadline and tells you how much each day needs.')],
+    [L('拆成任务，或者给个总量', 'Split it into tasks, or give a total'), L('每个任务写预计几小时；不想拆就填总工作量；投递、刷题这类用「按数量计」。', 'Give each task an hour estimate, or just a total. For applications or problem sets, use a count goal.')],
+    [L('每天看航速，做完就打勾', 'Check the pace, tick things off'), L('打勾或计时，跑道上的飞机就往前走。落后了它会如实告诉你。', 'Tick or time your work and the plane moves along the runway. If you fall behind, it tells you plainly.')],
+  ];
+  return `<div class="card guide">
+    <p class="eyebrow-s">${L('第一次用', 'First time here')}</p>
+    <h2 style="margin:0">${L('三步用 Runway', 'Runway in three steps')}</h2>
+    <ol class="steps">${steps.map(([a, b]) => `<li><b>${a}</b><span>${b}</span></li>`).join('')}</ol>
+    <div class="inline"><button class="primary" type="button" data-act="demo-load">${L('载入示例看看', 'Load an example')}</button><button class="ghost" type="button" data-act="newproj">${L('直接建我的项目', 'Start my own project')}</button><button class="link" type="button" data-act="help">${L('使用说明', 'How it works')}</button></div>
+  </div>`;
+}
+function openHelp(){
+  const ex = s => `<code>${esc(s)}</code>`;
+  const rows = [
+    [L('从 deadline 往回算', 'Plan backward from the deadline'), L('每个项目有开始日和 deadline。剩下的工作量摊到之前每个能投入的日子，顶部的数字就是今天该飞的「航速」。', "Each project has a start and a deadline. What's left is spread over the days you can work, and the number at the top is today's pace.")],
+    [L('任务、总量或数量', 'Tasks, a total, or a count'), L('任务写预计几小时；懒得拆就填总工作量；投递、刷题这类在项目里打开「按数量计」，每天在今天页点 +1。', "Give tasks an hour estimate, or just a total. For applications or problem sets, turn on a count goal in the project and tap +1 on Today.")],
+    [L('快速记', 'Quick add'), L(`在任务池的输入框里直接写：${ex('周五下午2点 写论文 2h #CFA')}、${ex('每周一三五 跑步 到12月1日')}；加 ${ex('@项目名')} 就归入那个项目。`, `Type straight into the Inbox box: ${ex('essay fri 2pm 2h #CFA')}, ${ex('run every mon wed fri until 12/1')}. Add ${ex('@project')} to file it under a project.`)],
+    [L('打勾或计时', 'Tick or time it'), L('点 ▶ 开始计时，停下时记下实际用时。跑道上的四盏灯按现在的时间告诉你是领先还是落后。', 'Tap ▶ to start a timer; stopping it logs the real time. The four lights by the runway say whether you are ahead or behind for this time of day.')],
+    [L('时间线', 'Timeline'), L('把今天的任务拖进时间轴排好时段；开始计时后，块会跟着实际时间走。', "Drag today's tasks onto the timeline. Once you start a timer, the block follows the real time.")],
+    [L('每天能投入多少', 'How much time you have'), L('在设置里填每周每天能投入几小时，0 是休息日。今天临时有事，就在今天页改「可投入」。', 'Set your hours for each weekday in Settings; 0 means a rest day. If today is different, change Available on Today.')],
+    ...(SHARE ? [[L('你的数据', 'Your data'), L('分享版的数据只存在你自己这里，别人看不到。换设备前去「导出与备份」下载一份。', 'In the shared version your data stays with you and nobody else can see it. Before switching devices, download a backup from Export.')]] : []),
+  ];
+  openSheet(`<h2>${L('怎么用 Runway', 'How Runway works')}<button class="x" type="button" data-close aria-label="${esc(L('关闭', 'Close'))}">×</button></h2>
+    <ol class="steps help">${rows.map(([a, b]) => `<li><b>${a}</b><span>${b}</span></li>`).join('')}</ol>
+    <div class="actions">${!hasDemo() && !derive().projects.length ? `<button class="ghost" type="button" data-act="demo-load">${L('载入示例看看', 'Load an example')}</button>` : ''}<button class="primary" type="button" data-close>${L('知道了', 'Got it')}</button></div>`);
 }
 
 /* ================= views ================= */
@@ -1425,6 +1593,30 @@ function streakCount(){
 }
 function greeting(){ const h = new Date().getHours(); if (LANG === 'en') return h < 5 ? 'Late night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; return h < 5 ? '夜深了' : h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好'; }
 
+function cntCtl(p, d){
+  const v = cntDone(p, d);
+  return `<span class="cnt-ctl"><button type="button" class="ghost sm" data-cnt="${p.id}" data-d="${d}" data-v="-1" aria-label="${esc(L('减 1', 'Minus 1'))}" ${v ? '' : 'disabled'}>−</button><button type="button" class="ghost sm" data-cnt="${p.id}" data-d="${d}" data-v="1">+1</button><button type="button" class="ghost sm" data-cnt="${p.id}" data-d="${d}" data-v="5">+5</button></span>`;
+}
+function cntRows(t){
+  return derive().projects.filter(p => cntOf(p) && p.deadline > t && p.start <= t).map(p => {
+    const cs = cntStat(p, t); if (!cs.tT && !cs.tD && !cs.debt) return '';
+    const pct = cs.tT ? clamp(cs.tD / cs.tT * 100, 0, 100) : 100, met = cs.tT && cs.tD >= cs.tT;
+    const sub = cs.debt ? L(`之前欠 ${cs.debt}`, `${cs.debt} behind from before`) : cs.tT ? (met ? L('今天的目标完成了', "Today's goal is done") : L(`还差 ${cs.tT - cs.tD}`, `${cs.tT - cs.tD} to go`)) : L('今天不计目标', 'No goal today');
+    return `<div class="cnt-row ${met ? 'met' : ''}" style="--c:${p.color}"><button type="button" class="cnt-name" data-openproj="${p.id}"><span class="dot" style="background:${p.color}"></span><b>${esc(p.name)}</b><small class="${cs.debt ? 'late' : ''}">${sub}</small></button><span class="cnt-v"><b class="num">${cs.tD}</b><span>/ ${cntN(cs.tT, p)}</span></span><span class="cnt-bar"><i style="width:${pct}%"></i></span>${cntCtl(p, t)}</div>`;
+  }).join('');
+}
+function cntStrip(p, t){
+  const c = cntOf(p), sel = ui.cntDay && ui.cntDay <= t && ui.cntDay >= p.start ? ui.cntDay : t;
+  const days = range(add(t, -9), add(t, 4)).filter(d => d >= p.start && d < p.deadline);
+  const mx = Math.max(1, ...days.map(d => Math.max(cntTgt(p, d), cntDone(p, d))));
+  const cs = cntStat(p, t);
+  const plan = c.plan.map(x => L(`${cnd(x.from)} 起每天 ${x.n}`, `${x.n} a day from ${cnd(x.from)}`)).join(' · ');
+  return `<div class="card cnt-card" style="--c:${p.color}">
+    <div class="greet"><div><b>${L('每天的数量目标', 'Daily count goal')}</b><p class="hint" style="margin:0">${plan} · ${L(`每个按 ${c.mins} 分钟算`, `${c.mins} min each`)}</p></div><button class="ghost sm" type="button" data-editproj="${p.id}">${L('改目标', 'Edit goal')}</button></div>
+    <div class="cnt-strip" role="group" aria-label="${esc(L('最近 10 天和接下来 4 天', 'Last 10 days and the next 4'))}">${days.map(d => { const n = cntDone(p, d), g = cntTgt(p, d); return `<button type="button" class="cs-day ${d === sel ? 'sel' : ''} ${d > t ? 'fut' : ''} ${g && n >= g ? 'met' : g && d < t && n < g ? 'short' : ''}" ${d > t ? 'disabled' : `data-cntday="${d}" aria-pressed="${d === sel}"`} title="${esc(dayL(d) + ' · ' + n + (g ? ' / ' + g : ''))}"><span class="cs-bars">${g ? `<i class="g" style="height:${g / mx * 100}%"></i>` : ''}${n ? `<i class="n" style="height:${n / mx * 100}%"></i>` : ''}</span><b class="num">${d > t ? (g || '') : n}</b><small>${d === t ? L('今天', 'Today') : parse(d).getDate()}</small></button>`; }).join('')}</div>
+    <div class="greet"><p style="margin:0"><b>${sel === t ? L('今天', 'Today') : dayL(sel)}</b> <span class="mono">${cntDone(p, sel)}${cntTgt(p, sel) ? ' / ' + cntN(cntTgt(p, sel), p) : ' ' + cntU(p)}</span>${cs.debt ? ` · <span class="late">${L(`累计欠 ${cs.debt}`, `${cs.debt} behind in total`)}</span>` : cs.ahead ? ` · ${L(`累计多 ${cs.ahead}`, `${cs.ahead} ahead`)}` : ''}</p>${cntCtl(p, sel)}</div>
+  </div>`;
+}
 function viewToday(){
   const t = today(), y = add(t, -1), dv = derive();
   const its = itemsOn(t);
@@ -1453,10 +1645,12 @@ function viewToday(){
   const capq = `<div class="capline"><span>可投入 <b>${fmtH(capToday)}</b>${capOver ? '<i>已调整</i>' : ''}</span><span>已投入 <b>${fmtH(spentT)}</b></span><span>还可安排 <b>${fmtH(leftT)}</b></span>
       <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span></div>`;
   return `<div class="section">
+    ${dv.projects.length ? '' : guideCard()}
     <div class="greet"><div><h2 style="margin:0;font-size:23px">${greeting()}${nick ? L('，', ', ') + esc(nick) : ''}</h2></div>${streak >= 2 ? `<span class="streak">连续 <b class="num">${streak}</b> 天跟上航速</span>` : ''}</div>
     ${capq}
     <h2>今天要做 <span class="hint">${its.length ? `完成 ${doneN} / ${its.length}` : ''}</span></h2>
-    ${its.length ? its.map(i => rowItem(i)).join('') : `<div class="empty">今天没有安排</div>`}
+    ${cntRows(t)}
+    ${its.length ? its.map(i => rowItem(i)).join('') : (cntRows(t) ? '' : `<div class="empty">今天没有安排</div>`)}
     ${ext.length ? `<div class="hint">Google 日历：${ext.map(e => `${e.time ? e.time + ' ' : ''}${esc(e.title)}`).join('；')}</div>` : ''}
     ${overdue.length ? `<div class="card soft"><div class="greet"><p><b>有 ${overdue.length} 件过了安排日期还没做</b></p><div class="inline"><button class="ghost sm" type="button" data-act="overdue-today">都放到今天</button><button class="primary sm" type="button" data-act="overdue-resched">重新安排剩余任务</button></div></div>${overdue.slice(0,4).map(i => rowItem(i, {showDate:true, quick:true})).join('')}${overdue.length > 4 ? `<p class="hint">还有 ${overdue.length - 4} 件，在「全部事项」里能看到。</p>` : ''}</div>` : ''}
     ${recon}
@@ -1512,9 +1706,9 @@ function projCard(p){
   const q = quota(p.id, t);
   return `<div class="card pcard" data-openproj="${p.id}" style="--c:${p.color}" tabindex="0">
     <h3><span class="dot" style="background:${p.color}"></span><span class="n">${esc(p.name)}</span><span class="pill ${st.k}">${st.label}</span></h3>
-    <div class="stats"><div class="stat"><small>今日航速</small><b>${fmtH(q)}</b></div><div class="stat"><small>还剩</small><b>${fmtH(st.rem)}</b></div><div class="stat"><small>距 ${md(p.deadline)}</small><b>${Math.max(0, st.left)}<small style="display:inline;font-size:12px"> 天</small></b></div></div>
-    <div class="stack" title="完成 ${Math.round(dp)}% · 已排进日历 ${Math.round(sp)}%"><i class="d" style="width:${dp}%"></i><i class="s" style="width:${sp}%"></i></div>
-    <p class="hint st-line ${st.forecast ? (st.early < 0 ? 'bad' : 'good') : ''}" style="margin:0" title="${esc(st.text)}">${esc(st.short || st.label)}</p>
+    ${st.cnt ? `<div class="stats"><div class="stat"><small>${L('今天', 'Today')}</small><b>${st.cnt.tD}<small style="display:inline;font-size:12px"> / ${cntN(st.cnt.tT, p)}</small></b></div><div class="stat"><small>${L('累计', 'So far')}</small><b>${st.cnt.total}${st.cnt.debt ? `<small style="display:inline;font-size:12px"> · ${L('欠', '−')}${st.cnt.debt}</small>` : ''}</b></div>` : `<div class="stats"><div class="stat"><small>今日航速</small><b>${fmtH(q)}</b></div><div class="stat"><small>还剩</small><b>${fmtH(st.rem)}</b></div>`}<div class="stat"><small>距 ${md(p.deadline)}</small><b>${Math.max(0, st.left)}<small style="display:inline;font-size:12px"> 天</small></b></div></div>
+    ${st.cnt ? `<div class="stack"><i class="d" style="width:${st.cnt.tT ? clamp(st.cnt.tD / st.cnt.tT * 100, 0, 100) : 0}%"></i></div>` : `<div class="stack" title="完成 ${Math.round(dp)}% · 已排进日历 ${Math.round(sp)}%"><i class="d" style="width:${dp}%"></i><i class="s" style="width:${sp}%"></i></div>`}
+    <p class="hint st-line ${st.cnt ? (st.cnt.debt ? 'bad' : '') : st.forecast ? (st.early < 0 ? 'bad' : 'good') : ''}" style="margin:0" title="${esc(st.text)}">${esc(st.short || st.label)}</p>
   </div>`;
 }
 function viewProjects(){
@@ -1560,13 +1754,15 @@ function viewProjectDetail(p){
     <div class="inline"><button class="ghost sm" type="button" data-act="backproj">‹ 所有项目</button><span class="push"></span><button class="ghost sm" type="button" data-editproj="${p.id}">编辑项目</button></div>
     <div class="card">
       <div class="pd-head"><span class="pill ${st.k}">${st.label}</span><p class="hint" style="margin:0">${cnd(p.start)} – ${cnd(p.deadline)}${p.buffer ? ` · 目标提前 ${p.buffer} 天` : ''}</p></div>
-      <p class="st-line ${st.forecast ? (st.early < 0 ? 'bad' : 'good') : ''}" style="margin:0" title="${esc(st.text)}">${esc(st.short || st.label)}</p>
-      ${(() => { const wd = workdays(p, t).length; const later = wd > 2 ? remStart(p, t)/(wd-2) : null; return later && later - st.need >= 1/60 ? `<p class="hint" style="margin:0">要是歇两天，之后每天多 ${fmtH(later - st.need)}</p>` : ''; })()}
-      <div class="grid3"><div class="stat"><small>今日航速</small><b>${fmtH(quota(p.id, t))}</b></div><div class="stat"><small>已完成 / 总量</small><b>${fmtH(st.done)} / ${fmtH(st.total)}</b></div><div class="stat"><small>每个可用日平均</small><b>${fmtH(st.need)}</b></div></div>
+      <p class="st-line ${st.cnt ? (st.cnt.debt ? 'bad' : '') : st.forecast ? (st.early < 0 ? 'bad' : 'good') : ''}" style="margin:0" title="${esc(st.text)}">${esc(st.short || st.label)}</p>
+      ${st.cnt ? '' : (() => { const wd = workdays(p, t).length; const later = wd > 2 ? remStart(p, t)/(wd-2) : null; return later && later - st.need >= 1/60 ? `<p class="hint" style="margin:0">要是歇两天，之后每天多 ${fmtH(later - st.need)}</p>` : ''; })()}
+      ${st.cnt ? `<div class="grid3"><div class="stat"><small>${L('今天', 'Today')}</small><b>${st.cnt.tD} / ${cntN(st.cnt.tT, p)}</b></div><div class="stat"><small>${L('累计 / 到昨天应有', 'So far / due by yesterday')}</small><b>${st.cnt.total} / ${st.cnt.exp}</b></div><div class="stat"><small>${L('最近 7 天每天', 'Per day, last 7 days')}</small><b>${st.cnt.avg7 != null ? r1(st.cnt.avg7) : '–'}</b></div></div><p class="hint" style="margin:0">${L(`下面的任务另算：完成 ${fmtH(st.done)} / ${fmtH(st.total)}`, `Tasks below are separate: ${fmtH(st.done)} of ${fmtH(st.total)} done`)}</p>` : ''}
+      <div class="grid3" ${st.cnt ? 'hidden' : ''}><div class="stat"><small>今日航速</small><b>${fmtH(quota(p.id, t))}</b></div><div class="stat"><small>已完成 / 总量</small><b>${fmtH(st.done)} / ${fmtH(st.total)}</b></div><div class="stat"><small>每个可用日平均</small><b>${fmtH(st.need)}</b></div></div>
       <div class="stack"><i class="d" style="width:${st.done/tot*100}%"></i><i class="s" style="width:${sched/tot*100}%"></i></div>
       <div class="legend"><span><i style="background:${p.color}"></i>完成 ${Math.round(st.done/tot*100)}%</span><span><i style="background:color-mix(in srgb,${p.color} 35%,transparent)"></i>已排进日历 ${Math.round(sched/tot*100)}%</span><span><i style="background:var(--sunk)"></i>还没排 ${Math.max(0, Math.round(100 - (st.done+sched)/tot*100))}%</span></div>
       ${p.note ? `<p class="hint" style="margin:0">${esc(p.note)}</p>` : ''}
     </div>
+    ${cntOf(p) ? cntStrip(p, t) : ''}
     <div class="inline">
       ${unsched.length ? `<button class="primary" type="button" data-autosched="${p.id}">把全部 ${unsched.length} 个未排期任务排进日历</button>` : ''}${tasks.some(i => !i.done && i.date) ? `<button class="ghost" type="button" data-resched="${p.id}">重新排期</button>` : ''}
       <button class="ghost" type="button" data-ai="${p.id}">✦ AI 智能拆解任务</button>
@@ -1759,6 +1955,10 @@ function viewSettings(){
       <div class="setrow"><div>备份与恢复</div><button class="ghost" type="button" data-go="export">去导出</button></div>
       <div class="setrow"><div>清空数据<small>不能撤销</small></div><div class="inline"><input class="inp" id="clear-confirm" placeholder="输入「清空」两个字确认" style="width:190px"><button class="danger" type="button" data-act="clear">清空</button></div></div>
     </div>
+    <div class="card"><h3 style="margin:0">${L('示例与说明', 'Example and guide')}</h3>
+      <div class="setrow"><div>${L('怎么用 Runway', 'How Runway works')}</div><button class="ghost" type="button" data-act="help">${L('打开', 'Open')}</button></div>
+      ${SHARE || hasDemo() ? `<div class="setrow"><div>${L('示例数据', 'Example data')}<small>${L('3 个示例项目，不会动你自己的数据', "3 example projects. Your own data isn't touched")}</small></div>${hasDemo() ? `<button class="ghost" type="button" data-act="demo-clear">${L('清除示例', 'Clear example')}</button>` : `<button class="ghost" type="button" data-act="demo-load">${L('载入示例', 'Load example')}</button>`}</div>` : ''}
+    </div>
     <div class="card soft"><h3 style="margin:0">快捷键与小技巧</h3>
       <p class="hint" style="margin:0"><kbd>N</kbd> 新建 · <kbd>T</kbd> 回到今天 · <kbd>M</kbd>/<kbd>W</kbd> 月/周 · <kbd>←</kbd><kbd>→</kbd> 翻页 · <kbd>/</kbd> 搜索 · <kbd>⌘Z</kbd> 撤销 · 右键或双击日历某天直接新建</p>
       <p class="hint" style="margin:0">${L('快速输入能听懂：<b>明天 14:00 组会</b>、<b>周五交论文 2h</b>、<b>每周一三五 跑步 到12月1日</b>、<b>10月26日 期中考试</b>、<b>#CFA</b> 加标签、<b>@632</b> 归入项目。', 'Quick add understands <b>group meeting tomorrow 2pm</b>, <b>paper due fri 2h</b>, <b>run every mon wed fri until 12/1</b>, <b>midterm Oct 26</b>, <b>#CFA</b> for a tag and <b>@632</b> for a project. Chinese works too.')}</p></div>
@@ -1835,6 +2035,7 @@ function render(){
     $('#eyebrow').textContent = inProj ? '计划项目' : (b || a); $('#title').textContent = inProj ? inProj.name : a;
     html = ({list:viewList, projects:viewProjects, stats:viewStats, book:viewBook, export:viewExport, settings:viewSettings})[ui.go]();
   }
+  html = demoBar() + html;
   const view = $('#view'), sc = scroller(), st = sc.scrollTop;
   const key = [ui.go, ui.proj || '', ui.go === 'day' ? tlDays()[0] + tlN() : '', ui.mode, isCal ? (ui.mode === 'month' ? ui.cursor.slice(0,7) : weekStartOf(ui.cursor)) : ''].join('|');
   if (html === view._html && key === view._key) return;   // nothing changed: leave the DOM alone, no flash
@@ -2075,6 +2276,9 @@ function editItem(id, preset = {}){
   delAll && delAll.addEventListener('click', () => { if (!delAll.classList.contains('arm')){ delAll.classList.add('arm'); delAll.textContent = '再点一次全部删除'; return; } const ids = derive().items.filter(i => i.rep === it.rep).map(i => i.id); closeSheet(); commit(ids.map(x => ({col:'items', id:x, data:null})), `已删除「${it.title}」${ids.length} 次`); });
 }
 
+function cplanRow(x){
+  return `<div class="cplan-row inline"><input class="inp" type="date" value="${esc(x.from || '')}" aria-label="${esc(L('从哪天起', 'From'))}"><span class="hint">${L('起每天', 'on, each day')}</span><input class="inp" type="number" min="0" step="1" value="${x.n === '' ? '' : Number(x.n) || 0}" style="width:84px" aria-label="${esc(L('每天几个', 'How many a day'))}"><button class="icon" type="button" data-cdel aria-label="${esc(L('删掉这一行', 'Remove this row'))}">×</button></div>`;
+}
 function editProject(id){
   const dv = derive();
   const p = id ? dv.projMap.get(id) : normProj('', { name:'', start: today(), deadline: add(today(), 30), color: COLORS[dv.projects.length % COLORS.length][1], buffer: 0, lump: 0 });
@@ -2086,6 +2290,13 @@ function editProject(id){
       <div class="field"><label for="p-name">名称</label><input id="p-name" required value="${esc(p.name)}" placeholder="给项目起个名字，例如：CFA Level 1"></div>
       <div class="grid2"><div class="field"><label for="p-start">开始</label><input id="p-start" type="date" value="${esc(p.start)}"></div><div class="field"><label for="p-dl">Deadline（当天不计入投入）</label><input id="p-dl" type="date" required value="${esc(p.deadline)}"></div></div>
       <div class="field"><span class="flabel">提前完成天数</span><div class="chips-pick" id="p-buf">${[0,1,2,3,5,7].map(n => `<button type="button" data-b="${n}" aria-pressed="${buffer === n}">${n ? `提前 ${n} 天` : '不提前'}</button>`).join('')}<input class="inp" id="p-bufc" type="number" min="0" max="60" placeholder="自定义" style="width:80px" value="${[0,1,2,3,5,7].includes(buffer) ? '' : buffer}"></div><span class="hint" id="p-buftext"></span></div>
+      <div class="cnt-edit"><label class="setrow" style="padding:0;border:0"><div>${L('按数量计：每天有个数目标', 'Count goal: a number to hit each day')}<span class="hint" style="display:block">${L('比如每天投 20 份、刷 50 道题。状态按数量判断，用时算进每天的负荷', 'e.g. 20 applications or 50 problems a day. Status follows the count; the time goes into your daily load')}</span></div><input type="checkbox" class="switch" id="p-cnt" ${cntOf(p) ? 'checked' : ''}></label>
+        <div id="p-cbox" ${cntOf(p) ? '' : 'hidden'}>
+          <div class="grid2"><div class="field"><label for="p-cunit">${L('单位', 'Unit')}</label><input id="p-cunit" value="${esc((p.count && p.count.unit) || L('份', ''))}" placeholder="${esc(L('份、道、个', 'apps, problems'))}"></div><div class="field"><label for="p-cmins">${L('每个大约几分钟', 'Minutes each')}</label><input id="p-cmins" type="number" min="1" step="1" value="${(p.count && p.count.mins) || 10}"></div></div>
+          <div class="cplan" id="p-cplan">${((p.count && p.count.plan.length) ? p.count.plan : [{from: today() > p.start ? today() : p.start, n: 10}]).map(x => cplanRow(x)).join('')}</div>
+          <button class="link" type="button" id="p-cadd" style="font-size:12px;align-self:flex-start">${L('＋ 从某天起换个目标', '+ Change the goal from a date')}</button>
+        </div>
+      </div>
       <div class="field"><label for="p-lump">未拆分的工作量（小时）</label><input id="p-lump" type="number" min="0" step="0.5" value="${p.lump || ''}" placeholder="可不填"><span class="hint"></span></div>
       <div class="field"><span class="flabel">项目颜色</span><div class="swatches" id="p-sw">${COLORS.map(([n,c]) => `<button type="button" data-c="${c}" aria-label="${n}" title="${n}" aria-pressed="${c === color}" style="background:${c}"></button>`).join('')}</div></div>
       <div class="field"><label for="p-note">备注</label><input id="p-note" value="${esc(p.note)}" placeholder="可选"></div>
@@ -2096,6 +2307,9 @@ function editProject(id){
   $('#p-dl').addEventListener('input', upd);
   $('#p-buf').addEventListener('click', e => { const b = e.target.closest('[data-b]'); if (!b) return; buffer = Number(b.dataset.b); $('#p-bufc').value = ''; $$('#p-buf [data-b]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); upd(); });
   $('#p-bufc').addEventListener('input', e => { buffer = Math.max(0, Number(e.target.value) || 0); $$('#p-buf [data-b]').forEach(x => x.setAttribute('aria-pressed', 'false')); upd(); });
+  $('#p-cnt').addEventListener('change', e => { $('#p-cbox').hidden = !e.target.checked; });
+  $('#p-cadd').addEventListener('click', () => { const rows = $$('#p-cplan .cplan-row'); const last = rows.length ? rows[rows.length - 1].querySelector('[type=date]').value : today(); $('#p-cplan').insertAdjacentHTML('beforeend', cplanRow({from: add(last || today(), 7), n: ''})); });
+  $('#p-cplan').addEventListener('click', e => { const b = e.target.closest('[data-cdel]'); if (b && $$('#p-cplan .cplan-row').length > 1) b.closest('.cplan-row').remove(); });
   $('#p-sw').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; color = b.dataset.c; $$('#p-sw button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
   $('#proj-form').addEventListener('submit', e => {
     e.preventDefault();
@@ -2106,6 +2320,12 @@ function editProject(id){
     const base = id ? S.projects[id] : {log:{}, modules:[]};
     const data = {...base, name, start, deadline, buffer, color, lump: Number($('#p-lump').value) || 0, note: $('#p-note').value.trim(), askActual: $('#p-ask') ? $('#p-ask').checked : true};
     delete data.totalHours;
+    const oldC = (base && base.count) || {};
+    if ($('#p-cnt').checked){
+      const plan = $$('#p-cplan .cplan-row').map(r => ({from: r.querySelector('[type=date]').value, n: Math.max(0, Math.round(Number(r.querySelector('[type=number]').value) || 0))})).filter(x => x.from).sort((a,b) => a.from.localeCompare(b.from));
+      if (!plan.length){ toast(L('数量目标至少要有一行日期', 'The count goal needs at least one start date')); return; }
+      data.count = {unit: $('#p-cunit').value.trim(), mins: Math.max(1, Number($('#p-cmins').value) || 10), plan, log: oldC.log || {}};
+    } else if (oldC.plan) data.count = {...oldC, plan: []};
     const nid = id || uid('p');
     closeSheet(); put('projects', nid, data, id ? '已保存项目修改' : `已创建 ${name}`);
     if (!id){ ui.go = 'projects'; ui.proj = nid; render(); }
@@ -2966,7 +3186,7 @@ function exportData(kind){
   if (kind === 'md'){
     const pid = ($('#ex-proj') || {}).value;
     const ps = pid ? [dv.projMap.get(pid)] : dv.projects;
-    const md2 = ps.map(p => { const st = projStatus(p); const ts = projTasks(p.id); const mods = [...p.modules, {id:'', name: L('其他', 'Other')}]; return `# ${p.name}\n\nDeadline ${p.deadline} · ${L('共', 'total')} ${fmtH(st.total)} · ${L('剩', 'left')} ${fmtH(st.rem)} · ${LANG === 'en' ? (trText(st.label) || st.label) : st.label}\n\n` + mods.map(m => { const list = ts.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module))); if (!list.length) return ''; return `## ${m.name}\n\n` + list.map(i => `- [${i.done ? 'x' : ' '}] ${i.title} · ${L('预计', 'est.')} ${fmtH(i.est)}${i.date ? L(' · 排在 ', ' · on ') + i.date : ''}${i.actual != null ? L(' · 实际 ', ' · actual ') + fmtH(i.actual) : ''}`).join('\n') + '\n'; }).join('\n'); }).join('\n\n');
+    const md2 = ps.map(p => { const st = projStatus(p); const ts = projTasks(p.id); const mods = [...p.modules, {id:'', name: L('其他', 'Other')}]; return `# ${p.name}\n\n${st.cnt ? L(`数量目标：累计 ${cntN(st.cnt.total, p)}，到昨天应有 ${st.cnt.exp}\n\n`, `Count goal: ${cntN(st.cnt.total, p)} so far, ${st.cnt.exp} due by yesterday\n\n`) : ''}Deadline ${p.deadline} · ${L('共', 'total')} ${fmtH(st.total)} · ${L('剩', 'left')} ${fmtH(st.rem)} · ${LANG === 'en' ? (trText(st.label) || st.label) : st.label}\n\n` + mods.map(m => { const list = ts.filter(i => (i.module || '') === m.id || (!m.id && !p.modules.some(x => x.id === i.module))); if (!list.length) return ''; return `## ${m.name}\n\n` + list.map(i => `- [${i.done ? 'x' : ' '}] ${i.title} · ${L('预计', 'est.')} ${fmtH(i.est)}${i.date ? L(' · 排在 ', ' · on ') + i.date : ''}${i.actual != null ? L(' · 实际 ', ' · actual ') + fmtH(i.actual) : ''}`).join('\n') + '\n'; }).join('\n'); }).join('\n\n');
     deliver(`Runway-${pid ? dv.projMap.get(pid).name : L('项目清单', 'projects')}.md`, md2 || L('还没有计划项目。', 'No projects yet.'), 'text/markdown'); return;
   }
   if (kind === 'json'){ deliver(`Runway-backup-${t}.json`, JSON.stringify({app:'runway', version:2, exportedAt: new Date().toISOString(), items:S.items, projects:S.projects, notes:S.notes, settings:S.settings}, null, 1), 'application/json'); }
@@ -3027,6 +3247,8 @@ document.addEventListener('click', e => {
   if ((el = c('[data-edit]'))){ editItem(el.dataset.edit); return; }
   if ((el = c('[data-assign]'))){ const id = el.dataset.assign, d = el.dataset.day; closeSheet(); moveItem(id, d || null); return; }
   if ((el = c('[data-pick]'))){ pickDate(el.dataset.pick); return; }
+  if ((el = c('[data-cnt]'))){ const p = S.projects[el.dataset.cnt]; if (!p || !p.count) return; const d = el.dataset.d || today(); const log = {...(p.count.log || {})}; const v = Math.max(0, (Number(log[d]) || 0) + Number(el.dataset.v)); if (v) log[d] = v; else delete log[d]; put('projects', el.dataset.cnt, {...p, count: {...p.count, log}}, '', {undo:false}); return; }
+  if ((el = c('[data-cntday]'))){ ui.cntDay = el.dataset.cntday; render(); return; }
   if ((el = c('[data-editproj]'))){ editProject(el.dataset.editproj); return; }
   if ((el = c('[data-openproj]'))){ ui.go = 'projects'; ui.proj = el.dataset.openproj; if (window.innerWidth <= 1100) ui.pool = false; if (!$('#overlay').hidden) closeSheet(); scroller().scrollTop = 0; render(); return; }
   if ((el = c('[data-dayjump]'))){ closeSheet(); openDay(el.dataset.dayjump); return; }
@@ -3078,6 +3300,9 @@ document.addEventListener('click', e => {
     if (a === 'tl-auto'){ tlAutoAll(); return; }
     if (a === 'tl-shift'){ tlShift(today()); return; }
     if (a === 'newproj') editProject(null);
+    else if (a === 'demo-load'){ closeSheet(); demoLoad(); }
+    else if (a === 'demo-clear') demoClear();
+    else if (a === 'help') openHelp();
     else if (a === 'backproj'){ ui.proj = null; render(); }
     else if (a === 'expand'){ ui.expand = !ui.expand; saveUi(); render(); }
     else if (a === 'pin') saveSettings({pinned: !settings().pinned});
