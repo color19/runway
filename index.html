@@ -9,7 +9,7 @@
 </head>
 <body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@400;600&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Inter+Tight:wght@500;600;700&display=swap">
 <style>
 /* Layout: Nordic desk. Rail (nav + projects) | calendar sheet | task-pool tray. Phone: bottom tabs, pool and editors as sheets. */
 :root{
@@ -592,6 +592,145 @@ details.more[open] summary{margin-bottom:10px}
 :root[data-art="kandinsky"] body::before{background:linear-gradient(90deg,#1B1430EB,#1B14308C 55%,#1B1430A6),var(--renaissance-art) center/cover no-repeat}
 :root[data-art="wave"] body::before{background:linear-gradient(90deg,#132338C8,#13233840 60%,#13233860),var(--renaissance-art) center/cover no-repeat}
 :root[data-art="lilies"] body::before{background:linear-gradient(90deg,#10261CB8,#10261C30 60%,#10261C50),var(--renaissance-art) center/cover no-repeat}
+/* light + minimal colour sets (generated from the dark edition: OKLCH lightness mirrored, chroma eased) */
+:root[data-scheme="light"]{--e0:#EBF4F6;--e1:#E6F0F2;--e2:#DCE7E8;--e3:#211F18;--e4:#414D49;--e5:#B0BFBF;--e6:#292F00;--e7:#DCE5E0;--e8:#EBF5F2;--e9:#4F4020;--e10:#DFE3E0;--e11:#1B4A1D;--e12:#D8E7E0;--e13:#69330F;--e14:#EEDFDA;--e15:#543F00;--e16:#E1E1D6;--e17:#0F252B10;--e18:#E4EEF0;--e19:#EAF6FAA6;--e20:#E3F0F326;--e21:#EFF9F638;--e22:#2C281A0B;--e23:#2F3606;--e24:#EBF6F7;--e25:#26221555;--e26:#15140E;--e27:#343A36;--e28:#26221544;--e29:#323732;--e30:#26261988;--e31:#252919;--e32:#E9F3F3;--e33:#DEE8E6;--e34:#DEE8E655;--e35:#202520;--e36:#222A1A18;--e37:#353C34;--e38:#24291B1C;--e39:#171C00;--e40:#24291B16;--e41:#393F37;--e42:#20231E;--e43:#374037;--e44:#313A31;--e45:#27241755;--e46:#93A6A2;--e47:#E9F4F666;--e48:#E9F4F600;--e49:#27241744;--e50:#2B322B;--e51:#18150D;--e52:#2E3026;--e53:#46545166;--e54:#E7F2F499;--e55:#2A312C;--e56:#24291B;--e57:#E7F2F3;--e58:#EAF3F0;--e59:#E2EEF099;--e60:#51635E77;--e61:#1D2018;--e62:#CDD9DA;--e63:#2C3120;--e64:#E7F2F4;--e65:#E7F2F4EF;--e66:#BACECB66;--e67:#43571633;--e68:#47554F66;--e69:#4A4020;--e70:#3C3215;--e71:#E9F3F5F5;--e72:#3C473F;--e73:#9CAAA8;--e74:#E2EDEF;--e75:#9CAAA866;--e76:#E9F3F4;--e77:#D8E2DD;--e78:#2D3700;--e79:#D5E0DF;--e80:#424E45;--e81:#2B3300;--e82:#E7F2EE;--e83:#B1C1BD;--e84:#374200;--e85:#E2EDEF;--e86:#3A443C;--e87:#E7DAD3;--e88:#CFD5CC;--e89:#8B9C9766;--e90:#E0EBED;--e91:#DFEAEB;--e92:#D8E4E4;--e93:#485945;--e94:#3C463D;--e95:#2B2719;--e96:#8C9D9866;--e97:#303B2809;--e98:#5F705E;--e99:#47594A;--e100:#E3F0EF;--e101:#364914;--e102:#E5F1EC;--e103:#8B9B9166;--e104:#D9E5E3;--e105:#E2EEEE;--e106:#E8F4F4;--e107:#87968E66;--e108:#DFEBEC;--e109:#81918A;--e110:#60715B55;--e111:#3B483E;--e112:#252114;--e113:#DBE6E4;--e114:#6B7C5766;--e115:#E9F3F6E8;--e116:#28251855;--e117:#3A443A;--e118:#5E6D6066;--e119:#DEEAEB;--e120:#8FA099;--e121:#E7F1F2;--e122:#EEF9FCCE;--e123:#E2EEF0;--e124:#64766688;--e125:#10252C2E;--e126:#333A2F;--e127:#E8F3F5;--e128:#82918788;--e129:#E4F0F0;--e130:#23211A;--e131:#E2EFF0;--e132:#8A988F;--e133:#E3EFEF;--e134:#40572F;--e135:#25291D;--e136:#E7F1EF;--e137:#11252B1F;--e138:#BFD6AE;--e139:#363525;--e140:#E4EFEE;--e141:#4A5524;--e142:#AFC2BB;--e143:#E6F2F3F7;--e144:#1026293D;--e145:#2C2A184D;--e146:#E9F5F826;--e147:#E9F3F5FA;--e148:#E8F3F5FA;--e149:#89978D;--e150:#1F2018;--e151:#292F0012;--e152:#202317;--e153:#26221566;--e154:#FAFEFE;--e155:#252819;--e156:#25281900;--e157:#38403B;--e158:#FAFEFE00;--e159:#252819CC}
+:root[data-scheme="light"][data-art="starry"]{--e0:#F0F6FF;--e1:#EEF3FF;--e2:#E7EDFB;--e4:#4C483D;--e5:#C5CCDB;--e6:#3C2C00;--e7:#E2E7EE;--e8:#F1F6FF;--e10:#E0E4E7;--e11:#4B3800;--e12:#E2ECF9;--e16:#D8E5E8;--e17:#19223010;--e18:#ECF2FF;--e19:#F0F9FFA6;--e20:#ECF4FF26;--e21:#F4FAFF38;--e23:#3E3201;--e24:#F2F8FF;--e27:#393831;--e29:#36342F;--e30:#2A261A88;--e31:#2C2718;--e32:#EFF5FF;--e33:#E8EEF8;--e34:#E8EEF855;--e35:#24221D;--e36:#2A251618;--e37:#3B3932;--e38:#2A271A1C;--e39:#281E00;--e40:#2A271A16;--e41:#3E3C35;--e42:#23211B;--e43:#3E3B33;--e44:#39362C;--e46:#A9B3C4;--e47:#F0F7FF66;--e48:#F0F7FF00;--e50:#312F29;--e52:#322F25;--e53:#534F4266;--e54:#EEF4FF99;--e55:#302E28;--e56:#2A271A;--e57:#EFF5FF;--e58:#EFF4FC;--e59:#ECF3FF99;--e60:#615D4C77;--e61:#211F18;--e62:#DEE4F1;--e63:#342F1E;--e64:#EEF4FF;--e65:#EEF4FFEF;--e66:#D7DDE966;--e67:#5E4C0433;--e68:#54504366;--e71:#EFF5FFF5;--e72:#454237;--e73:#AEB5C2;--e74:#ECF2FF;--e75:#AEB5C266;--e76:#EFF5FF;--e77:#DFE5EE;--e78:#413000;--e79:#E0E6F0;--e80:#4C493D;--e81:#3D2E00;--e82:#EDF3FE;--e83:#C3CCDB;--e84:#4E3B00;--e85:#ECF2FF;--e86:#423F36;--e88:#D3DADE;--e89:#9CA6B466;--e90:#EBF1FF;--e91:#EAF1FE;--e92:#E5EBF9;--e93:#57513D;--e94:#444137;--e96:#9EA8B666;--e97:#3B362309;--e98:#63717B;--e99:#565140;--e100:#ECF4FF;--e101:#4E3F06;--e102:#ECF3FD;--e103:#96A1AC66;--e104:#E4EBF7;--e105:#ECF3FF;--e106:#F0F6FF;--e107:#939DA966;--e108:#EBF1FF;--e109:#909AA7;--e110:#61758055;--e111:#474236;--e113:#E5ECF6;--e114:#60859466;--e115:#EFF5FFE8;--e117:#433F35;--e118:#636F7866;--e119:#EAF0FF;--e120:#A0A9B7;--e121:#EEF4FF;--e122:#F4FBFFCE;--e123:#ECF3FF;--e124:#6B788388;--e125:#1922302E;--e126:#3B372C;--e127:#EFF6FF;--e128:#8C97A288;--e129:#EDF3FF;--e131:#ECF3FF;--e132:#949EA8;--e133:#ECF3FF;--e134:#584C23;--e135:#2B271C;--e136:#EDF4FE;--e137:#1B21301F;--e138:#CDE1EB;--e139:#393525;--e140:#EDF3FF;--e141:#5D4F1D;--e142:#C7CED8;--e143:#EEF4FFF7;--e144:#1A21303D;--e145:#2F2A174D;--e146:#F0F7FF26;--e147:#EFF5FFFA;--e148:#EEF5FFFA;--e149:#939CA5;--e150:#222018;--e151:#3C2C0012;--e152:#262217;--e154:#FBFDFF;--e155:#2B2718;--e156:#2B271800;--e157:#3F3D36;--e158:#FBFDFF00;--e159:#2B2718CC}
+:root[data-scheme="light"][data-art="lilies"]{--e0:#EAF5EF;--e1:#E5F0EA;--e2:#DBE7E1;--e4:#524C55;--e5:#B2C1B9;--e6:#5C396C;--e7:#DDE5DF;--e8:#ECF6EF;--e10:#DFE3E0;--e11:#5B396A;--e12:#D9E8DD;--e16:#DBE7DB;--e17:#14261D10;--e18:#E2EEE8;--e19:#E7F6EEA6;--e20:#E0EFE726;--e21:#EFFAF338;--e23:#573C63;--e24:#EBF7F0;--e27:#3E3A40;--e29:#3A363B;--e30:#342C3888;--e31:#372D3C;--e32:#E9F4EE;--e33:#DFE9E3;--e34:#DFE9E355;--e35:#29252A;--e36:#362C3A18;--e37:#403B43;--e38:#352C391C;--e39:#442950;--e40:#352C3916;--e41:#433E47;--e42:#28252B;--e43:#433E45;--e44:#3E3840;--e46:#95A89D;--e47:#E9F5EE66;--e48:#E9F5EE00;--e50:#353037;--e52:#37323A;--e53:#5B535F66;--e54:#E5F2EB99;--e55:#343037;--e56:#352C39;--e57:#E8F4ED;--e58:#EAF3ED;--e59:#E1EFE799;--e60:#6C617177;--e61:#27232A;--e62:#CDDAD3;--e63:#3E3343;--e64:#E6F3EC;--e65:#E6F3ECEF;--e66:#BCD0C566;--e67:#835D9533;--e68:#5C546066;--e71:#E8F4EDF5;--e72:#4B454E;--e73:#9DACA4;--e74:#E1EEE7;--e75:#9DACA466;--e76:#E8F4ED;--e77:#D8E2DC;--e78:#613E72;--e79:#D6E1DB;--e80:#534C56;--e81:#5C3B6C;--e82:#E7F3EB;--e83:#B2C2B9;--e84:#724A85;--e85:#E1EEE7;--e86:#48424A;--e88:#CFD8D0;--e89:#8C9D9366;--e90:#DFECE5;--e91:#DFECE4;--e92:#D8E5DE;--e93:#635669;--e94:#49444C;--e96:#8D9F9466;--e97:#473B4D09;--e98:#5E7062;--e99:#615666;--e100:#E5F2EA;--e101:#6A4C79;--e102:#E6F2EA;--e103:#8B9B9066;--e104:#DAE6DF;--e105:#E3EFE8;--e106:#E9F5EE;--e107:#87968C66;--e108:#E0EDE5;--e109:#829288;--e110:#5C736055;--e111:#4E4652;--e113:#DCE7E0;--e114:#60856466;--e115:#E6F4ECE8;--e117:#48434C;--e118:#5E6D6266;--e119:#DDEAE3;--e120:#90A197;--e121:#E6F2EB;--e122:#ECF9F2CE;--e123:#E2EFE8;--e124:#64766988;--e125:#14261D2E;--e126:#413A45;--e127:#E8F4ED;--e128:#82918788;--e129:#E5F1EA;--e131:#E2F0E8;--e132:#8A998E;--e133:#E2EFE8;--e134:#70577C;--e135:#342D37;--e136:#E7F2EC;--e137:#14261D1F;--e138:#C4DBC5;--e139:#433947;--e140:#E5F1E9;--e141:#795B87;--e142:#B0C4B7;--e143:#E6F3EBF7;--e144:#14261D3D;--e145:#3C30424D;--e146:#E7F6ED26;--e147:#E8F4EDFA;--e148:#E7F3ECFA;--e149:#89978D;--e150:#2A242C;--e151:#5C396C12;--e152:#2F2833;--e154:#FAFEFC;--e155:#362D3B;--e156:#362D3B00;--e157:#443F45;--e158:#FAFEFC00;--e159:#362D3BCC}
+:root[data-scheme="light"][data-art="wave"]{--e0:#EFF5FD;--e1:#EBF2FA;--e2:#E4EBF4;--e4:#4C4B46;--e5:#BFC7D0;--e6:#423824;--e7:#E0E6EA;--e8:#EFF6FB;--e10:#E0E3E5;--e11:#563B00;--e12:#DFEAF1;--e16:#D7E4E4;--e17:#17223010;--e18:#EAF2FB;--e19:#EEF8FFA6;--e20:#EAF3FE26;--e21:#F3F9FF38;--e23:#423B2B;--e24:#F0F7FF;--e27:#3A3936;--e29:#363634;--e30:#2D2A2688;--e31:#2F2C27;--e32:#EDF4FB;--e33:#E5ECF2;--e34:#E5ECF255;--e35:#252423;--e36:#2D2B2518;--e37:#3C3A37;--e38:#2D2A251C;--e39:#2E2717;--e40:#2D2A2516;--e41:#3F3D3A;--e42:#242321;--e43:#3E3D39;--e44:#393835;--e46:#A3AFBA;--e47:#EEF6FF66;--e48:#EEF6FF00;--e50:#31302E;--e52:#32312D;--e53:#55524E66;--e54:#ECF3FD99;--e55:#312F2D;--e56:#2D2A25;--e57:#EDF4FC;--e58:#EDF3F8;--e59:#EAF2FC99;--e60:#64605A77;--e61:#22211D;--e62:#DBE2EA;--e63:#35322C;--e64:#ECF4FD;--e65:#ECF4FDEF;--e66:#D0D7DE66;--e67:#655A4433;--e68:#55534E66;--e71:#EDF4FDF5;--e72:#464440;--e73:#A8B1B9;--e74:#EAF1FA;--e75:#A8B1B966;--e76:#EDF4FC;--e77:#DDE4E9;--e78:#473D29;--e79:#DDE4EB;--e80:#4E4B47;--e81:#443A27;--e82:#EBF3F9;--e83:#BCC7D0;--e84:#554932;--e85:#EAF1FA;--e86:#43413E;--e88:#CFD7D8;--e89:#96A2AB66;--e90:#E8F0F9;--e91:#E7EFF7;--e92:#E1E9F2;--e93:#58554D;--e94:#454340;--e96:#98A4AC66;--e97:#3E3A3209;--e98:#606F74;--e99:#58554E;--e100:#EBF3FC;--e101:#534A38;--e102:#EAF3F9;--e103:#919EA466;--e104:#E1E9F0;--e105:#EAF2FA;--e106:#EEF5FD;--e107:#8F9AA166;--e108:#E9F0F9;--e109:#8A969E;--e110:#5D727855;--e111:#484541;--e113:#E2E9F0;--e114:#5C818766;--e115:#EDF4FEE8;--e117:#43423D;--e118:#606C7166;--e119:#E6EEF7;--e120:#99A5AD;--e121:#ECF3FB;--e122:#F2FAFFCE;--e123:#EAF2FC;--e124:#68767C88;--e125:#1723302E;--e126:#3C3934;--e127:#EDF5FE;--e128:#88949A88;--e129:#EBF3FB;--e131:#EAF2FB;--e132:#909A9F;--e133:#EAF2FB;--e134:#5C5546;--e135:#2E2B28;--e136:#ECF3FA;--e137:#1822301F;--e138:#C3D8DC;--e139:#3A3832;--e140:#EBF2FA;--e141:#625948;--e142:#BDCAD5;--e143:#ECF4FCF7;--e144:#1822303D;--e145:#322F284D;--e146:#EEF6FF26;--e147:#EDF4FDFA;--e148:#ECF4FCFA;--e149:#8E989E;--e150:#242320;--e151:#42382412;--e152:#282622;--e154:#FBFDFF;--e155:#2E2C26;--e156:#2E2C2600;--e157:#403E3B;--e158:#FBFDFF00;--e159:#2E2C26CC}
+:root[data-scheme="light"][data-art="turner"]{--e0:#F7F2EC;--e1:#F4EEE8;--e2:#EBE5DF;--e4:#4E4940;--e5:#C7C0B9;--e6:#472D00;--e7:#E9E4E1;--e8:#F9F3EF;--e10:#E5E2E1;--e11:#543700;--e12:#EEE5DF;--e16:#F2E6E6;--e17:#2A1F1110;--e18:#F2ECE5;--e19:#FAF3EAA6;--e20:#F4EDE526;--e21:#FCF7F238;--e23:#46330C;--e24:#F9F3ED;--e27:#3B3833;--e29:#373530;--e30:#2E271D88;--e31:#30281B;--e32:#F6F1EB;--e33:#EDE8E3;--e34:#EDE8E355;--e35:#25231E;--e36:#2F271B18;--e37:#3D3932;--e38:#2E281C1C;--e39:#302103;--e40:#2E281C16;--e41:#403C35;--e42:#25221E;--e43:#403C34;--e44:#3B362E;--e46:#B1A79F;--e47:#F8F2EB66;--e48:#F8F2EB00;--e50:#322F2A;--e52:#342F27;--e53:#56504466;--e54:#F6EFE899;--e55:#312E29;--e56:#2E281C;--e57:#F6F0EA;--e58:#F6F1ED;--e59:#F3EDE599;--e60:#655D4F77;--e61:#242019;--e62:#E1DBD4;--e63:#372F21;--e64:#F6F0E9;--e65:#F6F0E9EF;--e66:#D5CFCA66;--e67:#6B4E1733;--e68:#57504566;--e71:#F7F1EAF5;--e72:#474239;--e73:#B3ABA5;--e74:#F2ECE5;--e75:#B3ABA566;--e76:#F6F1EA;--e77:#E7E1DD;--e78:#4C3200;--e79:#E5DFDA;--e80:#4F4940;--e81:#483000;--e82:#F6F0EB;--e83:#C9C1BA;--e84:#5B3D00;--e85:#F2ECE5;--e86:#454038;--e88:#E3DCDB;--e89:#A59C9466;--e90:#F0EAE3;--e91:#F0EAE3;--e92:#EAE3DC;--e93:#5B5242;--e94:#464139;--e96:#A69D9666;--e97:#40362609;--e98:#7A6E6A;--e99:#5B5244;--e100:#F6EFE9;--e101:#584112;--e102:#F6EFEA;--e103:#A49B9566;--e104:#EAE4DE;--e105:#F3EDE6;--e106:#F7F1EB;--e107:#9E969166;--e108:#F1EBE4;--e109:#9B918B;--e110:#80706B55;--e111:#494338;--e113:#EBE5E0;--e114:#9A858266;--e115:#F6F0E9E8;--e117:#454037;--e118:#746A6766;--e119:#EFE8E1;--e120:#A9A099;--e121:#F5F0E9;--e122:#FCF6EECE;--e123:#F4EDE6;--e124:#7F736F88;--e125:#2A20112E;--e126:#3D382E;--e127:#F7F1EA;--e128:#9A918C88;--e129:#F5EFE9;--e131:#F4EDE6;--e132:#A19894;--e133:#F3EDE6;--e134:#614E2C;--e135:#2E281E;--e136:#F6F0EB;--e137:#2A20121F;--e138:#F5E0DC;--e139:#3D3528;--e140:#F5EFE9;--e141:#665027;--e142:#CEC3BB;--e143:#F6F0E9F7;--e144:#2A1F133D;--e145:#352B1B4D;--e146:#F8F2EA26;--e147:#F7F1EAFA;--e148:#F6F0E9FA;--e149:#9E9692;--e150:#252119;--e151:#472D0012;--e152:#282319;--e154:#FFFDFA;--e155:#30281C;--e156:#30281C00;--e157:#403D37;--e158:#FFFDFA00;--e159:#30281CCC}
+:root[data-scheme="light"][data-art="kandinsky"]{--e0:#F8F4FF;--e1:#F4F1FD;--e2:#EFEBF8;--e4:#554B48;--e5:#CFCAD9;--e6:#65362B;--e7:#E9E8F0;--e8:#F7F5FF;--e10:#E5E4E9;--e11:#6E3223;--e12:#EFEBFB;--e16:#E8EAF3;--e17:#231E2E10;--e18:#F4F0FD;--e19:#FAF5FFA6;--e20:#F5F0FF26;--e21:#FBF9FF38;--e23:#5E3A32;--e24:#FAF5FF;--e27:#3F3938;--e29:#3A3635;--e30:#372B2888;--e31:#3A2D29;--e32:#F6F2FE;--e33:#EFEDF8;--e34:#EFEDF855;--e35:#292524;--e36:#392C2918;--e37:#413B38;--e38:#382C291C;--e39:#482820;--e40:#382C2916;--e41:#443E3C;--e42:#292424;--e43:#453D3B;--e44:#403835;--e46:#B9B3C6;--e47:#F8F4FF66;--e48:#F8F4FF00;--e50:#35302F;--e52:#3A312F;--e53:#5E524E66;--e54:#F6F2FF99;--e55:#352F2E;--e56:#382C29;--e57:#F6F2FF;--e58:#F4F3FB;--e59:#F5F0FF99;--e60:#70605D77;--e61:#292220;--e62:#E6E2EF;--e63:#41322E;--e64:#F6F2FF;--e65:#F6F2FFEF;--e66:#E0DDE866;--e67:#8C574B33;--e68:#5F534F66;--e71:#F7F2FFF5;--e72:#4E4442;--e73:#B8B5C3;--e74:#F4EFFD;--e75:#B8B5C366;--e76:#F6F2FF;--e77:#E8E5F0;--e78:#6A3A2F;--e79:#E8E5F0;--e80:#564B49;--e81:#64372C;--e82:#F5F2FD;--e83:#CFCDD6;--e84:#7D4638;--e85:#F4F0FD;--e86:#4A413F;--e88:#E0E0E9;--e89:#ABA7B866;--e90:#F3EEFC;--e91:#F3EEFC;--e92:#EEE9F7;--e93:#675551;--e94:#4C4341;--e96:#ADA8B966;--e97:#4B3A3609;--e98:#767585;--e99:#655552;--e100:#F6F1FF;--e101:#73483D;--e102:#F4F2FE;--e103:#A7A4B366;--e104:#EDE9F6;--e105:#F4F0FE;--e106:#F7F3FF;--e107:#A19FAD66;--e108:#F3EFFD;--e109:#A09CAC;--e110:#7B7A9055;--e111:#514542;--e113:#EEEBF7;--e114:#9293AB66;--e115:#F7F2FFE8;--e117:#4C423F;--e118:#72707D66;--e119:#F2EEFC;--e120:#AEABBB;--e121:#F5F2FE;--e122:#FDF8FFCE;--e123:#F5F0FF;--e124:#7D7B8C88;--e125:#241E2E2E;--e126:#443936;--e127:#F7F3FF;--e128:#9D9AA988;--e129:#F5F1FE;--e131:#F5F0FF;--e132:#A3A1AE;--e133:#F5F0FE;--e134:#77544B;--e135:#362C29;--e136:#F5F2FD;--e137:#241E2E1F;--e138:#E9ECFF;--e139:#463835;--e140:#F4F1FE;--e141:#82584D;--e142:#D4D2DD;--e143:#F6F2FFF7;--e144:#241E2E3D;--e145:#402F2C4D;--e146:#F9F4FF26;--e147:#F7F2FFFA;--e148:#F6F2FFFA;--e149:#A09EAB;--e150:#2C2422;--e151:#65362B12;--e152:#312724;--e154:#FEFCFF;--e155:#3A2C29;--e156:#3A2C2900;--e157:#453F3D;--e158:#FEFCFF00;--e159:#3A2C29CC}
+:root[data-style="minimal"],:root[data-style="minimal"][data-art]{--e0:#232221;--e1:#2B2A28;--e2:#363533;--e3:#F2F2F1;--e4:#C2C1C0;--e5:#504F4D;--e6:#E8E7E4;--e7:#383836;--e8:#222120;--e9:#CCCAC8;--e10:#393937;--e11:#B9DAB8;--e12:#223E34;--e13:#F2BB9D;--e14:#4A3127;--e15:#DDCA93;--e16:#3D3C27;--e17:#061E2424;--e18:#2D2C2A;--e19:#201F1DA6;--e20:#2C2B2926;--e21:#1A191838;--e22:#EAE9E70B;--e23:#E1DFDD;--e24:#201F1E;--e25:#F0EFED55;--e26:#FDFDFC;--e27:#D7D6D5;--e28:#F0EFED44;--e29:#DBDBDA;--e30:#EDECEB88;--e31:#ECEBE8;--e32:#272725;--e33:#353432;--e34:#35343255;--e35:#EEEEED;--e36:#ECEBE818;--e37:#D5D5D3;--e38:#ECEBE91C;--e39:#F9F7F5;--e40:#ECEBE916;--e41:#D2D1D0;--e42:#EFEFEE;--e43:#D2D1D0;--e44:#D9D8D6;--e45:#EEEDEC55;--e46:#757371;--e47:#24232166;--e48:#24232100;--e49:#EEEDEC44;--e50:#E3E2E1;--e51:#FCFBFA;--e52:#E4E3E2;--e53:#BABAB866;--e54:#29282699;--e55:#E4E3E2;--e56:#ECEBE9;--e57:#292826;--e58:#272725;--e59:#2E2D2B99;--e60:#ABAAA877;--e61:#F3F2F1;--e62:#42413F;--e63:#E4E3E1;--e64:#292826;--e65:#292826EF;--e66:#49484666;--e67:#BDBCB933;--e68:#B9B8B766;--e69:#CDCCC9;--e70:#DFDDDA;--e71:#272624F5;--e72:#CAC9C7;--e73:#71706E;--e74:#2F2E2C;--e75:#71706E66;--e76:#272624;--e77:#3D3C3A;--e78:#E1E0DD;--e79:#3F3E3C;--e80:#C1C0BF;--e81:#E5E4E1;--e82:#2A2927;--e83:#4F4E4D;--e84:#D4D2CF;--e85:#2F2E2C;--e86:#CDCCCB;--e87:#3F3E3B;--e88:#444341;--e89:#7C7B7866;--e90:#31302E;--e91:#32312F;--e92:#3A3937;--e93:#B8B6B4;--e94:#CBCAC9;--e95:#ECEBE9;--e96:#7B7A7766;--e97:#DAD8D609;--e98:#9E9D9A;--e99:#B7B6B3;--e100:#2C2B29;--e101:#CDCBC9;--e102:#2B2A28;--e103:#7D7B7966;--e104:#393836;--e105:#2E2D2B;--e106:#262524;--e107:#807F7D66;--e108:#31302E;--e109:#848280;--e110:#9D9C9A55;--e111:#C9C8C6;--e112:#F1F0EE;--e113:#383735;--e114:#96949266;--e115:#262523E8;--e116:#EDECEA55;--e117:#CDCCCA;--e118:#A09F9D66;--e119:#333230;--e120:#797876;--e121:#2A2927;--e122:#191817CE;--e123:#2E2D2B;--e124:#99989588;--e125:#03181F66;--e126:#D8D7D5;--e127:#262624;--e128:#84828088;--e129:#2C2B29;--e130:#F0F0EF;--e131:#2D2C2A;--e132:#7E7D7B;--e133:#2E2D2B;--e134:#BCBBB8;--e135:#EBEAE8;--e136:#2A2927;--e137:#10242A44;--e138:#474643;--e139:#DEDDDA;--e140:#2C2C2A;--e141:#BDBBB9;--e142:#4F4E4C;--e143:#2A2927F7;--e144:#10262988;--e145:#EAE8E64D;--e146:#23222026;--e147:#272624FA;--e148:#282725FA;--e149:#7F7E7C;--e150:#F2F1F0;--e151:#E8E7E412;--e152:#F0EFEE;--e153:#F0EFED66;--e154:#060606;--e155:#ECEBE9;--e156:#ECEBE900;--e157:#D0D0CF;--e158:#06060600;--e159:#ECEBE9CC}
+:root[data-style="minimal"][data-scheme="light"],:root[data-style="minimal"][data-scheme="light"][data-art]{--e0:#F3F2F0;--e1:#EFEEEB;--e2:#E6E4E2;--e3:#1F1F1E;--e4:#4A4A49;--e5:#BCBBB9;--e6:#2D2B27;--e7:#E3E2E0;--e8:#F4F2F0;--e9:#44423E;--e10:#E2E2E0;--e11:#1B4A1D;--e12:#D8E7E0;--e13:#69330F;--e14:#EEDFDA;--e15:#543F00;--e16:#E1E1D6;--e17:#1616160D;--e18:#EDECE9;--e19:#F5F3F0A6;--e20:#EEEDEA26;--e21:#F7F6F438;--e22:#2928270B;--e23:#33312E;--e24:#F5F3F1;--e25:#23222155;--e26:#141413;--e27:#393838;--e28:#23222144;--e29:#363534;--e30:#25252388;--e31:#272625;--e32:#F1F0EE;--e33:#E7E5E3;--e34:#E7E5E355;--e35:#242323;--e36:#27272518;--e37:#3A3A39;--e38:#2726251C;--e39:#1B1915;--e40:#27262516;--e41:#3D3D3C;--e42:#222221;--e43:#3D3D3B;--e44:#383736;--e45:#24242255;--e46:#A2A19F;--e47:#F3F2EF66;--e48:#F3F2EF00;--e49:#24242244;--e50:#30302F;--e51:#161615;--e52:#2F2F2E;--e53:#51504F66;--e54:#F1EFED99;--e55:#2F2F2E;--e56:#272625;--e57:#F1F0ED;--e58:#F1F0EE;--e59:#EDEBE999;--e60:#5F5E5C77;--e61:#1F1F1E;--e62:#D7D6D4;--e63:#2F2E2D;--e64:#F1EFED;--e65:#F1EFEDEF;--e66:#CAC8C666;--e67:#504E4A33;--e68:#52515066;--e69:#42413D;--e70:#343330;--e71:#F2F1EEF5;--e72:#444342;--e73:#A7A6A5;--e74:#ECEBE8;--e75:#A7A6A566;--e76:#F2F1EE;--e77:#E0DFDC;--e78:#33312D;--e79:#DEDDDA;--e80:#4B4A49;--e81:#302E2A;--e82:#F0EFEC;--e83:#BDBCBA;--e84:#3E3C38;--e85:#ECEBE8;--e86:#41413F;--e87:#DFDDD9;--e88:#D4D2D0;--e89:#98979566;--e90:#EAE9E6;--e91:#E9E7E5;--e92:#E2E1DE;--e93:#545350;--e94:#434241;--e95:#272725;--e96:#9A999666;--e97:#38373509;--e98:#6B6A68;--e99:#555451;--e100:#EEEDEA;--e101:#43413D;--e102:#EFEEEB;--e103:#97969466;--e104:#E3E2DF;--e105:#ECEBE8;--e106:#F2F1EE;--e107:#92918F66;--e108:#EAE8E6;--e109:#8E8D8A;--e110:#6C6B6855;--e111:#454443;--e112:#222120;--e113:#E4E3E0;--e114:#77757166;--e115:#F2F1EEE8;--e116:#26252455;--e117:#42413F;--e118:#69686666;--e119:#E8E7E4;--e120:#9C9B99;--e121:#F0EFEC;--e122:#F8F6F4CE;--e123:#EDEBE9;--e124:#72716E88;--e125:#16161624;--e126:#383836;--e127:#F2F1EE;--e128:#8E8D8A88;--e129:#EEEDEA;--e130:#212120;--e131:#EDECE9;--e132:#959492;--e133:#EDECE9;--e134:#514F4B;--e135:#282726;--e136:#F0EEEC;--e137:#16161618;--e138:#CFCDC8;--e139:#343432;--e140:#EEECEA;--e141:#514F4B;--e142:#BEBDBA;--e143:#F0EFECF7;--e144:#16161630;--e145:#2A29274D;--e146:#F4F2F026;--e147:#F2F1EEFA;--e148:#F1F0EEFA;--e149:#939290;--e150:#201F1E;--e151:#2D2B2712;--e152:#222120;--e153:#23222166;--e154:#FDFDFC;--e155:#272625;--e156:#27262500;--e157:#3E3E3D;--e158:#FDFDFC00;--e159:#272625CC}
+/* light mode: the hand-tuned dark values */
+:root[data-scheme="light"] body,:root[data-scheme="light"] body[data-palette]{color-scheme:light;--good:#2F6B3F;--good-soft:#DCEBDD;--mid:#7A5A12;--mid-soft:#F2E9CF;--glass-line:color-mix(in srgb,#1D2A2C 12%,transparent)}
+:root[data-scheme="light"] .main,:root[data-scheme="light"] .pool{box-shadow:inset 0 1px 0 color-mix(in srgb,#FFFFFF 70%,transparent),0 20px 60px #1D2A2C14}
+:root[data-scheme="light"] .overlay{background:#1D2A2C26}
+:root[data-scheme="light"] .banner.stuck{box-shadow:0 10px 24px -14px #1D2A2C40}
+:root[data-scheme="light"] .tl-heads{box-shadow:0 8px 16px -12px #1D2A2C40}
+:root[data-scheme="light"] .top .eyebrow,:root[data-scheme="light"] .top h1{text-shadow:none}
+:root[data-scheme="light"] .page.cover h2,:root[data-scheme="light"] .page.cover p{text-shadow:0 1px 14px #FFFFFFAA}
+:root[data-scheme="light"] .top .tools .ghost,:root[data-scheme="light"] .top .tools .seg{border-color:color-mix(in srgb,#1D2A2C 14%,transparent)}
+:root[data-scheme="light"] .top-art .ta-base{filter:grayscale(1) brightness(1.12) contrast(.78)}
+:root[data-scheme="light"] .ring:hover{background:color-mix(in srgb,#000000 4%,transparent)}
+:root[data-scheme="light"] .papi{background:#22302F;border-color:#22302F}:root[data-scheme="light"] .papi em{color:#D9E2DC}
+:root[data-scheme="light"] .runway .plane{filter:drop-shadow(0 2px 4px #0006)}
+:root[data-scheme="light"][data-art="kandinsky"] body::before{background:linear-gradient(90deg,#F6F3FAE0,#F6F3FA7A 55%,#F6F3FA99),var(--renaissance-art) center/cover no-repeat}
+:root[data-scheme="light"][data-art="wave"] body::before{background:linear-gradient(90deg,#EEF3F8D0,#EEF3F860 60%,#EEF3F880),var(--renaissance-art) center/cover no-repeat}
+:root[data-scheme="light"][data-art="lilies"] body::before{background:linear-gradient(90deg,#EEF5F0C8,#EEF5F058 60%,#EEF5F078),var(--renaissance-art) center/cover no-repeat}
+/* minimal: an editorial, Swiss-leaning edition. Paper and ink, one signal colour, big grotesk numerals, hairlines and grain */
+:root[data-style="minimal"]{--f-display:"Inter Tight","SF Pro Display",-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",system-ui,sans-serif;--f-body:"Inter","SF Pro Text",-apple-system,BlinkMacSystemFont,"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+  --mz-bg:#0E0E0F;--mz-panel:#141415;--mz-card:#1A1A1C;--mz-sunk:#1F1F21;--mz-line:#28282B;--mz-line2:#3A3A3E;--mz-ink:#F2EFE8;--mz-muted:#9C988F;--mz-faint:#66635C;--mz-acc:#7B8CFF;--mz-acc-ink:#0E0E0F;--mz-grain:.05}
+:root[data-style="minimal"][data-scheme="light"]{--mz-bg:#EFECE5;--mz-panel:#F8F6F1;--mz-card:#FFFFFF;--mz-sunk:#F2EFE8;--mz-line:#E2DDD2;--mz-line2:#CFC9BC;--mz-ink:#141412;--mz-muted:#6E6A61;--mz-faint:#A39E93;--mz-acc:#1F3BE0;--mz-acc-ink:#FFFFFF;--mz-grain:.06}
+:root[data-style="minimal"][data-mz="orange"]{--mz-acc:#FF7A45}:root[data-style="minimal"][data-scheme="light"][data-mz="orange"]{--mz-acc:#E2541C}
+:root[data-style="minimal"][data-mz="green"]{--mz-acc:#4FD19A}:root[data-style="minimal"][data-scheme="light"][data-mz="green"]{--mz-acc:#11704F}
+:root[data-style="minimal"][data-mz="rose"]{--mz-acc:#FF7AA3}:root[data-style="minimal"][data-scheme="light"][data-mz="rose"]{--mz-acc:#C42A5A}
+:root[data-style="minimal"] body,:root[data-style="minimal"] body[data-palette]{--bg:var(--mz-panel);--surface:var(--mz-card);--sunk:var(--mz-sunk);--ink:var(--mz-ink);--muted:var(--mz-muted);--line:var(--mz-line);--accent:var(--mz-acc);--accent-base:var(--mz-acc);--accent-ink:var(--mz-acc-ink);--accent-soft:color-mix(in srgb,var(--mz-acc) 12%,var(--mz-card));--glass-line:var(--mz-line);background:var(--mz-bg);color:var(--mz-ink)}
+:root[data-style="minimal"] ::selection{background:var(--mz-acc);color:var(--mz-acc-ink)}
+/* paper grain instead of a painting */
+:root[data-style="minimal"] body::before{display:block;transform:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");opacity:var(--mz-grain);mix-blend-mode:multiply}
+:root[data-style="minimal"]:not([data-scheme="light"]) body::before{mix-blend-mode:screen;filter:invert(1)}
+:root[data-style="minimal"] body::after,:root[data-style="minimal"] .geo,:root[data-style="minimal"] .top-art,:root[data-style="minimal"] .edition-brand span{display:none!important}
+:root[data-style="minimal"] body *:not(.mono):not(code):not(kbd):not(.eyebrow):not(.mz-mono){font-family:var(--f-body)}
+:root[data-style="minimal"] .top h1,:root[data-style="minimal"] .section h2,:root[data-style="minimal"] .greet h2,:root[data-style="minimal"] .sheet h2,:root[data-style="minimal"] .pool h2,:root[data-style="minimal"] .offcard h2,:root[data-style="minimal"] .stat b,:root[data-style="minimal"] .banner .big,:root[data-style="minimal"] .num,:root[data-style="minimal"] .dn,:root[data-style="minimal"] .wcol header b,:root[data-style="minimal"] .capacity-metrics strong,:root[data-style="minimal"] .edition-brand b,:root[data-style="minimal"] .page h2,:root[data-style="minimal"] .page .yr{font-family:var(--f-display)!important;font-feature-settings:"tnum" 1,"ss01" 1}
+/* masthead */
+:root[data-style="minimal"] .edition-bar{border-bottom:1px solid var(--mz-line)}
+:root[data-style="minimal"] .edition-brand b{font-style:normal;font-weight:700;font-size:21px;letter-spacing:-.045em;color:var(--mz-ink)}
+:root[data-style="minimal"] .edition-brand b::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--mz-acc);margin-left:3px;vertical-align:.05em}
+:root[data-style="minimal"] .edition-note{font-family:var(--f-mono)!important;font-style:normal;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mz-muted)}
+/* rail */
+:root[data-style="minimal"] .btn-new{background:var(--mz-ink);color:var(--mz-bg);border:0;border-radius:10px;font-weight:600}.btn-new kbd{opacity:.6}
+:root[data-style="minimal"] .btn-new kbd{color:var(--mz-bg);border-color:color-mix(in srgb,var(--mz-bg) 40%,transparent);border-radius:4px}
+:root[data-style="minimal"] .nav button{border:0;border-radius:9px;margin-bottom:2px;color:var(--mz-muted);font-weight:500}
+:root[data-style="minimal"] .nav button::after{content:counter(nav,decimal-leading-zero);font-family:var(--f-mono)!important;font-size:11px;opacity:.55;color:inherit}
+:root[data-style="minimal"] .nav button[aria-current="true"]{background:var(--mz-card);color:var(--mz-ink);box-shadow:0 0 0 1px var(--mz-line);padding-left:10px}
+:root[data-style="minimal"] .nav button[aria-current="true"] svg{color:var(--mz-acc);opacity:1}
+:root[data-style="minimal"] .nav-label,:root[data-style="minimal"] .rail-foot{font-family:var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mz-faint)}
+:root[data-style="minimal"] .brand{border-bottom-color:var(--mz-line)}
+/* panels */
+:root[data-style="minimal"] .main,:root[data-style="minimal"] .pool{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--mz-panel);border:1px solid var(--mz-line);border-radius:18px;box-shadow:0 1px 0 color-mix(in srgb,#fff 50%,transparent) inset,0 30px 60px -40px #0000002A}
+:root[data-style="minimal"] .main{overflow-x:hidden;overflow-y:auto}
+:root[data-style="minimal"] .view{background:transparent}
+:root[data-style="minimal"] .banner,:root[data-style="minimal"] .banner.stuck{background:var(--mz-panel)!important;border-bottom:1px solid var(--mz-line)}
+:root[data-style="minimal"] .banner.stuck{box-shadow:0 12px 24px -20px #00000040}
+/* header: huge date, a signal-colour progress hairline and an outlined percentage */
+:root[data-style="minimal"] .top{background:none;min-height:0;padding:34px 30px 26px;border-bottom:1px solid var(--mz-line);align-items:flex-end}
+:root[data-style="minimal"] .top h1{font-weight:700;font-size:clamp(40px,4.6vw,68px);letter-spacing:-.055em;line-height:1;color:var(--mz-ink);text-shadow:none}
+:root[data-style="minimal"] .eyebrow{font-family:var(--f-mono);letter-spacing:.16em;color:var(--mz-muted);text-shadow:none;margin-bottom:14px}
+:root[data-style="minimal"] .eyebrow::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--mz-acc);margin-right:9px;vertical-align:.1em}
+:root[data-style="minimal"] .top::before{content:"";position:absolute;left:0;bottom:-1px;height:2px;width:var(--prog,0%);background:var(--mz-acc);transition:width .8s cubic-bezier(.2,.8,.2,1);z-index:1}
+:root[data-style="minimal"] .top::after{content:attr(data-pct) "%";clip-path:none;opacity:1;position:absolute;right:30px;top:24px;bottom:auto;left:auto;height:auto;background:none;font-family:var(--f-display);font-weight:700;font-size:clamp(46px,5vw,76px);letter-spacing:-.06em;line-height:1;color:transparent;-webkit-text-stroke:1.2px color-mix(in srgb,var(--mz-ink) 30%,transparent);pointer-events:none}
+:root[data-style="minimal"] .top:not([data-view="today"])::after,:root[data-style="minimal"] .top:not([data-view="today"])::before{display:none}
+:root[data-style="minimal"] .top .tools{position:relative;z-index:2}
+:root[data-style="minimal"] .top .tools .ghost,:root[data-style="minimal"] .top .tools .seg{background:var(--mz-card);border-color:var(--mz-line)}
+/* type scale */
+:root[data-style="minimal"] .section h2{font-weight:700;font-size:24px;letter-spacing:-.035em}
+:root[data-style="minimal"] .section h2 .hint{font-family:var(--f-mono)!important;font-size:11px;letter-spacing:.06em;font-weight:400}
+:root[data-style="minimal"] .greet h2{font-weight:700;letter-spacing:-.04em}
+:root[data-style="minimal"] .sheet h2,:root[data-style="minimal"] .pool h2,:root[data-style="minimal"] .offcard h2{font-weight:700;letter-spacing:-.035em}
+:root[data-style="minimal"] .banner .big{font-weight:700;letter-spacing:-.05em;color:var(--mz-acc);font-size:34px}
+:root[data-style="minimal"] .stat b,:root[data-style="minimal"] .capacity-metrics strong,:root[data-style="minimal"] .capline b,:root[data-style="minimal"] .cnt-v b,:root[data-style="minimal"] .off-sum b,:root[data-style="minimal"] .off-back b.num{font-weight:650;letter-spacing:-.04em;color:var(--mz-ink)}
+:root[data-style="minimal"] .stat small,:root[data-style="minimal"] .capline,:root[data-style="minimal"] .dow,:root[data-style="minimal"] .eyebrow-s{font-family:var(--f-mono)!important;letter-spacing:.08em;text-transform:uppercase}
+:root[data-style="minimal"] .capline{font-size:11px}:root[data-style="minimal"] .capline b{font-family:var(--f-display)!important;font-size:18px;text-transform:none;letter-spacing:-.03em}
+/* surfaces */
+:root[data-style="minimal"] .card,:root[data-style="minimal"] .module,:root[data-style="minimal"] .wcol,:root[data-style="minimal"] .empty,:root[data-style="minimal"] .quick,:root[data-style="minimal"] .demo-bar{background:var(--mz-card);border:1px solid var(--mz-line);border-radius:14px;box-shadow:none}
+:root[data-style="minimal"] .card.soft,:root[data-style="minimal"] .module header,:root[data-style="minimal"] .addrow{background:var(--mz-sunk)}
+:root[data-style="minimal"] .empty{border-style:dashed;color:var(--mz-muted)}
+:root[data-style="minimal"] .pcard{border-top:1px solid var(--mz-line);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+:root[data-style="minimal"] .pcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c,var(--mz-acc))}
+:root[data-style="minimal"] .pcard:hover{transform:translateY(-2px);box-shadow:0 18px 30px -24px #00000055;background:var(--mz-card)}
+:root[data-style="minimal"] .stats,:root[data-style="minimal"] .grid3{background:var(--mz-line);border:1px solid var(--mz-line);border-radius:12px;overflow:hidden}
+:root[data-style="minimal"] .stat{background:var(--mz-card)}
+:root[data-style="minimal"] .month{background:var(--mz-line);border:1px solid var(--mz-line);border-radius:14px;overflow:hidden}
+:root[data-style="minimal"] .cell{background:var(--mz-card);border-color:var(--mz-line)}
+:root[data-style="minimal"] .cell.out{background:var(--mz-sunk)}
+:root[data-style="minimal"] .cell:hover{background:color-mix(in srgb,var(--mz-acc) 4%,var(--mz-card))}
+:root[data-style="minimal"] .cell.today{background:var(--mz-card);box-shadow:inset 0 2px 0 var(--mz-acc)}
+:root[data-style="minimal"] .cell.today .dn b{background:var(--mz-acc);color:var(--mz-acc-ink);border-radius:999px;padding:0 7px}
+:root[data-style="minimal"] .dn{font-weight:600;letter-spacing:-.03em}
+:root[data-style="minimal"] .row{border-bottom:1px solid var(--mz-line);border-radius:0}
+:root[data-style="minimal"] .row:hover{background:color-mix(in srgb,var(--mz-ink) 3%,transparent)}
+:root[data-style="minimal"] .sheet{background:var(--mz-panel);border:1px solid var(--mz-line);border-radius:22px;box-shadow:0 40px 120px -30px #00000066}
+:root[data-style="minimal"] .overlay{background:color-mix(in srgb,var(--mz-bg) 55%,transparent);-webkit-backdrop-filter:blur(10px) saturate(1.1);backdrop-filter:blur(10px) saturate(1.1)}
+/* controls */
+:root[data-style="minimal"] .primary{background:var(--mz-ink);color:var(--mz-bg);border-color:var(--mz-ink);border-radius:10px;font-weight:600}
+:root[data-style="minimal"] .primary:hover{background:var(--mz-acc);border-color:var(--mz-acc);color:var(--mz-acc-ink)}
+:root[data-style="minimal"] .ghost{background:var(--mz-card);border-color:var(--mz-line2);color:var(--mz-ink);border-radius:10px}
+:root[data-style="minimal"] .ghost:hover{border-color:var(--mz-ink);background:var(--mz-card)}
+:root[data-style="minimal"] .danger{border-radius:10px}
+:root[data-style="minimal"] .seg{background:var(--mz-sunk);border:1px solid var(--mz-line);border-radius:10px;padding:3px}
+:root[data-style="minimal"] .seg button{border-radius:7px;color:var(--mz-muted);font-weight:500}
+:root[data-style="minimal"] .seg button[aria-pressed="true"]{background:var(--mz-card);color:var(--mz-ink);box-shadow:0 1px 2px #0000001F,0 0 0 1px var(--mz-line)}
+:root[data-style="minimal"] .inp,:root[data-style="minimal"] .field input,:root[data-style="minimal"] .field select,:root[data-style="minimal"] .field textarea,:root[data-style="minimal"] .addrow input,:root[data-style="minimal"] .quick input{background:var(--mz-card);border:1px solid var(--mz-line2);border-radius:10px;color:var(--mz-ink)}
+:root[data-style="minimal"] .inp:focus,:root[data-style="minimal"] .field input:focus,:root[data-style="minimal"] .field textarea:focus{outline:2px solid color-mix(in srgb,var(--mz-acc) 45%,transparent);outline-offset:1px;border-color:var(--mz-acc)}
+:root[data-style="minimal"] .check{border-radius:6px;border-color:var(--mz-line2);background:var(--mz-card)}
+:root[data-style="minimal"] .check:checked{background:var(--mz-acc);border-color:var(--mz-acc)}:root[data-style="minimal"] .check:checked::after{border-color:var(--mz-acc-ink)}
+:root[data-style="minimal"] .switch:checked{background:var(--mz-acc)}
+:root[data-style="minimal"] .link{color:var(--mz-acc)}
+:root[data-style="minimal"] .pill,:root[data-style="minimal"] .tag,:root[data-style="minimal"] .cd,:root[data-style="minimal"] .streak{border-radius:999px}
+:root[data-style="minimal"] .chip{border-radius:7px}
+:root[data-style="minimal"] .cd{background:var(--mz-card);border:1px solid var(--mz-line);color:var(--mz-muted)}
+:root[data-style="minimal"] .cd.exam{border-color:color-mix(in srgb,var(--warn) 45%,transparent);color:var(--warn)}
+:root[data-style="minimal"] .warnbar{border-radius:10px;background:color-mix(in srgb,var(--warn) 8%,var(--mz-card));border:1px solid color-mix(in srgb,var(--warn) 28%,transparent);color:var(--warn)}
+:root[data-style="minimal"] .pool .chip{background:var(--mz-card)!important;border:1px solid var(--mz-line)!important;border-left:3px solid var(--c,var(--mz-acc))!important;color:var(--mz-ink)}
+:root[data-style="minimal"] .pool .chip:hover{border-color:var(--mz-line2)!important;border-left-color:var(--c,var(--mz-acc))!important}
+/* the runway becomes a clean track with a signal-colour fill */
+:root[data-style="minimal"] .runway{height:14px;margin-top:14px;background:var(--mz-sunk);border:1px solid var(--mz-line);border-radius:999px;overflow:visible}
+:root[data-style="minimal"] .runway .edge,:root[data-style="minimal"] .runway .thr,:root[data-style="minimal"] .runway .dash{display:none}
+:root[data-style="minimal"] .runway .fill{background:var(--mz-acc);border-radius:999px;top:-1px;bottom:-1px;height:auto}
+:root[data-style="minimal"] .runway .line{background:var(--mz-ink);width:2px;top:-6px;bottom:-6px}
+:root[data-style="minimal"] .runway .line span{font-family:var(--f-mono)!important;color:var(--mz-muted);letter-spacing:.04em}
+:root[data-style="minimal"] .runway .plane{color:var(--mz-ink);filter:none;top:50%}
+:root[data-style="minimal"] .papi{background:var(--mz-card);border:1px solid var(--mz-line);border-radius:999px}
+:root[data-style="minimal"] .papi em{color:var(--mz-muted)}
+:root[data-style="minimal"] .papi i.w{background:var(--mz-ink);box-shadow:none}:root[data-style="minimal"] .papi i.r{background:var(--mz-acc);box-shadow:0 0 6px 0 color-mix(in srgb,var(--mz-acc) 60%,transparent)}
+/* small things */
+:root[data-style="minimal"] .loadbar{background:var(--mz-line)}:root[data-style="minimal"] .loadbar i{background:var(--mz-ink)}
+:root[data-style="minimal"] .tabs{background:color-mix(in srgb,var(--mz-panel) 92%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-top:1px solid var(--mz-line)}
+:root[data-style="minimal"] .tabs button[aria-current="true"]{background:transparent;color:var(--mz-acc)}
+:root[data-style="minimal"] .offcard,:root[data-style="minimal"] .guide{border-color:var(--mz-line)!important}
+:root[data-style="minimal"] .steps li::before{font-family:var(--f-display);font-weight:700;color:var(--mz-acc)}
+:root[data-style="minimal"] .mzpick{display:flex;gap:10px}.mzsw{width:26px;height:26px;border-radius:50%;border:2px solid var(--mz-card,#fff);background:var(--sw);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}.mzsw[aria-pressed="true"]{box-shadow:0 0 0 2px var(--ink)}
+@media(max-width:820px){:root[data-style="minimal"] .main{border-radius:16px}:root[data-style="minimal"] .top{padding:24px 18px 20px;align-items:flex-start}:root[data-style="minimal"] .top::after{display:none}:root[data-style="minimal"] .top h1{font-size:40px}}
 .artpicks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .artpick button{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);background:transparent;color:var(--ink);padding:6px;border-radius:2px;text-align:left;font-size:12px;cursor:pointer}
 .artpick button i{display:block;aspect-ratio:3/2;background:center/cover no-repeat;border-radius:1px}
@@ -804,6 +943,19 @@ body,body[data-palette],:root[data-theme] body[data-palette]{--mid-soft:#4E4A2E;
 .tl-grid2.tray-empty .tl-tray .empty{padding:6px 12px;border:0;background:none;text-align:left}
 .tl-grid2.tray-empty .tl-tray .empty br{display:none}
 .tl-grid2.tray-empty .tl-tray .empty small{margin-left:10px}
+/* days off */
+.plan-lead{margin:8px 0 2px;padding:10px 12px;border-left:2px solid var(--mid);background:color-mix(in srgb,var(--mid) 8%,transparent);font-size:13px;line-height:1.6}
+.offcard{display:flex;flex-direction:column;gap:12px;border-color:color-mix(in srgb,var(--accent) 45%,transparent)!important}
+.offcard h2{font-size:30px;font-weight:400}
+.off-back{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 10px;margin:0;font-size:13px;color:var(--muted)}.off-back b{color:var(--ink);font-weight:500;font-size:15px;margin-right:8px}.off-back b.num{font-size:23px;font-weight:400}
+.off-prev{display:flex;flex-direction:column;gap:10px;padding:12px 0 4px;border-top:1px solid var(--line)}
+.off-sum{display:flex;align-items:baseline;gap:6px;font-size:13px;color:var(--muted)}.off-sum b{font-size:23px;color:var(--ink);font-weight:400}.off-sum i{width:1px;height:14px;background:var(--line);margin:0 10px;align-self:center}
+.off-proj{display:flex;flex-direction:column;gap:6px;font-size:13px}.off-proj div{display:flex;align-items:center;gap:8px}.off-proj .dot{width:8px;height:8px;border-radius:50%;flex:none}.off-proj .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}.off-proj .late{color:var(--warn)}
+.cell.off,.wcol.off{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--accent) 9%,transparent) 0 6px,transparent 6px 12px)!important}
+.cell.off .dn b::after{content:none}
+.offtag{font-size:11px;color:var(--accent);margin-left:4px;letter-spacing:.04em}
+.banner-head.off p{font-size:15px}
+:root[lang="en"] .cell.rest .dn b::after{content:"Rest"}
 /* examples & guide */
 .demo-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;margin:0 0 14px;border:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);border-radius:8px;font-size:13px;color:var(--muted);background:color-mix(in srgb,var(--accent) 7%,transparent)}.demo-bar span{flex:1;min-width:200px}
 .guide{display:flex;flex-direction:column;gap:14px}.guide .eyebrow-s{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
@@ -1059,7 +1211,7 @@ function setLang(l){
 }
 
 /* ================= store ================= */
-const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'burgundy', palette:'classic', nick:'', tags:[], gcal:false, home:'today', pinned:false };
+const DEF_SETTINGS = { cap:[4,5,5,5,5,3,4], over:{}, weekStart:1, dayStart:0, balance:true, askActual:true, accent:'burgundy', palette:'classic', nick:'', tags:[], gcal:false, home:'today', pinned:false, theme:'dark', look:'art' };
 const S = { items:{}, projects:{}, notes:{}, settings:{}, timer:{}, ready:false, backend:'local' };
 let ver = 0;
 let db = null;
@@ -1142,7 +1294,7 @@ let rq = 0;
 function scheduleRender(){ if (rq) return; rq = requestAnimationFrame(() => { rq = 0; render(); }); }
 
 /* ================= normalized views ================= */
-function settings(){ const s = S.settings.main || {}; return {...DEF_SETTINGS, ...s, cap: (s.cap && s.cap.length===7) ? s.cap : DEF_SETTINGS.cap, over: s.over || {}, tags: s.tags || []}; }
+function settings(){ const s = S.settings.main || {}; return {...DEF_SETTINGS, ...s, cap: (s.cap && s.cap.length===7) ? s.cap : DEF_SETTINGS.cap, over: s.over || {}, off: s.off || {}, tags: s.tags || []}; }
 function saveSettings(patch, label){ put('settings','main', {...settings(), ...patch}, label, {undo:false}); }
 function normItem(id, it){
   const hours = it.hours != null ? Number(it.hours)||0 : (it.minutes ? Number(it.minutes)/60 : 0);
@@ -1197,7 +1349,7 @@ function derive(){
 }
 function sortItems(a,b){ const r = k => ({exam:0,deadline:1,event:2,task:3})[k]; const g = i => !i.time && (i.kind === 'exam' || i.kind === 'deadline') ? 0 : i.time ? 1 : 2; return (a.done - b.done) || (g(a) - g(b)) || (a.time||'').localeCompare(b.time||'') || (r(a.kind)-r(b.kind)) || (a.order-b.order) || a.title.localeCompare(b.title); }
 const itemsOn = d => derive().byDate.get(d) || [];
-function capOf(d){ const s = settings(); return s.over[d] != null ? Number(s.over[d]) : Number(s.cap[monIdx(d)])||0; }
+function capOf(d){ const s = settings(); if (s.off[d] != null) return 0; return s.over[d] != null ? Number(s.over[d]) : Number(s.cap[monIdx(d)])||0; }
 function projTasks(pid){ return derive().items.filter(i => i.project === pid && i.kind === 'task'); }
 function logSum(p){ return sum(Object.values(p.log).map(Number)); }
 function remNow(p){ return sum(projTasks(p.id).filter(i => !i.done).map(i => i.hours)) + Math.max(0, p.lump - logSum(p)); }
@@ -1325,15 +1477,17 @@ function projStatus(p, D = today()){
   const pText = `截止前所有项目加起来每个可用日要 ${fmtH(res.loadAvg)}，你平均每天能投入 ${fmtH(avgCap)}（占 ${Math.round(press*100)}%）。`;
   // 2) your own recent pace on this project, if there is enough history
   const pm = derive().progress.get(p.id) || new Map();
-  let recent = 0, activeDays = 0;
-  for (let k = 0; k < 14; k++){ const d = add(D, -k); const v = pm.get(d) || 0; recent += v; if (v > 0) activeDays++; }
-  const span = Math.min(14, diff(p.start, D) + 1);
-  const speed = span > 0 ? recent / span : 0;
+  // pace per working day over the last two weeks (days off and rest days don't drag it down),
+  // then walked forward over the working days ahead
+  let recent = 0, activeDays = 0, workN = 0;
+  for (let k = 0; k < 14; k++){ const d = add(D, -k); if (d < p.start) break; const v = pm.get(d) || 0; recent += v; if (v > 0) activeDays++; if (capOf(d) > 0 || v > 0) workN++; }
+  const speed = workN > 0 ? recent / workN : 0;
   res.speed = speed;
   let sk = null, sText = '';
   if (activeDays >= 2 && speed > 0.02){
-    const daysNeeded = Math.ceil(rem / speed);
-    res.forecast = add(D, daysNeeded - 1);
+    let left = rem, fd = D;
+    for (let k = 0; k < 730; k++){ if (capOf(fd) > 0) left -= speed; if (left <= 1e-6) break; fd = add(fd, 1); }
+    res.forecast = fd;
     const early = diff(res.forecast, p.deadline) - 1;
     res.early = early;
     sk = early < 0 ? 'bad' : early < p.buffer ? 'mid' : 'good';
@@ -1409,6 +1563,8 @@ function bannerHTML(D = today()){
   const modDue = dv.projects.flatMap(p => (p.modules || []).filter(m => m.due && m.due >= t && projTasks(p.id).some(i => !i.done && i.module === m.id)).map(m => ({title: `${p.name} · ${m.name}`, date: m.due, kind: 'deadline'})));
   const upcoming = [...dv.items.filter(i => (i.kind === 'deadline' || i.kind === 'exam') && i.date && i.date >= t && !i.done), ...modDue].sort((a,b) => a.date.localeCompare(b.date)).slice(0,3);
   const cds = upcoming.map(u => { const n = diff(t, u.date); return `<span class="cd ${u.kind === 'exam' ? 'exam' : ''}">${esc(u.title)} · ${n === 0 ? '<b>今天</b>' : `<b>${n}</b> 天`}</span>`; }).join('');
+  const offB = D === t && offRange(D);
+  if (offB) return `<div class="banner-head off"><p>${L('今天放假，跑道关闭。', 'Day off. The runway is closed.')} <span class="hint">${L(`${dayL(add(offB.to, 1))} 回来`, `Back ${dayL(add(offB.to, 1))}`)}</span></p><div class="ctl"><div class="countdowns hide-sm">${cds}</div></div></div>`;
   if (!dv.projects.length) return `<div class="banner-head"><p>建一个有 deadline 的计划项目，这里每天会算出${word}的航速：照这个速度飞，就能准时落地。</p><button class="primary" type="button" data-act="newproj">新建计划项目</button></div>${cds ? `<div class="countdowns">${cds}</div>` : ''}`;
   if (line < 1e-3 && done < 1e-3) return `<div class="banner-head"><p>${cap === 0 ? `${word}是休息日，引擎熄火，好好休息。` : `${word}没有要赶的航程，自由飞行。`}</p><div class="countdowns">${cds}</div></div>`;
   const met = done >= line - 1e-3;
@@ -1431,6 +1587,85 @@ function bannerHTML(D = today()){
   return `<div class="banner-head"><p>${msg}</p><div class="ctl"><div class="countdowns hide-sm">${cds}</div><button class="ghost sm expand-btn" type="button" data-act="expand" aria-expanded="${ui.expand}">${ui.expand ? '收起项目' : '展开项目'}</button></div></div>
     ${papi ? `<div class="papi-row">${papi}</div>` : ''}<div class="runway ${met ? 'met' : ''} ${papi ? 'with-papi' : ''}" role="img" aria-label="已飞 ${fmtH(done)}，航速 ${fmtH(line)}"><div class="edge"></div><div class="dash"></div><div class="fill" style="width:${pct}%"></div><div class="thr" style="left:calc(${lp}% - 30px)"></div><div class="line ${lp > 85 ? 'end' : ''}" style="left:calc(${lp}% - 1px)"><span>${fmtH(line)} · 落地</span></div><div class="plane ${met ? 'up' : ''}" style="left:clamp(14px, ${pct}%, calc(100% - 14px))">${ICON.plane}</div></div>
     ${overCap}${rings}`;
+}
+
+/* ================= days off: a pause the plan works around ================= */
+const isOff = d => settings().off[d] != null;
+function offRange(d){
+  const off = settings().off; if (off[d] == null) return null;
+  let a = d, b = d, k = 0; while (off[add(a, -1)] != null && k++ < 60) a = add(a, -1); k = 0; while (off[add(b, 1)] != null && k++ < 60) b = add(b, 1);
+  return {from: a, to: b, note: off[d] || '', n: diff(a, b) + 1};
+}
+function offRanges(fromD){
+  const ds = Object.keys(settings().off).filter(d => d >= fromD).sort(), out = [];
+  for (const d of ds){ const last = out[out.length - 1]; if (last && add(last.to, 1) === d) last.to = d; else out.push({from: d, to: d, note: settings().off[d] || ''}); }
+  return out;
+}
+const spanL = (a, b) => a === b ? dayL(a) : `${cnd(a)} – ${cnd(b)}`;
+function offImpact(days){
+  const t = today(), dv = derive(), set = new Set(days.filter(d => capOf(d) > 0));
+  const tasks = days.flatMap(d => itemsOn(d).filter(i => i.kind === 'task' && !i.done));
+  const proj = [];
+  for (const p of dv.projects){
+    if (cntOf(p)){ const n = sum(days.map(d => cntTgt(p, d))); if (n) proj.push({p, text: L(`这几天不计 ${cntN(n, p)}`, `${cntN(n, p)} not counted`)}); continue; }
+    const wd = workdays(p, t), R = remStart(p, t); if (!wd.length || R < 0.05) continue;
+    const left = wd.filter(d => !set.has(d)).length; if (left === wd.length) continue;
+    const delta = left ? R / left - R / wd.length : null;
+    if (delta == null) proj.push({p, text: L('截止前没有可投入的日子了', 'No working days left before the deadline'), bad: true});
+    else if (delta >= 1/60) proj.push({p, text: L(`之后每天多 ${fmtH(delta)}`, `${fmtH(delta)} more each day after`)});
+  }
+  return {tasks, hours: sum(tasks.map(i => i.hours)), proj};
+}
+function openOff(){
+  const t = today(), cur = offRange(t) || (offRanges(t)[0] || null);
+  const editing = cur && cur.from <= add(t, 30);
+  const keep = editing ? {from: cur.from, to: cur.to} : null;
+  openSheet(`<h2>${L('放假', 'Take time off')}<button class="x" type="button" data-close aria-label="${esc(L('关闭', 'Close'))}">×</button></h2>
+    <p class="hint" style="margin:0">${L('这几天不排任务、不算航速，连续记录也不会断。剩下的量摊到之后的日子。', "No tasks and no pace on these days, and your streak won't break. The work spreads over the days after.")}</p>
+    <div class="grid2"><div class="field"><label for="off-a">${L('从', 'From')}</label><input id="off-a" type="date" value="${editing ? cur.from : t}"></div><div class="field"><label for="off-b">${L('到（含这天）', 'To (inclusive)')}</label><input id="off-b" type="date" value="${editing ? cur.to : add(t, 1)}"></div></div>
+    <div class="field"><label for="off-n">${L('去做什么', "What for")}</label><input id="off-n" value="${esc(editing ? cur.note : '')}" placeholder="${esc(L('比如：出去玩', 'e.g. a short trip'))}"></div>
+    <div id="off-prev" class="off-prev"></div>
+    <div class="actions">${editing ? `<button class="danger push" type="button" id="off-del">${L('取消这次假期', 'Cancel this time off')}</button>` : ''}<button class="ghost" type="button" data-close>${L('取消', 'Cancel')}</button><button class="primary" type="button" id="off-ok">${editing ? L('保存', 'Save') : L('放假', 'Take it off')}</button></div>`);
+  const days = () => { const a = $('#off-a').value, b = $('#off-b').value; if (!a || !b || b < a) return []; return range(a, b).slice(0, 31); };
+  const prev = () => {
+    const ds = days(); if (!ds.length){ $('#off-prev').innerHTML = `<p class="hint" style="margin:0">${L('结束日不能早于开始日', 'The end date must not be before the start')}</p>`; return; }
+    const im = offImpact(ds);
+    $('#off-prev').innerHTML = `<div class="off-sum"><b class="num">${ds.length}</b><span>${L('天', ds.length === 1 ? 'day' : 'days')}</span><i></i><b class="num">${im.tasks.length}</b><span>${L(`件任务要挪 · ${fmtH(im.hours)}`, `${im.tasks.length === 1 ? 'task' : 'tasks'} to move · ${fmtH(im.hours)}`)}</span></div>
+      ${im.proj.length ? `<div class="off-proj">${im.proj.map(x => `<div><span class="dot" style="background:${x.p.color}"></span><span class="n">${esc(x.p.name)}</span><span class="${x.bad ? 'late' : ''}">${x.text}</span></div>`).join('')}</div>` : ''}
+      ${im.tasks.length ? `<p class="hint" style="margin:0">${L('放假后会给你一份挪动预览，可以逐件取消。', "After this you'll get a preview of where they move, and can untick any.")}</p>` : ''}`;
+  };
+  ['#off-a', '#off-b'].forEach(x => $(x).addEventListener('input', prev)); prev();
+  const write = (ds, note) => { const off = {...settings().off}; if (keep) range(keep.from, keep.to).forEach(d => delete off[d]); ds.forEach(d => { off[d] = note; }); return off; };
+  $('#off-ok').addEventListener('click', () => {
+    const ds = days(); if (!ds.length) return;
+    const note = $('#off-n').value.trim();
+    const moving = ds.flatMap(d => itemsOn(d).filter(i => i.kind === 'task' && !i.done));
+    if (!moving.length) closeSheet();
+    put('settings', 'main', {...settings(), off: write(ds, note)}, L(`已放假 ${spanL(ds[0], ds[ds.length - 1])}`, `Time off: ${spanL(ds[0], ds[ds.length - 1])}`));
+    if (moving.length){
+      const plan = planReschedule(moving), tight = plan.filter(x => x.status !== 'ok');
+      const lead = tight.length ? L(`之后的日子基本排满了，有 ${tight.length} 件放进去会超量或晚于截止。可以只勾选重要的，其余先放回任务池，回来再定。`, `The days after are mostly full: ${tight.length} of these would run over or land after a due date. Keep only what matters and put the rest in the Inbox for now.`) : '';
+      openPlan(plan, L(`把这 ${ds.length} 天的 ${moving.length} 件任务挪到之后`, `Move ${moving.length} ${moving.length === 1 ? 'task' : 'tasks'} out of your time off`), {lead, pool: true, cancel: L('先不动', 'Leave them')});
+    }
+  });
+  const del = $('#off-del');
+  del && del.addEventListener('click', () => { closeSheet(); put('settings', 'main', {...settings(), off: write([], '')}, L('假期已取消', 'Time off cancelled')); });
+}
+function offBack(){
+  const t = today(), r = offRange(t); if (!r) return;
+  const off = {...settings().off}; range(t, r.to).forEach(d => delete off[d]);
+  put('settings', 'main', {...settings(), off}, L('欢迎回来', 'Welcome back'));
+}
+function offCard(t, r){
+  const back = add(r.to, 1), need = dayNeed(back, t), left = itemsOn(t).filter(i => i.kind === 'task' && !i.done);
+  const k = diff(r.from, t) + 1;
+  return `<div class="card offcard">
+    <p class="eyebrow-s">${r.n > 1 ? L(`放假第 ${k} 天，共 ${r.n} 天`, `Day ${k} of ${r.n} off`) : L('今天放假', 'Day off')}</p>
+    <h2 style="margin:0">${r.note ? esc(r.note) : L('好好玩', 'Enjoy it')}</h2>
+    <p class="off-back"><span>${L('回来', 'Back')}</span><b>${dayL(back)}</b>${need > 0.01 ? `<span>${L('那天航速', 'pace that day')}</span><b class="num">${fmtH(need)}</b>` : ''}</p>
+    ${left.length ? `<p class="hint" style="margin:0">${L(`今天还留着 ${left.length} 件任务`, `${left.length} ${left.length === 1 ? 'task is' : 'tasks are'} still on today`)} <button class="link" type="button" data-act="off-move">${L('挪到之后', 'Move them')}</button></p>` : ''}
+    <div class="inline"><button class="ghost sm" type="button" data-act="off">${L('改假期', 'Edit')}</button><button class="ghost sm" type="button" data-act="off-back">${L('提前回来', "I'm back early")}</button></div>
+  </div>`;
 }
 
 /* ================= examples & how-to (mainly for the share build) ================= */
@@ -1497,6 +1732,7 @@ function openHelp(){
     [L('快速记', 'Quick add'), L(`在任务池的输入框里直接写：${ex('周五下午2点 写论文 2h #CFA')}、${ex('每周一三五 跑步 到12月1日')}；加 ${ex('@项目名')} 就归入那个项目。`, `Type straight into the Inbox box: ${ex('essay fri 2pm 2h #CFA')}, ${ex('run every mon wed fri until 12/1')}. Add ${ex('@project')} to file it under a project.`)],
     [L('打勾或计时', 'Tick or time it'), L('点 ▶ 开始计时，停下时记下实际用时。跑道上的四盏灯按现在的时间告诉你是领先还是落后。', 'Tap ▶ to start a timer; stopping it logs the real time. The four lights by the runway say whether you are ahead or behind for this time of day.')],
     [L('时间线', 'Timeline'), L('把今天的任务拖进时间轴排好时段；开始计时后，块会跟着实际时间走。', "Drag today's tasks onto the timeline. Once you start a timer, the block follows the real time.")],
+    [L('放假', 'Time off'), L('今天页点「放假」选日期。这几天不排任务、不算航速、不断连续记录，剩下的量摊到之后，还会给你一份挪任务的预览。', 'Tap Time off on Today and pick the dates. Those days get no tasks, no pace and no broken streak; the rest spreads over the days after, with a preview of where tasks move.')],
     [L('每天能投入多少', 'How much time you have'), L('在设置里填每周每天能投入几小时，0 是休息日。今天临时有事，就在今天页改「可投入」。', 'Set your hours for each weekday in Settings; 0 means a rest day. If today is different, change Available on Today.')],
     ...(SHARE ? [[L('你的数据', 'Your data'), L('分享版的数据只存在你自己这里，别人看不到。换设备前去「导出与备份」下载一份。', 'In the shared version your data stays with you and nobody else can see it. Before switching devices, download a backup from Export.')]] : []),
   ];
@@ -1531,8 +1767,9 @@ function viewMonth(){
     }
     const all = [...its.map(x => ({x, html: () => chip(x)})), ...ext.map(e => ({x:e, html: () => extChip(e)}))];
     const max = 3;
-    h += `<div class="cell ${out ? 'out' : ''} ${d === t ? 'today' : ''} ${cap === 0 ? 'rest' : ''}" data-day="${d}" data-drop="${d}" tabindex="0" aria-label="${cnd(d)}，${its.length} 项">
-      <div class="dn"><b>${parse(d).getDate()}${S.notes[d] && S.notes[d].text ? '<span class="note-mark" title="有备注"></span>' : ''}</b>${q}</div>${bar}
+    const offD = isOff(d);
+    h += `<div class="cell ${out ? 'out' : ''} ${d === t ? 'today' : ''} ${cap === 0 ? 'rest' : ''} ${offD ? 'off' : ''}" title="${offD ? esc(L('放假', 'Time off') + (settings().off[d] ? ' · ' + settings().off[d] : '')) : ''}" data-day="${d}" data-drop="${d}" tabindex="0" aria-label="${cnd(d)}，${its.length} 项">
+      <div class="dn"><b>${parse(d).getDate()}${S.notes[d] && S.notes[d].text ? '<span class="note-mark" title="有备注"></span>' : ''}</b>${offD ? `<span class="offtag">${L('假', 'Off')}</span>` : ''}${q}</div>${bar}
       ${all.slice(0, max).map(a => a.html()).join('')}${all.length > max ? `<div class="more">还有 ${all.length - max} 件</div>` : ''}
     </div>`;
   }
@@ -1546,8 +1783,8 @@ function viewWeek(){
     const by = allocate(t).byDay[d] || {};
     const qs = d >= t ? Object.entries(by).map(([pid, q]) => ({p: derive().projMap.get(pid), q})).filter(x => x.p) : [];
     const need = sum(qs.map(x => x.q));
-    h += `<div class="wcol ${d === t ? 'today' : ''} ${cap === 0 ? 'rest' : ''}" data-drop="${d}">
-      <header data-open="${d}"><b>${parse(d).getDate()}</b><small>${wdName(d)} · ${cap ? '可投入 ' + fmtH(cap) : '休息日'}${S.notes[d] && S.notes[d].text ? ' <span class="note-mark"></span>' : ''}</small></header>
+    h += `<div class="wcol ${d === t ? 'today' : ''} ${cap === 0 ? 'rest' : ''} ${isOff(d) ? 'off' : ''}" data-drop="${d}">
+      <header data-open="${d}"><b>${parse(d).getDate()}</b><small>${wdName(d)} · ${isOff(d) ? L('放假', 'Time off') + (settings().off[d] ? ' · ' + esc(settings().off[d]) : '') : cap ? '可投入 ' + fmtH(cap) : '休息日'}${S.notes[d] && S.notes[d].text ? ' <span class="note-mark"></span>' : ''}</small></header>
       ${qs.length ? `<div class="quota">${qs.map(({p,q}) => `<div><span><span class="dot" style="background:${p.color}"></span> ${esc(p.name)}</span><b>${fmtH(q)}</b></div>`).join('')}${cap && need > cap + 0.05 ? `<div style="color:var(--warn)"><span>超出可投入</span><b style="color:var(--warn)">+${fmtH(need-cap)}</b></div>` : ''}</div>` : ''}
       ${its.map(x => chip(x, {dur:true})).join('')}${ext.map(extChip).join('')}
       <button class="wadd" type="button" data-add="${d}">＋ 添加</button>
@@ -1598,6 +1835,7 @@ function cntCtl(p, d){
   return `<span class="cnt-ctl"><button type="button" class="ghost sm" data-cnt="${p.id}" data-d="${d}" data-v="-1" aria-label="${esc(L('减 1', 'Minus 1'))}" ${v ? '' : 'disabled'}>−</button><button type="button" class="ghost sm" data-cnt="${p.id}" data-d="${d}" data-v="1">+1</button><button type="button" class="ghost sm" data-cnt="${p.id}" data-d="${d}" data-v="5">+5</button></span>`;
 }
 function cntRows(t){
+  if (isOff(t)) return '';
   return derive().projects.filter(p => cntOf(p) && p.deadline > t && p.start <= t).map(p => {
     const cs = cntStat(p, t); if (!cs.tT && !cs.tD && !cs.debt) return '';
     const pct = cs.tT ? clamp(cs.tD / cs.tT * 100, 0, 100) : 100, met = cs.tT && cs.tD >= cs.tT;
@@ -1643,9 +1881,17 @@ function viewToday(){
   const capToday = capOf(t), capOver = settings().over[t] != null;
   const spentT = dv.effort.get(t) || 0, leftT = Math.max(0, capToday - spentT);
   const capq = `<div class="capline"><span>可投入 <b>${fmtH(capToday)}</b>${capOver ? '<i>已调整</i>' : ''}</span><span>已投入 <b>${fmtH(spentT)}</b></span><span>还可安排 <b>${fmtH(leftT)}</b></span>
-      <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span></div>`;
+      <span class="seg">${[[0.5,'30 分'],[1,'1 小时'],[2,'2 小时']].map(([v,l]) => `<button type="button" data-capq="${v}" aria-pressed="${capOver && Math.abs(capToday-v)<1e-6}">${l}</button>`).join('')}<button type="button" data-capq="custom" aria-pressed="false">自定义</button>${capOver ? `<button type="button" data-capq="reset">恢复默认</button>` : ''}</span><button class="ghost sm" type="button" data-act="off">${L('放假', 'Time off')}</button></div>`;
+  const offT = offRange(t), offY = !offT && offRange(y);
+  if (offT) return `<div class="section">
+    ${offCard(t, offT)}
+    ${its.filter(i => i.kind !== 'task').length ? `<h2>${L('这天的日程', 'On the calendar')}</h2>${its.filter(i => i.kind !== 'task').map(i => rowItem(i)).join('')}` : ''}
+    <h2>写给今天的自己</h2>
+    <div class="field"><textarea id="note-${t}" data-note="${t}" placeholder="${esc(L('今天去了哪里？写一句留个纪念。', 'Where did you go today? A line to remember it by.'))}">${esc(note)}</textarea></div>
+  </div>`;
   return `<div class="section">
     ${dv.projects.length ? '' : guideCard()}
+    ${offY ? `<p class="recon-line up"><b>${L('欢迎回来', 'Welcome back')}</b> · ${L(`放了 ${offY.n} 天假${offY.note ? '，' + esc(offY.note) : ''}`, `${offY.n} ${offY.n === 1 ? 'day' : 'days'} off${offY.note ? ', ' + esc(offY.note) : ''}`)}</p>` : ''}
     <div class="greet"><div><h2 style="margin:0;font-size:23px">${greeting()}${nick ? L('，', ', ') + esc(nick) : ''}</h2></div>${streak >= 2 ? `<span class="streak">连续 <b class="num">${streak}</b> 天跟上航速</span>` : ''}</div>
     ${capq}
     <h2>今天要做 <span class="hint">${its.length ? `完成 ${doneN} / ${its.length}` : ''}</span></h2>
@@ -1723,6 +1969,10 @@ function viewProjects(){
     ${loose.slice(0, 8).map(i => rowItem(i, {showDate:true})).join('') || '<div class="empty">没有独立事项</div>'}
   </div>`;
 }
+// Speed adjustments are relative to the last ratio a task was scaled by (it.spd), so pressing the button
+// again changes nothing; the ratio itself is held to 0.4–2.5 so one odd timing can't blow an estimate up.
+const spdClamp = r => clamp(Number(r) || 1, 0.4, 2.5);
+function speedPending(ts, ratio){ const r = spdClamp(ratio); return ts.filter(i => !i.done && Math.abs(r / spdClamp(S.items[i.id] && S.items[i.id].spd || 1) - 1) > 0.15); }
 function moduleSpeed(p, mid){
   const done = projTasks(p.id).filter(i => i.module === mid && i.done && i.actual != null && i.est > 0);
   const ok = done.filter(i => { const r = i.actual / i.est; return r > 0.25 && r < 4; });
@@ -1746,7 +1996,7 @@ function viewProjectDetail(p){
     const unschedM = ts.filter(i => !i.done && !i.date);
     return `<div class="module">
       <header><b>${esc(m.name)}</b><span class="hint">完成 ${ts.filter(i => i.done).length}/${ts.length} 件 · ${fmtH(doneH)} / ${fmtH(allH)}</span>${m.id ? `<button class="ghost sm" type="button" data-moddue="${m.id}" title="模块自己的截止日">${m.due ? `截止 ${md(m.due)}` : '设截止日'}</button>` : ''}${unschedM.length ? `<button class="ghost sm" type="button" data-autosched="${p.id}" data-mod="${esc(m.id)}">智能排期 ${unschedM.length} 个</button>` : ''}${ts.some(i => !i.done && i.date) ? `<button class="ghost sm" type="button" data-resched="${p.id}" data-mod="${esc(m.id)}" title="已排好的也重新排一遍">重新排期</button>` : ''}${m.id ? `<button class="icon" type="button" data-renmod="${m.id}" aria-label="重命名模块">${ICON.edit}</button><button class="icon" type="button" data-delmod="${m.id}" aria-label="删除模块">${ICON.trash}</button>` : ''}</header>
-      ${sp.ratio ? `<div class="speed" style="margin:8px 12px 0">「${esc(m.name)}」你平均每个用 <b>${fmtH(sp.avgA)}</b>（预计 ${fmtH(sp.avgP)}，做了 ${sp.n} 个）${Math.abs(sp.ratio - 1) > 0.15 && ts.some(i => !i.done) ? `<button class="primary sm" type="button" data-speed="${m.id}" data-ratio="${sp.ratio.toFixed(3)}">按我的速度调整剩下 ${ts.filter(i => !i.done).length} 个</button>` : ''}</div>` : (m.id && sp.n > 0 ? `<div class="hint" style="padding:6px 12px 0">再做完 ${3 - sp.n} 个并记录实际用时，就能按你的速度预计这个模块。</div>` : '')}
+      ${sp.ratio ? `<div class="speed" style="margin:8px 12px 0">「${esc(m.name)}」你平均每个用 <b>${fmtH(sp.avgA)}</b>（预计 ${fmtH(sp.avgP)}，做了 ${sp.n} 个）${speedPending(ts, sp.ratio).length ? `<button class="primary sm" type="button" data-speed="${m.id}" data-ratio="${sp.ratio.toFixed(3)}">按我的速度调整剩下 ${speedPending(ts, sp.ratio).length} 个</button>` : ''}</div>` : (m.id && sp.n > 0 ? `<div class="hint" style="padding:6px 12px 0">再做完 ${3 - sp.n} 个并记录实际用时，就能按你的速度预计这个模块。</div>` : '')}
       <div class="tasks">${ts.map(i => `<div class="trow ${i.done ? 'done' : ''}"><input class="check" type="checkbox" data-toggle="${i.id}" ${i.done ? 'checked' : ''} aria-label="完成 ${esc(i.title)}"><span class="t" data-edit="${i.id}">${esc(i.title)}</span><span class="h">${needsReest(i) ? `<button class="pill mid" type="button" data-progress="${i.id}">需重新估时</button>` : fmtH(i.done ? i.est : i.hours)}${i.done && i.actual != null ? ` → ${fmtH(i.actual)}` : ''}</span><button type="button" class="when ${i.date ? 'set' : ''} ${!i.done && i.date && i.date < t ? 'late' : ''}" data-pick="${i.id}">${i.date ? md(i.date) + ' ' + wdName(i.date) : '排期'}</button>${!i.done ? `<button class="icon" type="button" data-progress="${i.id}" aria-label="记录进度">${ICON.prog}</button><button class="icon" type="button" data-timer-item="${i.id}" aria-label="计时">${timerOn('item', i.id) ? ICON.stop : ICON.play}</button>` : ''}</div>`).join('')}</div>
       <form class="addrow" data-addtask="${m.id}"><input name="t" placeholder="新任务，例如：Reading 32 + 课后题" aria-label="任务名称"><input name="h" class="h" type="number" min="0" step="0.25" placeholder="小时" aria-label="预计小时"><button class="ghost sm" type="submit">添加</button><button class="link" type="button" data-bulk="${m.id}" style="font-size:12px">＋ 一次加多个</button></form>
     </div>`; }).join('');
@@ -1942,7 +2192,10 @@ function viewSettings(){
     <div class="card"><h3 style="margin:0">个性化</h3>
       <div class="setrow"><div>语言</div><span class="seg">${[['zh','中文'],['en','English']].map(([k,l]) => `<button type="button" data-setlang="${k}" aria-pressed="${LANG === k}">${l}</button>`).join('')}</span></div>
       <div class="setrow"><div>你的昵称</div><input class="inp" id="set-nick" style="width:160px" value="${esc(s.nick)}" placeholder="昵称"></div>
-      ${true ? `<div class="setrow"><div>名画</div></div><div class="artpicks artpick">${ARTS.map(([k,n,a]) => `<button type="button" data-setart="${k}" aria-pressed="${(s.art || 'study') === k}"><i></i><span>${n}</span><small>${a}</small></button>`).join('')}</div>` : `
+      <div class="setrow"><div>${L('外观', 'Appearance')}</div><span class="seg">${[['dark', L('深色', 'Dark')], ['light', L('浅色', 'Light')], ['auto', L('跟随系统', 'System')]].map(([k, l]) => `<button type="button" data-settheme="${k}" aria-pressed="${(s.theme || 'dark') === k}">${l}</button>`).join('')}</span></div>
+      <div class="setrow"><div>${L('风格', 'Style')}<small>${L('简约：纸和墨，大号数字，只用一种信号色', 'Minimal: paper and ink, big numerals, one signal colour')}</small></div><span class="seg">${[['art', L('名画', 'Paintings')], ['minimal', L('简约', 'Minimal')]].map(([k, l]) => `<button type="button" data-setlook="${k}" aria-pressed="${(s.look || 'art') === k}">${l}</button>`).join('')}</span></div>
+      ${s.look === 'minimal' ? `<div class="setrow"><div>${L('信号色', 'Signal colour')}<small>${L('简约风格里唯一的颜色', 'The one colour in the minimal style')}</small></div><span class="mzpick">${[['blue', L('克莱因蓝', 'Klein blue'), '#1F3BE0'], ['orange', L('信号橙', 'Signal orange'), '#E2541C'], ['green', L('墨绿', 'Ink green'), '#11704F'], ['rose', L('胭脂', 'Rouge'), '#C42A5A']].map(([k, n, c]) => `<button type="button" class="mzsw" data-setmz="${k}" aria-pressed="${(s.mzAcc || 'blue') === k}" title="${n}" aria-label="${n}" style="--sw:${c}"></button>`).join('')}</span></div>` : ''}
+      ${s.look !== 'minimal' ? `<div class="setrow"><div>名画</div></div><div class="artpicks artpick">${ARTS.map(([k,n,a]) => `<button type="button" data-setart="${k}" aria-pressed="${(s.art || 'study') === k}"><i></i><span>${n}</span><small>${a}</small></button>`).join('')}</div>` : ''}${true ? '' : `
       <div class="setrow"><div>配色方案</div></div>
       <div class="palettes">${PALETTES.map(([k,n,hx]) => `<button type="button" data-setpalette="${k}" aria-pressed="${(s.palette || 'classic') === k}"><span class="strip">${hx.map(c => `<i style="background:${c}"></i>`).join('')}</span><span>${n}</span></button>`).join('')}</div>
       <div class="setrow"><div>主题色</div><div class="swatches"><button type="button" data-setaccent="auto" aria-pressed="${s.accent === 'auto'}" title="跟随配色" aria-label="跟随配色" class="auto">A</button>${ACCENTS.map(([k,n,c]) => `<button type="button" data-setaccent="${k}" aria-pressed="${s.accent === k}" title="${n}" aria-label="${n}" style="background:${c}"></button>`).join('')}</div></div>
@@ -2057,10 +2310,11 @@ function artPlate(){
   const tp = $('.top'); tp.dataset.view = ui.go; tp.style.setProperty('--view-pos', VIEW_POS[ui.go] || 'center');
   const dv = derive(), t = today();
   const line = sum(dv.projects.map(p => quota(p.id, t))), done = sum(dv.projects.map(p => progOn(p.id, t)));
-  const pct = line > 1e-3 ? clamp(Math.round(done / line * 100), 0, 100) : (done > 0 ? 100 : 0);
+  const offA = isOff(t);
+  const pct = offA ? 100 : line > 1e-3 ? clamp(Math.round(done / line * 100), 0, 100) : (done > 0 ? 100 : 0);
   const k = settings().art || 'study', a = ARTS.find(x => x[0] === k) || ARTS[0];
-  const top = $('.top'); top.style.setProperty('--prog', pct + '%'); document.documentElement.style.setProperty('--art-pos', ART_POS[k] || 'center');
-  const el = $('#art-plate'); const html = `${esc(a[1])}${a[2] !== '原版' ? ' · ' + esc(a[2]) : ''}<b>${line > 1e-3 ? `今日揭开 ${pct}%` : '今日自由飞行'}</b>`;
+  const top = $('.top'); top.style.setProperty('--prog', pct + '%'); if (top.dataset.pct !== String(pct)) top.dataset.pct = String(pct); document.documentElement.style.setProperty('--art-pos', ART_POS[k] || 'center');
+  const el = $('#art-plate'); const html = `${esc(a[1])}${a[2] !== '原版' ? ' · ' + esc(a[2]) : ''}<b>${offA ? L('今天放假', 'Day off') : line > 1e-3 ? `今日揭开 ${pct}%` : '今日自由飞行'}</b>`;
   if (el._h !== html){ el.innerHTML = html; el._h = html; }
 }
 /* ================= quick-add natural language ================= */
@@ -2536,6 +2790,9 @@ function taskEnd(p, it, t = today()){
   const w = windowOf(p, t); let end = w ? w[1] : add(t, -1);
   const m = (p.modules || []).find(z => z.id === (it.module || ''));
   if (m && m.due){ const me = add(m.due, -1); if (me < end) end = me; }
+  // an exam or deadline inside the same module is that module's real finish line for the tasks planned before it
+  if (m){ const gate = derive().items.filter(x => (x.kind === 'exam' || x.kind === 'deadline') && !x.done && x.project === p.id && x.module === m.id && x.date && x.date >= t && (!it.date || x.date > it.date)).map(x => x.date).sort()[0];
+    if (gate){ const ge = add(gate, -1); if (ge < end) end = ge; } }
   return end;
 }
 function planReschedule(tasks){
@@ -2573,7 +2830,7 @@ function openReschedule(tasks){
   if (!tasks.length) return;
   openPlan(planReschedule(tasks), `重新安排 ${tasks.length} 件剩余任务`);
 }
-function openPlan(plan, title){
+function openPlan(plan, title, opts = {}){
   if (!plan.length){ toast('没有需要安排的任务'); return; }
   const G = [['ok','可以安排','在截止前完成，当天不超量'],['over','会超量','截止前每天都不够放，放到最空的那天，当天会超出'],['late','会晚于目标','截止前排不下，只能往后放'],['none','无法安排','先放回任务池，需要你决定：延期、砍掉或加时间']];
   const row = (x, k) => `<label class="row" style="cursor:pointer"><input type="checkbox" class="check" data-rs="${k}" checked><span class="t">${esc(x.it.title)}</span><span class="meta">${fmtH(x.h)}${x.it.hours > 1e-6 ? '' : '（未估时，按 30 分算）'}</span><span class="meta" style="min-width:110px;text-align:right">${x.date ? `${md(x.date)} ${wdName(x.date)}` : '任务池'}${x.note ? `<br><span style="color:var(--${x.status === 'ok' ? 'muted' : 'warn'})">${esc(x.note)}</span>` : ''}</span></label>`;
@@ -2581,8 +2838,10 @@ function openPlan(plan, title){
   const bad = plan.filter(x => x.status !== 'ok').length;
   openSheet(`<h2>${esc(title)}<button class="x" type="button" data-close aria-label="关闭">×</button></h2>
     <p class="hint" style="margin:0">${bad ? `${bad} 件需要你确认` : `全部 ${plan.length} 件都能按时完成`}</p>
+    ${opts.lead ? `<p class="plan-lead">${opts.lead}</p>` : ''}
     <div style="max-height:55vh;overflow:auto;margin-top:6px">${body}</div>
-    <div class="actions"><button class="ghost" type="button" data-close>取消</button><button class="primary" type="button" id="resched-ok">按勾选的安排</button></div>`, {wide:true});
+    <div class="actions">${opts.pool ? `<button class="ghost push" type="button" id="resched-pool">${L('全部先放回任务池', 'Put them all in the Inbox for now')}</button>` : ''}<button class="ghost" type="button" data-close>${opts.cancel || '取消'}</button><button class="primary" type="button" id="resched-ok">按勾选的安排</button></div>`, {wide:true});
+  const pb = $('#resched-pool'); pb && pb.addEventListener('click', () => { closeSheet(); commit(plan.map(({it}) => ({col:'items', id: it.id, data:{...S.items[it.id], date: null}})), L(`${plan.length} 件放回了任务池`, `${plan.length} moved to the Inbox`)); });
   $('#resched-ok').addEventListener('click', () => {
     const pick = plan.filter((x,k) => { const c = document.querySelector(`[data-rs="${k}"]`); return c && c.checked; });
     closeSheet();
@@ -3223,7 +3482,16 @@ function toast(msg, undoFn){
   if (undoFn) $('#toast-undo').onclick = () => { hideToast(); undoFn(); };
   clearTimeout(toastTimer); toastTimer = setTimeout(hideToast, undoFn ? 5000 : 2400);
 }
-function applyAccent(){ setLang(wantLang()); const s = settings(), b = document.body; { const a = s.art && s.art !== 'study' ? s.art : ''; if (a) document.documentElement.dataset.art = a; else delete document.documentElement.dataset.art; } const pal = s.palette && s.palette !== 'classic' ? s.palette : ''; if (pal) b.dataset.palette = pal; else delete b.dataset.palette; const a = s.accent || 'burgundy'; if (a === 'auto' && pal) delete b.dataset.accent; else b.dataset.accent = a === 'auto' ? 'burgundy' : a; }
+const darkMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+function applyLook(s = settings()){
+  const de = document.documentElement, mode = s.theme === 'light' ? 'light' : s.theme === 'auto' ? (darkMQ && darkMQ.matches ? 'dark' : 'light') : 'dark';
+  if (de.dataset.scheme !== mode) de.dataset.scheme = mode;
+  if (s.look === 'minimal'){ if (de.dataset.style !== 'minimal') de.dataset.style = 'minimal'; } else if (de.dataset.style) delete de.dataset.style;
+  const mz = s.mzAcc && s.mzAcc !== 'blue' ? s.mzAcc : ''; if (mz){ if (de.dataset.mz !== mz) de.dataset.mz = mz; } else if (de.dataset.mz) delete de.dataset.mz;
+  const mc = document.querySelector('meta[name="theme-color"]'); if (mc) mc.content = getComputedStyle(document.body).backgroundColor;
+}
+darkMQ && darkMQ.addEventListener && darkMQ.addEventListener('change', () => { if (settings().theme === 'auto') applyLook(); });
+function applyAccent(){ setLang(wantLang()); const s = settings(), b = document.body; applyLook(s); { const a = s.art && s.art !== 'study' ? s.art : ''; if (a) document.documentElement.dataset.art = a; else delete document.documentElement.dataset.art; } const pal = s.palette && s.palette !== 'classic' ? s.palette : ''; if (pal) b.dataset.palette = pal; else delete b.dataset.palette; const a = s.accent || 'burgundy'; if (a === 'auto' && pal) delete b.dataset.accent; else b.dataset.accent = a === 'auto' ? 'burgundy' : a; }
 
 /* ================= events ================= */
 let suppressClick = false;
@@ -3264,7 +3532,7 @@ document.addEventListener('click', e => {
   if ((el = c('[data-addmod]'))){ const pid = el.dataset.addmod; openSheet(`<h2>新模块<button class="x" type="button" data-close aria-label="关闭">×</button></h2><form id="mod-form" class="inline"><input class="inp" id="mod-name" placeholder="模块名，例如：Fixed Income" style="flex:1" autofocus><button class="primary" type="submit">添加</button></form>`); $('#mod-form').addEventListener('submit', ev => { ev.preventDefault(); const n = $('#mod-name').value.trim(); if (!n) return; const p = S.projects[pid]; closeSheet(); put('projects', pid, {...p, modules:[...(p.modules || []), {id: uid('m'), name: n}]}, `已添加模块「${n}」`); }); return; }
   if ((el = c('[data-renmod]'))){ const pid = ui.proj, mid = el.dataset.renmod; const p = S.projects[pid]; const m = (p.modules || []).find(x => x.id === mid); openSheet(`<h2>重命名模块<button class="x" type="button" data-close aria-label="关闭">×</button></h2><form id="mod-form" class="inline"><input class="inp" id="mod-name" value="${esc(m.name)}" style="flex:1" autofocus><button class="primary" type="submit">保存</button></form>`); $('#mod-form').addEventListener('submit', ev => { ev.preventDefault(); const n = $('#mod-name').value.trim(); if (!n) return; closeSheet(); put('projects', pid, {...p, modules: p.modules.map(x => x.id === mid ? {...x, name:n} : x)}, '已保存'); }); return; }
   if ((el = c('[data-delmod]'))){ const pid = ui.proj, mid = el.dataset.delmod; const p = S.projects[pid]; const ts = projTasks(pid).filter(i => i.module === mid); if (!el.classList.contains('arm')){ el.classList.add('arm'); el.style.color = 'var(--warn)'; el.title = `再点一次：删除模块和里面的 ${ts.length} 个任务`; toast(`再点一次删除这个模块和里面的 ${ts.length} 个任务`); return; } commit([{col:'projects', id:pid, data:{...p, modules: p.modules.filter(x => x.id !== mid)}}, ...ts.map(i => ({col:'items', id:i.id, data:null}))], '已删除模块'); return; }
-  if ((el = c('[data-speed]'))){ const pid = ui.proj, mid = el.dataset.speed, ratio = Number(el.dataset.ratio); const ts = projTasks(pid).filter(i => i.module === mid && !i.done); commit(ts.map(i => { const h = Math.max(0.25, Math.round(i.hours*ratio*4)/4); const untouched = !i.log || !Object.keys(i.log).length; return {col:'items', id:i.id, data:{...S.items[i.id], hours: h, est: untouched ? h : i.est}}; }), `剩下 ${ts.length} 个任务已按你的实际速度调整`); return; }
+  if ((el = c('[data-speed]'))){ const pid = ui.proj, mid = el.dataset.speed, ratio = spdClamp(el.dataset.ratio); const ts = speedPending(projTasks(pid).filter(i => i.module === mid && !i.done), ratio); if (!ts.length){ toast(L('已经按你的速度调整过了', 'Already adjusted to your pace')); return; } commit(ts.map(i => { const raw = S.items[i.id], f = ratio / spdClamp(raw.spd || 1); const h = Math.max(0.25, Math.round(i.hours * f * 4) / 4); const untouched = !i.log || !Object.keys(i.log).length; return {col:'items', id:i.id, data:{...raw, hours: h, est: untouched ? h : i.est, est0: raw.est0 != null ? raw.est0 : i.est, spd: ratio}}; }), `剩下 ${ts.length} 个任务已按你的实际速度调整`); return; }
   if ((el = c('[data-pace]'))){ ui.pace = Number(el.dataset.pace); render(); return; }
   if ((el = c('[data-lf]'))){ ui.list.f = el.dataset.lf; render(); return; }
   if ((el = c('[data-sp]'))){ ui.stats.period = el.dataset.sp; ui.stats.off = 0; render(); return; }
@@ -3272,6 +3540,9 @@ document.addEventListener('click', e => {
   if ((el = c('[data-export]'))){ exportData(el.dataset.export); return; }
   if ((el = c('[data-setaccent]'))){ saveSettings({accent: el.dataset.setaccent}); return; }
   if ((el = c('[data-setlang]'))){ saveSettings({lang: el.dataset.setlang}); return; }
+  if ((el = c('[data-settheme]'))){ saveSettings({theme: el.dataset.settheme}); return; }
+  if ((el = c('[data-setlook]'))){ saveSettings({look: el.dataset.setlook}); return; }
+  if ((el = c('[data-setmz]'))){ saveSettings({mzAcc: el.dataset.setmz}); return; }
   if ((el = c('[data-setart]'))){ const k = el.dataset.setart, n = (ARTS.find(x => x[0] === k) || [])[1]; saveSettings({art: k}, n ? `已换成「${n}」` : ''); return; }
   if ((el = c('[data-setpalette]'))){ const k = el.dataset.setpalette; saveSettings({palette: k, accent: k === 'classic' ? 'burgundy' : 'auto'}); return; }
   if ((el = c('[data-capq]'))){
@@ -3303,6 +3574,9 @@ document.addEventListener('click', e => {
     else if (a === 'demo-load'){ closeSheet(); demoLoad(); }
     else if (a === 'demo-clear') demoClear();
     else if (a === 'help') openHelp();
+    else if (a === 'off') openOff();
+    else if (a === 'off-back') offBack();
+    else if (a === 'off-move'){ const t0 = today(); openReschedule(itemsOn(t0).filter(i => i.kind === 'task' && !i.done)); }
     else if (a === 'backproj'){ ui.proj = null; render(); }
     else if (a === 'expand'){ ui.expand = !ui.expand; saveUi(); render(); }
     else if (a === 'pin') saveSettings({pinned: !settings().pinned});
