@@ -1199,7 +1199,8 @@ const trObserver = new MutationObserver(muts => {
   }
 });
 trObserver.observe(document.documentElement, {subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: TR_ATTRS});
-function wantLang(){ const s = (S.settings.main || {}); return s.lang || (SHARE && !/^zh/i.test(navigator.language || '') ? 'en' : 'zh'); }
+const DEFAULT_LANG = null;   // the /en/ page of the shared site sets this to 'en'
+function wantLang(){ const s = (S.settings.main || {}); return s.lang || DEFAULT_LANG || (SHARE && !/^zh/i.test(navigator.language || '') ? 'en' : 'zh'); }
 function setLang(l){
   if (l === LANG) return;
   LANG = l;
