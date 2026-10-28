@@ -3769,6 +3769,7 @@ let lastDay = today();
 setInterval(() => { if (today() !== lastDay){ lastDay = today(); ver++; render(); } }, 60000);
 
 render();
-initStore();
+// ?demo opens with the example projects when this browser has none of its own
+initStore().then(() => { if (/[?&]demo\b/.test(location.search) && S.backend === 'local' && !Object.keys(S.projects).length) demoLoad(); });
 })();
 </script>
