@@ -31,6 +31,43 @@
 
 来源：[GoodPlans 2.0](https://www.producthunt.com/p/goodplans/goodplans-2-0)、[Why most study planners fail](https://dev.to/cryptic_melancholy/why-most-study-planners-fail-a-student-led-experiment-on-real-behavior-3h7i)、[Planner usage at Uni](https://gargoyle.uni.illinois.edu/2048/uncategorized/planner-usage-at-uni)、[homework planner](https://thinkassist-nextapp.pages.dev/blog/homework-planner)。这些多是个人观察或产品宣传，样本都很小。
 
+## 工作台型产品（2026-11-04 补充）
+
+这一类不是开源项目，而是把待办、项目、日历、时间记录放进同一个界面的商业 app。
+
+### 3x3
+
+独立开发者 KIDSTYO 做的 iOS 和 Mac app，[App Store](https://apps.apple.com/us/app/id1603963061?l=en-us) 67 个评分，4.8 分，免费加 Pro 订阅。作者在[少数派](https://sspai.com/post/75386)介绍过设计思路。
+
+- **三样东西互相链接。** 时间线记录每天实际干了什么、花了多久；待办分日、周、月、年、人生五层，下层挂到上层；标签串起所有东西。三者双向链接，点一个能跳到相关的所有记录。
+- **出发点是回看。** 作者觉得清单类 app "用完即走"，做完就没了。他想知道每件事花了多久、事情之间怎么连起来、大目标是怎么一步步完成的。思路来自柳比歇夫时间统计法和双链笔记。
+- **报表。** 日、周、月、年报表展示时间分布和目标进度。
+- **最大的问题是上手难。** 作者自己承认引导很差、新用户容易卸载。App Store 的差评也集中在"看不懂、教程得跳出 app 去读"。
+
+### 其他同类
+
+| 产品 | 核心做法 | 和 Runway 重叠的地方 |
+| --- | --- | --- |
+| Sunsama | 每天早上的计划仪式和晚上的收工仪式；计划超过平时的工作量会提醒 | Runway 的"可投入、已投入、还可安排" |
+| Motion | AI 自动把任务排进日历空档，项目按截止日倒排 | 最接近 Runway 的倒推，但它排到小时，Runway 只排到天 |
+| Akiflow | 把各处的任务收进一个收件箱，再手动拖进时间块 | Runway 的任务池 |
+| Morgen | 多个日历合并，AI 帮排 | Runway 读 Google 日历 |
+| Structured、Tiimo | 时间轴优先，把时间画出来，专为 ADHD 的"时间盲"设计 | Runway 的时间线和浮窗整块计时 |
+| Lunatask | 一次只看一个生活领域；按紧急、费力、是否已开始排优先级 | 浮窗的考前模式 |
+| 点滴时间、奇特的一生 | 柳比歇夫式时间记录和统计 | 3x3 的时间线那一半 |
+
+来源：[Motion、Akiflow、Sunsama 对比](https://dev.to/pickuma/motion-vs-akiflow-vs-sunsama-ai-calendar-planners-compared-in-2026-525h)、[Sunsama vs Akiflow](https://blog.saner.ai/sunsama-vs-akiflow)、[ADHD 任务 app 2026](https://super-productivity.com/blog/best-adhd-task-management-apps-2026/)、[Tiimo vs Structured](https://www.usecarly.com/blog/tiimo-vs-structured/)、[少数派时间记录文章](https://sspai.com/post/94606)。多数对比文章是厂商或带货博客，只能看定性结论。
+
+### 对照 Runway
+
+Runway 其实已经是一个工作台：任务池像 Akiflow，倒推像 Motion，负荷提醒像 Sunsama，时间线和整块计时像 Structured。它缺的和多余的都很清楚：
+
+- **缺"计划 vs 实际"的回看。** Runway 记了预估和实际时长，但没有像 3x3 那样一条时间线把"计划做什么、实际做了什么、挂在哪个目标下"连起来看。对备考来说，这就是"这周 FSA 计划 10 小时，实际 6 小时，错题集中在哪一章"。
+- **缺收工仪式。** Sunsama 每天结束时逼你处理没做完的事。Runway 浮窗有"多出来的挪到明天"，但主界面没有一个固定的收工流程。
+- **层级够用，不要再加。** 3x3 的日周月年人生五层是为"记录一生"设计的。备考只需要三层：考试、科目、今天这一块。Runway 的项目、模块、任务正好对应。
+- **不要变成全能 app。** 3x3 往阅读、影音、日记扩展，Lunatask 往习惯、心情扩展。Runway 的定位应该是"考试工作台"，只做备考相关的事。
+- **3x3 的教训和 Runway 一样。** 两者都是功能多、概念自创、上手难。Runway 的"航速、落地、PAPI 灯"和 3x3 的"三层链接"是同一种问题：作者自己懂，新人看不懂。
+
 ## 对 Runway 的取舍
 
 **保留并加强（别人没有的）**
@@ -42,13 +79,15 @@
 
 3. 错题和薄弱点闭环：模考后按科目记错题，用 ts-fsrs 排复习日，复习任务自动进当天计划。
 4. 按考试权重和模考得分分配复习时间：CFA 各科权重不同，得分低、权重高的科目自动多分时间。
+5. 计划 vs 实际的回看：按科目对比计划时长、实际时长和错题，借 3x3 的时间线思路。
+6. 每天的收工仪式：没做完的逐个决定挪到明天、退回任务池还是砍掉，借 Sunsama。
 
 **不自己造（交给成熟工具或砍掉）**
 
-5. 通用日历、看板、时间块拖拽：已有成熟实现，Runway 只保留能服务于倒推和当天执行的那部分。
-6. 名画、多套配色、翻页书等装饰：不服务于备考。
+7. 通用日历、看板、时间块拖拽：已有成熟实现，Runway 只保留能服务于倒推和当天执行的那部分。
+8. 名画、多套配色、翻页书等装饰：不服务于备考。
 
 **架构**
 
-7. 本地优先：数据存在本机（IndexedDB 或文件），不依赖 claude.ai 登录。
-8. 给 Claude 开一个 MCP 接口：像 open-sunsama 一样，让 Claude 能直接读计划、改计划，而不是靠重写整个页面。
+9. 本地优先：数据存在本机（IndexedDB 或文件），不依赖 claude.ai 登录。
+10. 给 Claude 开一个 MCP 接口：像 open-sunsama 一样，让 Claude 能直接读计划、改计划，而不是靠重写整个页面。
