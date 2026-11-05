@@ -32,21 +32,29 @@ export interface RibbonOpts {
   big?: boolean;
 }
 
-export function ribbon(o: RibbonOpts) {
-  const ax = o.axis;
-  const timed = o.sessions.filter(s => hm(s.start) != null).sort((x, y) => hm(x.start)! - hm(y.start)!);
-  // untimed work is only placed roughly, so it never overlaps: each such block starts where the previous one ends
+/**
+ * Where each session with a clock time goes, in minutes after midnight.
+ * Untimed (estimated) work is only placed roughly, so it never overlaps: each such block starts where the
+ * previous one ends; and finished work can't sit in the future, so they are walked back to end by now.
+ */
+export function place(sessions: Session[], nowMin?: number) {
+  const timed = sessions.filter(s => hm(s.start) != null).sort((x, y) => hm(x.start)! - hm(y.start)!);
   let lastEnd = -1;
   const placed = timed.map(s => { let a = hm(s.start)!; if (s.estimated && a < lastEnd) a = lastEnd; lastEnd = Math.max(lastEnd, a + s.mins); return { s, a }; });
-  // finished work can't sit in the future: walk back from now so estimated blocks end by the now line
-  if (o.nowMin != null) {
-    let limit = o.nowMin;
+  if (nowMin != null) {
+    let limit = nowMin;
     for (let i = placed.length - 1; i >= 0; i--) {
       const p = placed[i];
       if (p.a + p.s.mins > limit) { if (!p.s.estimated) break; p.a = limit - p.s.mins; }
       limit = Math.min(limit, p.a);
     }
   }
+  return placed;
+}
+
+export function ribbon(o: RibbonOpts) {
+  const ax = o.axis;
+  const placed = place(o.sessions, o.nowMin);
   const blocks = placed.map(({ s, a }) => {
     const l = pct(ax, a), w = Math.max(0.5, pct(ax, a + s.mins) - l);
     const t = o.titleOf(s), label = `${t} · ${hhmm(a)} 起 ${fmtH(s.mins / 60)}${s.estimated ? '（没计时，按预计算）' : ''}`;
@@ -86,4 +94,44 @@ export function projectRunway(invested: number, remaining: number, color: string
   if (total < 0.01) return '';
   const p = Math.min(100, invested / total * 100);
   return `<div class="prun" style="--c:${esc(color)};--p:${p.toFixed(1)}%" role="img" aria-label="已投入 ${fmtH(invested)}，还剩约 ${fmtH(remaining)}"><i></i></div>`;
+}
+
+export interface TableOpts {
+  sessions: Session[];
+  planned?: Item[];
+  axis: Axis;
+  colorOf: (pid: string) => string;
+  titleOf: (s: Session) => string;
+  nowMin?: number;
+  live?: { startMin: number; nowMin: number; color: string; title: string } | null;
+  fresh?: string;
+}
+
+/**
+ * The Korean study-planner timetable: one row per hour, six 10-minute cells, time highlighted along the rows
+ * like a marker in the project's colour. Same placement rules as the ribbon.
+ */
+export function timetable(o: TableOpts) {
+  const from = Math.floor(Math.min(o.axis.from, 6 * 60) / 60), to = Math.ceil(o.axis.to / 60);
+  type Span = { a: number; b: number; cls: string; c: string; label: string };
+  const spans: Span[] = place(o.sessions, o.nowMin).map(({ s, a }) => ({
+    a, b: a + s.mins, cls: (s.estimated ? 'est' : '') + (s.id === o.fresh ? ' fresh' : ''), c: o.colorOf(s.project),
+    label: `${o.titleOf(s)} · ${hhmm(a)} 起 ${fmtH(s.mins / 60)}${s.estimated ? '（没计时，按预计算）' : ''}`,
+  }));
+  if (o.live) spans.push({ a: o.live.startMin, b: Math.max(o.live.startMin + 1, o.live.nowMin), cls: 'live', c: o.live.color, label: `${o.live.title} · 正在计时` });
+  const plans = (o.planned || []).filter(p => hm(p.time) != null).map(p => {
+    const a = hm(p.time)!; return { a, b: hm(p.end) ?? a + Math.max(0.25, p.hours || p.est || 1) * 60, label: `计划：${p.title} · ${p.time}${p.end ? '–' + p.end : ''}` };
+  });
+  const rows: string[] = [];
+  for (let h = from; h < to; h++) {
+    const rs = h * 60, re = rs + 60;
+    const cut = (a: number, b: number) => { const x = Math.max(a, rs), y = Math.min(b, re); return y > x ? [(x - rs) / 60 * 100, (y - x) / 60 * 100] : null; };
+    let cells = '';
+    for (const p of plans) { const c = cut(p.a, p.b); if (c) cells += `<i class="tt-plan" style="left:${c[0]}%;width:${c[1]}%" title="${esc(p.label)}"></i>`; }
+    for (const sp of spans) { const c = cut(sp.a, sp.b); if (c) cells += `<i class="tt-ink ${sp.cls}" style="left:${c[0]}%;width:${c[1]}%;--c:${esc(sp.c)}" title="${esc(sp.label)}"></i>`; }
+    const nowHere = o.nowMin != null && o.nowMin >= rs && o.nowMin < re;
+    if (nowHere) cells += `<i class="tt-now" style="left:${(o.nowMin! - rs) / 60 * 100}%" title="现在 ${hhmm(o.nowMin!)}"></i>`;
+    rows.push(`<div class="tt-row${nowHere ? ' is-now' : ''}"><span class="tt-h mono">${h % 24 || (h === 24 ? 24 : 0)}</span><div class="tt-cells">${cells}</div></div>`);
+  }
+  return `<div class="tt" role="img" aria-label="今天的 10 分钟时间表"><div class="tt-row tt-head mono" aria-hidden="true"><span></span><div class="tt-ticks"><span>10</span><span>20</span><span>30</span><span>40</span><span>50</span><span>60</span></div></div>${rows.join('')}</div>`;
 }

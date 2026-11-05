@@ -2,11 +2,12 @@
 import { cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Engine, Item, Session, Store } from '../engine/src';
 import { seed } from './seed';
-import { axisFor, projectRunway, ribbon, ruler, untimed } from './ribbon';
+import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
 import { startBridge } from './bridge';
 
 const WD = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const WD_EN = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const dayL = (d: string) => `${cnd(d)} ${WD[monIdx(d)]}`;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
@@ -125,9 +126,7 @@ function chime() {
 }
 
 /* ---------- views ---------- */
-function header(eng: Engine) {
-  const t = T();
-  const exam = eng.derive().items.filter(i => i.kind === 'exam' && i.date && i.date >= t && !i.done).sort((a, b) => a.date!.localeCompare(b.date!))[0];
+function header() {
   const saved = S.mode === 'live' ? '已保存' : S.mode === 'memory' ? '没有保存' : S.mode === 'loading' ? '读取中' : '保存出了问题';
   return `<header class="bar">
     <div class="brand">Runway</div>
@@ -136,7 +135,6 @@ function header(eng: Engine) {
       <button type="button" data-act="layer" data-layer="本周">本周</button>
       <button type="button" aria-current="page">今天</button>
     </nav>
-    ${exam ? `<div class="exam"><span>${esc(exam.title.replace(/(考试|当天)$/, ''))}还有</span><b class="mono">${diff(t, exam.date!)}</b><span>天</span></div>` : '<div class="exam"></div>'}
     <button class="savestate ${S.mode}" type="button" data-act="data"><i></i>${saved}</button>
   </header>
   ${S.problem ? `<p class="problem" role="alert">${esc(S.problem)}<button type="button" data-act="dismiss">知道了</button></p>` : ''}
@@ -151,42 +149,64 @@ function legend(eng: Engine, list: Session[]) {
     `<li><i style="background:${esc(colorOf(eng, pid))}"></i>${esc(nameOf(eng, pid))}<span class="mono">${fmtH(m / 60)}</span></li>`).join('')}</ul>`;
 }
 
-/** The hero: today's date, three numbers, and the whole day as one runway. */
-function hero(eng: Engine) {
+const hoursUpper = (h: number) => fmtH(h).toUpperCase();
+/** "CFA Level 1" → "CFA", "643 Economics…" → "643", "求职2027NG" → "求职". */
+const shortName = (name: string) => (name.match(/^([A-Za-z]+|\d+|[一-鿿]{1,4})/) || [name.slice(0, 4)])[0];
+
+/** Today as one page of a Korean study planner: header, comment, now, tasks on the left; the 10-minute timetable on the right. */
+function page(eng: Engine) {
   const t = T(), d = parse(t);
-  const items = eng.itemsOn(t);
-  const tasks = items.filter(i => i.kind === 'task');
-  const placed = sum(tasks.map(i => i.done ? i.est : i.hours));
-  const done = sum(tasks.filter(i => i.done).map(i => i.est));
-  const cap = eng.capOf(t), over = placed - cap;
+  const dv = eng.derive(), items = eng.itemsOn(t);
   const sessions = sessionsOn(sessionsWithLogs(view()), t);
   const invested = sum(sessions.map(x => x.mins)) / 60;
+  const exam = dv.items.filter(i => i.kind === 'exam' && i.date && i.date >= t && !i.done).sort((a, b) => a.date!.localeCompare(b.date!))[0];
+  const tasks = items.filter(i => i.kind === 'task');
+  const placed = sum(tasks.map(i => i.done ? i.est : i.hours)), cap = eng.capOf(t);
   const planned = items.filter(i => !i.done && i.time && (i.kind === 'task' || i.kind === 'event'));
   const now = nowMin();
   const tm = ui.timer, startMin = tm ? new Date(tm.startAt).getHours() * 60 + new Date(tm.startAt).getMinutes() : 0;
   const ax = axisFor(sessions, planned, [now, ...(tm ? [startMin] : [])]);
   const live = tm && raw(tm.id) ? { startMin, nowMin: now, color: colorOf(eng, raw(tm.id).project || ''), title: raw(tm.id).title } : null;
-  const anyEst = sessions.some(x => x.estimated);
-  return `<section class="hero" aria-label="今天的跑道">
-    <div class="hero-top">
-      <h1 class="hero-date"><span class="num">${d.getMonth() + 1}</span><small>月</small><span class="num">${d.getDate()}</span><small>日</small><em>${WD[monIdx(t)]}</em></h1>
-      <dl class="hero-stats">
-        <div><dt>投入</dt><dd class="mono">${fmtH(invested)}</dd></div>
-        <div><dt>做完</dt><dd class="mono">${fmtH(done)}</dd></div>
-        <div><dt>排了</dt><dd class="mono">${fmtH(placed)}</dd></div>
-      </dl>
+  const note = String(S.data.notes[t]?.text || '').split('\n')[0];
+  const order = pickOrder(eng, now);
+  const cur = order.length ? (ui.timer ? order.find(i => i.id === ui.timer!.id) || order[0] : order[ui.skip % order.length]) : null;
+  const next = order.filter(i => i !== cur).slice(0, 2);
+  // tasks grouped by subject, as in a paper planner
+  const groups = new Map<string, Item[]>();
+  for (const it of [...tasks].sort((a, b) => Number(a.done) - Number(b.done))) { const k = it.project || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k)!.push(it); }
+  const logged = (it: Item) => Object.keys(it.log || {}).some(k => k === t) || sessions.some(x => x.item === it.id && !x.estimated);
+  return `<section class="page" aria-label="今天这一页">
+    <div class="pg-main">
+      <header class="pg-head">
+        <div class="pg-date"><span class="kick">${d.getFullYear()} · ${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getDate()).padStart(2, '0')} · ${WD[monIdx(t)]}</span><h1>${WD_EN[monIdx(t)]}</h1></div>
+        <div class="pg-nums">
+          ${exam ? `<div><span class="kick">D-DAY · ${esc(shortName(exam.title))}</span><b class="hand">D-${diff(t, exam.date!)}</b></div>` : ''}
+          <div><span class="kick">TOTAL TIME</span><b class="hand signal">${hoursUpper(invested)}</b></div>
+        </div>
+      </header>
+      <label class="pg-comment"><span class="kick">COMMENT</span><input id="comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
+      ${nowCard(eng, order)}
+      ${next.length ? `<section class="block"><h3 class="kick">NEXT</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
+      <section class="block tasks">
+        <div class="tasks-hd"><h3 class="kick">TASKS</h3><span class="soft">排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}</span></div>
+        ${groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
+          <span class="tg-sub" style="--c:${esc(colorOf(eng, pid))}">${esc(pid ? shortName(nameOf(eng, pid)) : '生活')}</span>
+          <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}">
+            <span class="tl-t">${esc(it.title)}</span>
+            <span class="tl-m mono">${it.time ? it.time : fmtH(it.hours || it.est)}</span>
+            <button class="mark${it.done ? ' o' : logged(it) ? ' tri' : ''}" type="button" data-act="done" data-id="${it.id}" aria-label="${it.done ? '标成没做完' : '标成做完'}：${esc(it.title)}">${it.done ? 'O' : logged(it) ? '△' : ''}</button>
+            ${!it.done ? `<button class="mini ghost" type="button" data-act="back" data-id="${it.id}" aria-label="放回项目：${esc(it.title)}">放回</button>` : '<span></span>'}
+          </li>`).join('')}</ul>
+        </div>`).join('') : `<p class="soft">今天还没排事。从右边的项目里放一件进来。</p>`}
+      </section>
     </div>
-    <div class="hero-run">
-      ${ruler(ax)}
-      ${ribbon({ sessions, planned, axis: ax, colorOf: pid => colorOf(eng, pid), titleOf: x => titleOf(eng, x), nowMin: now, live, fresh: ui.justPlanted, big: true })}
-    </div>
-    <div class="hero-foot">
+    <aside class="pg-side" aria-label="时间表">
+      <h3 class="kick">TIME TABLE</h3>
+      ${timetable({ sessions, planned, axis: ax, colorOf: pid => colorOf(eng, pid), titleOf: x => titleOf(eng, x), nowMin: now, live, fresh: ui.justPlanted })}
       ${legend(eng, sessions)}
       ${untimed(sessions, pid => colorOf(eng, pid), pid => nameOf(eng, pid))}
-    </div>
-    ${!sessions.length && !planned.length ? `<p class="soft hero-note">开始第一段专注，今天的跑道就从这里铺起来。几分钟也算。</p>` : ''}
-    ${anyEst ? `<p class="soft hero-note">斜纹的是做完了但没计时的事，按预计时长画在排的时段上。虚线框是还没到点的计划。</p>` : planned.length ? `<p class="soft hero-note">虚线框是还没到点的计划，做完的会变成实心。</p>` : ''}
-    ${over > 0.01 ? `<p class="soft hero-note">今天排的比可用的 ${fmtH(cap)} 多 ${fmtH(over)}，可以把一两件放回项目。</p>` : ''}
+      ${sessions.some(x => x.estimated) ? `<p class="soft tiny">斜纹是做完了但没计时的，按排的时段大致画上。</p>` : ''}
+    </aside>
   </section>`;
 }
 
@@ -195,7 +215,7 @@ function weekRuns(eng: Engine) {
   const total = sum(days.map(d => d.hours));
   const ax = axisFor(days.flatMap(d => d.sessions));
   return `<section class="block week" aria-label="最近七天">
-    <div class="grove-hd"><h3>最近七天</h3><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
+    <div class="grove-hd"><h3 class="kick">WEEKLY · 最近七天</h3><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
     <div class="wk">
       <div class="wk-row wk-head"><span></span>${ruler(ax)}<span></span><span></span></div>
       ${days.map(d => `<div class="wk-row${d.date === t ? ' is-today' : ''}">
@@ -249,19 +269,7 @@ function row(eng: Engine, it: Item, opts: { check?: boolean; back?: boolean } = 
 }
 
 function today(eng: Engine) {
-  const order = pickOrder(eng, nowMin());
-  const cur = order.length ? (ui.timer ? order.find(i => i.id === ui.timer!.id) || order[0] : order[ui.skip % order.length]) : null;
-  const next = order.filter(i => i !== cur).slice(0, 2);
-  const all = eng.itemsOn(T());
-  return `<main class="today">
-    ${nowCard(eng, order)}
-    ${next.length ? `<section class="block"><h3>接下来</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
-    <section class="block">
-      <button class="fold" type="button" data-act="all" aria-expanded="${ui.showAll}"><h3>今天全部</h3><span class="mono">${all.length}</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg></button>
-      ${ui.showAll ? `<ul class="rows">${all.map(i => row(eng, i, { check: true, back: true })).join('')}</ul>` : ''}
-    </section>
-    ${weekRuns(eng)}
-  </main>`;
+  return `<main class="today">${page(eng)}${weekRuns(eng)}</main>`;
 }
 
 function quickView(eng: Engine) {
@@ -378,17 +386,17 @@ function toastView() {
 
 function render() {
   const active = document.activeElement as HTMLElement | null;
-  const typing = active?.id === 'quick-input';
+  const typing = active?.id === 'quick-input' || active?.id === 'comment';
   const caret = typing ? (active as HTMLInputElement).selectionStart : null;
   const eng = createEngine(view(), T());
   const y = window.scrollY;
   const dScroll = (root.querySelector('.groups') as HTMLElement | null)?.scrollTop ?? 0;
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
-  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `${hero(eng)}<div class="cols">${today(eng)}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header(eng)}${body}${pickerView(eng)}${dataSheet()}${toastView()}`;
+  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${today(eng)}${drawerView(eng)}</div>`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
-  if (typing) { const q = document.getElementById('quick-input') as HTMLInputElement | null; if (q) { q.focus(); if (caret != null) q.setSelectionRange(caret, caret); } }
+  if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); if (caret != null) q.setSelectionRange(caret, caret); } }
   tick();
   ui.justPlanted = '';
 }
@@ -480,7 +488,11 @@ root.addEventListener('click', e => {
   }
   render();
 });
-root.addEventListener('change', e => { const t = e.target as HTMLInputElement; if (t.dataset.act === 'file') readFile(t); });
+root.addEventListener('change', e => {
+  const t = e.target as HTMLInputElement;
+  if (t.dataset.act === 'file') readFile(t);
+  if (t.id === 'comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
+});
 root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
 root.addEventListener('submit', e => { e.preventDefault(); if ((e.target as HTMLElement).dataset.form === 'quick') { addQuick(createEngine(view(), T()), false); render(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; } render(); } });
