@@ -1,5 +1,5 @@
-// Runway Float: a frosted-glass, always-on-top window for today's Runway.
-// The glass UI is native SwiftUI. Data is the real Runway: a hidden web view keeps
+// Runway Float: an always-on-top memo pad for today's Runway, folding up to one strip like Stickies.
+// The pad is native SwiftUI. Data is the real Runway: a hidden web view keeps
 // the Runway page open (signed in to claude.ai once) and talks to it over a bridge.
 import SwiftUI
 import AppKit
@@ -16,7 +16,6 @@ func blockMin(_ i: Int) -> Int { i % 2 == 0 ? A_MIN[min(i / 2, A_MIN.count - 1)]
 func isA(_ i: Int) -> Bool { i % 2 == 0 }
 func fmt(_ sec: Int) -> String { let a = abs(sec); return (sec < 0 ? "+" : "") + String(format: "%02d:%02d", a / 60, a % 60) }
 
-let warnC   = Color(red: 0.77, green: 0.28, blue: 0.12)
 
 // MARK: - What the page sends
 struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: String; let done: Bool }
@@ -40,6 +39,9 @@ final class Model: ObservableObject {
     @Published var st: RState?
     @Published var now = Date()
     @Published var waiting = true          // nothing heard from the page yet
+    @Published var collapsed = false
+    var onCollapse: ((Bool) -> Void)?
+    func toggleCollapse() { collapsed.toggle(); onCollapse?(collapsed) }
     var send: (([String: Any]) -> Void)?
     var showWeb: (() -> Void)?
     private var lastEnds: Double? = nil
@@ -82,6 +84,11 @@ final class Model: ObservableObject {
         let wd = ["日", "一", "二", "三", "四", "五", "六"][((c.weekday ?? 1) - 1) % 7]
         return "\(c.month ?? 0) 月 \(c.day ?? 0) 日 · 周\(wd)"
     }
+    var dateShort: String {
+        let c = Calendar.current.dateComponents([.month, .day, .weekday], from: now)
+        let wd = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][((c.weekday ?? 1) - 1) % 7]
+        return String(format: "%02d.%02d ", c.month ?? 0, c.day ?? 0) + wd
+    }
     var whatTitle: String {
         if isA(idx) { return open.first?.title ?? "先在下面加一件今天的事" }
         let b = st?.b ?? []
@@ -93,7 +100,7 @@ final class Model: ObservableObject {
     }
 }
 
-// MARK: - Glass and small pieces (old Runway "简约" edition: paper, ink, one signal colour)
+// MARK: - Paper (Runway's Analogue Keeper memo pad: butter paper, a darker band, tone-on-tone lines, Klein-blue pen)
 extension Color {
     init(hex: String) {
         var h = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
@@ -104,79 +111,59 @@ extension Color {
     }
 }
 
-struct Glass: NSViewRepresentable {
-    var dark: Bool
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let v = NSVisualEffectView()
-        v.blendingMode = .behindWindow
-        v.state = .active
-        v.wantsLayer = true
-        v.layer?.cornerRadius = 22
-        v.layer?.cornerCurve = .continuous
-        v.layer?.masksToBounds = true
-        apply(v)
-        return v
-    }
-    func updateNSView(_ v: NSVisualEffectView, context: Context) { apply(v) }
-    func apply(_ v: NSVisualEffectView) {
-        v.material = dark ? .hudWindow : .popover
-        v.appearance = NSAppearance(named: dark ? .vibrantDark : .vibrantLight)
-    }
+let BAND_H: CGFloat = 38
+
+struct Paper {
+    let dark: Bool
+    var paper: Color { Color(hex: dark ? "#24231A" : "#F4F0D6") }
+    var band: Color { Color(hex: dark ? "#2E2C1F" : "#E9E2B6") }
+    var line: Color { Color(hex: dark ? "#3A3726" : "#DED6A6") }
+    var ink: Color { Color(hex: dark ? "#ECEDEA" : "#2A2D2E") }
+    var muted: Color { Color(hex: dark ? "#9DA2A0" : "#73787A") }
+    var sig: Color { Color(hex: dark ? "#8A98FF" : "#1F3BE0") }
+    var onSig: Color { Color(hex: dark ? "#0E1020" : "#FFFFFF") }
+    var field: Color { dark ? Color.black.opacity(0.28) : Color.white.opacity(0.55) }
 }
+
+// Jost is drawn after Futura, which every Mac has; Gaegu's hand-drawn O becomes Chalkboard.
+func label(_ s: CGFloat) -> Font { .custom("Futura-Medium", size: s) }
+func display(_ s: CGFloat) -> Font { .custom("Futura-Bold", size: s) }
+func hand(_ s: CGFloat) -> Font { .custom("ChalkboardSE-Bold", size: s) }
+func mono(_ s: CGFloat, _ w: Font.Weight = .medium) -> Font { .system(size: s, weight: w, design: .monospaced) }
 
 final class DragView: NSView {
-    override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+    var onDouble: (() -> Void)?
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 { onDouble?() } else { window?.performDrag(with: event) }
+    }
 }
 struct DragHandle: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { DragView() }
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    var onDouble: (() -> Void)? = nil
+    func makeNSView(context: Context) -> NSView { let v = DragView(); v.onDouble = onDouble; return v }
+    func updateNSView(_ nsView: NSView, context: Context) { (nsView as? DragView)?.onDouble = onDouble }
 }
 
-// a paper card on the glass, with the old 3pt colour stripe on the left
-struct CardBG: ViewModifier {
-    @Environment(\.colorScheme) var cs
-    var stripe: Color? = nil
-    func body(content: Content) -> some View {
-        content
-            .padding(12)
-            .padding(.leading, stripe == nil ? 0 : 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).fill(cs == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.62))
-                    if let s = stripe { Rectangle().fill(s).frame(width: 3) }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            )
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(cs == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.08), lineWidth: 1))
-    }
-}
-
-// mono label, like the old eyebrows and stat captions
-struct Mono: View {
+// a small lowercase label, like the pad labels on the page
+struct Kick: View {
     var text: String
-    var size: CGFloat = 10
-    var body: some View {
-        Text(text).font(.system(size: size, weight: .medium, design: .monospaced)).tracking(0.8).foregroundColor(.secondary)
-    }
+    var color: Color
+    var body: some View { Text(text).font(label(11)).tracking(0.4).foregroundColor(color) }
 }
 
-// ink button (default), signal button, or outline
-enum PillKind { case ink, signal, outline }
+// primary = blue pen, plain = paper with a line, quiet = text only
+enum PillKind { case primary, plain, quiet }
 struct Pill: ButtonStyle {
-    var kind: PillKind = .ink
-    var sig: Color
-    @Environment(\.colorScheme) var cs
+    var kind: PillKind = .plain
+    var p: Paper
     func makeBody(configuration: Configuration) -> some View {
-        let paper = cs == .dark ? Color(hex: "#141415") : Color.white
-        let bg: Color = kind == .ink ? .primary : (kind == .signal ? sig : (cs == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.7)))
-        let fg: Color = kind == .outline ? .primary : (kind == .signal ? .white : paper)
+        let bg: Color = kind == .primary ? p.sig : (kind == .plain ? p.field : .clear)
+        let fg: Color = kind == .primary ? p.onSig : (kind == .plain ? p.ink : p.muted)
         return configuration.label
             .font(.system(size: 12, weight: .semibold))
-            .padding(.horizontal, 12)
+            .padding(.horizontal, kind == .quiet ? 4 : 12)
             .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(bg))
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(kind == .outline ? Color.primary.opacity(0.2) : Color.clear, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(bg))
+            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(kind == .plain ? p.line : Color.clear, lineWidth: 1))
             .foregroundColor(fg)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Rectangle())
@@ -191,10 +178,7 @@ struct RootView: View {
     @State private var draft = ""
     @State private var bDraft = ""
 
-    var sig: Color {
-        let a = m.st?.acc ?? ["#1F3BE0", "#7B8CFF"]
-        return Color(hex: dark ? (a.count > 1 ? a[1] : a[0]) : a[0])
-    }
+    var p: Paper { Paper(dark: dark) }
     var target: RTarget? {
         let ts = m.st?.targets ?? []
         if let t = ts.first(where: { $0.id == pick }) { return t }
@@ -208,87 +192,58 @@ struct RootView: View {
         let i = ts.firstIndex(where: { $0.id == target?.id }) ?? -1
         pick = ts[(i + 1) % ts.count].id
     }
+    func short(_ s: String) -> String {
+        let latin = s.prefix { $0.isLetter && $0.isASCII }
+        if latin.count >= 2 { return latin.lowercased() }
+        let digits = s.prefix { $0.isNumber }
+        if !digits.isEmpty { return String(digits) }
+        return String(s.prefix(4))
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ZStack {
-                Capsule().fill(Color.primary.opacity(0.22)).frame(width: 36, height: 4)
-                DragHandle()
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 12)
-            .padding(.top, -8)
-            .padding(.bottom, -6)
-            .help("按住这里拖动")
-            header
-            Rectangle().fill(Color.primary.opacity(0.1)).frame(height: 1)
-            if m.st == nil {
-                connecting
-            } else {
-                if !m.signedIn { notSignedIn }
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        spiral
-                        tasks
-                        bSection
-                    }
-                }
+        VStack(spacing: 0) {
+            band
+            if !m.collapsed {
+                Rectangle().fill(p.line).frame(height: 1)
+                content
             }
         }
-        .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Glass(dark: dark))
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(dark ? 0.16 : 0.65), lineWidth: 0.8))
+        .background(p.paper)
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(p.line, lineWidth: 1))
         .environment(\.colorScheme, dark ? .dark : .light)
     }
 
-    var connecting: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("正在连接 Runway").font(.system(size: 15, weight: .bold)).tracking(-0.3)
-            Text("第一次用要登录一次 claude.ai。几秒后还连不上，点下面的按钮登录，登录完会自动回来。")
-                .font(.system(size: 12)).foregroundColor(.secondary).fixedSize(horizontal: false, vertical: true)
-            Button("去登录") { m.showWeb?() }.buttonStyle(Pill(kind: .ink, sig: sig))
-        }
-        .modifier(CardBG(stripe: sig))
-    }
-
-    var notSignedIn: some View {
+    // the darker strip on top: drag it, double-click it to fold the note up like Stickies
+    var band: some View {
         HStack(spacing: 8) {
-            Text("还没登录，现在改的只存在小窗里").font(.system(size: 11)).foregroundColor(warnC)
-            Spacer()
-            Button("登录") { m.showWeb?() }.buttonStyle(Pill(kind: .outline, sig: sig))
-        }
-    }
-
-    var header: some View {
-        HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Circle().fill(sig).frame(width: 5, height: 5)
-                    Mono(text: m.dateLine)
+            ZStack {
+                HStack(spacing: 8) {
+                    if m.collapsed {
+                        Circle().fill(m.running ? (isA(m.idx) ? p.sig : p.ink) : p.muted).frame(width: 6, height: 6)
+                        Text(m.st == nil ? "runway" : (isA(m.idx) ? "" : "B · ") + m.whatTitle)
+                            .font(.system(size: 12, weight: .semibold)).foregroundColor(p.ink)
+                            .lineLimit(1).truncationMode(.tail)
+                        Spacer(minLength: 4)
+                        if m.st != nil && (m.running || m.leftSec != blockMin(m.idx) * 60) {
+                            Text(fmt(m.leftSec)).font(mono(12, .semibold)).monospacedDigit()
+                                .foregroundColor(m.running && m.leftSec <= 0 ? p.sig : p.ink)
+                        }
+                    } else {
+                        Text("runway").font(label(13)).foregroundColor(p.ink)
+                        Text(m.dateShort).font(mono(10)).foregroundColor(p.muted)
+                        Spacer(minLength: 4)
+                    }
                 }
-                Text("\(m.greeting)，\(m.st?.nick ?? "Color")")
-                    .font(.system(size: 20, weight: .bold))
-                    .tracking(-0.8)
+                .allowsHitTesting(false)
+                DragHandle(onDouble: { m.toggleCollapse() })
             }
-            .overlay(DragHandle())
-            Spacer()
-                .frame(minHeight: 30)
-                .overlay(DragHandle())
             if let t = target {
                 Button { cycleTarget() } label: {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(t.days == 0 ? "今天" : "\(t.days)")
-                            .font(.system(size: 28, weight: .bold))
-                            .tracking(-1.4)
-                            .monospacedDigit()
-                            .foregroundColor(sig)
-                        Text(t.days == 0 ? t.title : "天到 \(t.title)")
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1).truncationMode(.tail)
-                            .frame(maxWidth: 140, alignment: .trailing)
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(t.days == 0 ? "today" : "D-\(t.days)").font(display(m.collapsed ? 12 : 14)).foregroundColor(p.sig).monospacedDigit()
+                        if !m.collapsed { Text(short(t.title)).font(label(10)).foregroundColor(p.muted).lineLimit(1) }
                     }
                     .contentShape(Rectangle())
                 }
@@ -300,44 +255,90 @@ struct RootView: View {
                     }
                 }
             }
+            Button { m.toggleCollapse() } label: {
+                Image(systemName: m.collapsed ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 10, weight: .bold))
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(p.muted)
+            .help(m.collapsed ? "展开（也可以双击这一条）" : "收起成一条（也可以双击这一条）")
         }
-        .background(DragHandle())
+        .padding(.horizontal, 14)
+        .frame(height: BAND_H)
+        .background(p.band)
+    }
+
+    var content: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if m.st == nil {
+                connecting.padding(16)
+            } else {
+                if !m.signedIn { notSignedIn.padding(.horizontal, 16).padding(.top, 10) }
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("\(m.greeting)，\(m.st?.nick ?? "Color")")
+                            .font(.system(size: 18, weight: .bold)).foregroundColor(p.ink)
+                            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 4)
+                        spiral.padding(16)
+                        Rectangle().fill(p.line).frame(height: 1)
+                        tasks.padding(16)
+                        Rectangle().fill(p.line).frame(height: 1)
+                        bSection.padding(.horizontal, 16).padding(.vertical, 12)
+                    }
+                }
+            }
+        }
+    }
+
+    var connecting: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("正在连接 Runway").font(.system(size: 15, weight: .bold)).foregroundColor(p.ink)
+            Text("第一次用要登录一次 claude.ai。几秒后还连不上，点下面的按钮登录，登录完会自动回来。")
+                .font(.system(size: 12)).foregroundColor(p.muted).fixedSize(horizontal: false, vertical: true)
+            Button("去登录") { m.showWeb?() }.buttonStyle(Pill(kind: .primary, p: p))
+        }
+    }
+
+    var notSignedIn: some View {
+        HStack(spacing: 8) {
+            Text("还没登录，现在改的只存在小窗里").font(.system(size: 11)).foregroundColor(p.muted)
+            Spacer()
+            Button("登录") { m.showWeb?() }.buttonStyle(Pill(kind: .plain, p: p))
+        }
     }
 
     var spiral: some View {
         let a = isA(m.idx)
         return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Kick(text: "focus on", color: p.ink)
+                Spacer()
+                Text("第 \(m.idx / 2 + 1) 轮 · \(a ? "做事" : "奖励") \(blockMin(m.idx)) 分钟").font(.system(size: 11)).foregroundColor(p.muted)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .bottom, spacing: 3) {
                     ForEach(0..<max(8, m.idx + 3), id: \.self) { i in
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(isA(i) ? sig : Color.primary.opacity(0.25))
-                            .opacity(i < m.idx ? 0.18 : (i == m.idx ? 1 : 0.4))
+                            .fill(isA(i) ? p.sig : p.ink.opacity(0.35))
+                            .opacity(i < m.idx ? 0.2 : (i == m.idx ? 1 : 0.45))
                             .frame(width: CGFloat(blockMin(i)) * 0.8 + 6, height: CGFloat(blockMin(i)) * 0.35 + 6)
                     }
                 }
                 .padding(.vertical, 2)
             }
             .frame(height: 26)
-            HStack(spacing: 6) {
-                Text(a ? "A" : "B")
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .padding(.horizontal, 6).padding(.vertical, 1)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(a ? sig : Color.primary))
-                    .foregroundColor(a ? .white : (dark ? .black : .white))
-                Mono(text: "第 \(m.idx / 2 + 1) 轮 · \(a ? "做事" : "奖励") \(blockMin(m.idx)) 分钟")
-            }
             Text(fmt(m.leftSec))
-                .font(.system(size: 50, weight: .bold))
-                .tracking(-2.6)
+                .font(mono(46, .semibold))
                 .monospacedDigit()
+                .foregroundColor(a ? p.sig : p.ink)
             VStack(alignment: .leading, spacing: 2) {
-                Text(m.whatTitle).font(.system(size: 14, weight: .semibold)).tracking(-0.2).fixedSize(horizontal: false, vertical: true)
-                Text(m.whatSub).font(.system(size: 11)).foregroundColor(.secondary)
+                Text(m.whatTitle).font(.system(size: 15, weight: .bold)).foregroundColor(p.ink).fixedSize(horizontal: false, vertical: true)
+                Text(m.whatSub).font(.system(size: 11)).foregroundColor(p.muted)
             }
-            controls(a: a)
+            controls(a: a).padding(.top, 2)
         }
-        .modifier(CardBG(stripe: a ? sig : Color.primary))
     }
 
     @ViewBuilder func controls(a: Bool) -> some View {
@@ -345,23 +346,23 @@ struct RootView: View {
         let fresh = sec == blockMin(m.idx) * 60
         HStack(spacing: 6) {
             if m.running && sec <= 0 {
-                Text("时间到").font(.system(size: 11, weight: .medium, design: .monospaced)).foregroundColor(sig)
+                Text("时间到").font(mono(11)).foregroundColor(p.sig)
                 if a {
-                    Button("去玩 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .ink, sig: sig))
-                    Button("再做 10 分钟") { m.cmd("more10") }.buttonStyle(Pill(kind: .outline, sig: sig))
+                    Button("去玩 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .primary, p: p))
+                    Button("再做 10 分钟") { m.cmd("more10") }.buttonStyle(Pill(kind: .plain, p: p))
                 } else {
-                    Button("回来做 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .signal, sig: sig))
+                    Button("回来做 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .primary, p: p))
                 }
             } else if m.running {
-                Button("暂停") { m.cmd("pause") }.buttonStyle(Pill(kind: .ink, sig: sig))
-                Button("这段结束") { m.cmd("next") }.buttonStyle(Pill(kind: .outline, sig: sig))
+                Button("暂停") { m.cmd("pause") }.buttonStyle(Pill(kind: .plain, p: p))
+                Button("这段结束") { m.cmd("next") }.buttonStyle(Pill(kind: .quiet, p: p))
                 if !a && (m.st?.b.count ?? 0) > 1 {
-                    Button("换一个") { m.cmd("swapB") }.buttonStyle(Pill(kind: .outline, sig: sig))
+                    Button("换一个") { m.cmd("swapB") }.buttonStyle(Pill(kind: .quiet, p: p))
                 }
             } else {
-                Button(fresh ? "开始" : "继续") { m.cmd("start") }.buttonStyle(Pill(kind: a ? .signal : .ink, sig: sig))
+                Button(fresh ? "开始" : "继续") { m.cmd("start") }.buttonStyle(Pill(kind: .primary, p: p))
                 if m.idx > 0 || !fresh {
-                    Button("重来") { m.cmd("reset") }.buttonStyle(Pill(kind: .outline, sig: sig))
+                    Button("重来") { m.cmd("reset") }.buttonStyle(Pill(kind: .quiet, p: p))
                 }
             }
         }
@@ -373,7 +374,7 @@ struct RootView: View {
         let over = m.st?.overdue ?? []
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                Text("今天做这几件").font(.system(size: 15, weight: .bold)).tracking(-0.4)
+                Kick(text: "tasks", color: p.ink)
                 Spacer()
                 if !over.isEmpty {
                     Menu("之前没做完 \(over.count)") {
@@ -381,52 +382,59 @@ struct RootView: View {
                             Button("今天做：\(it.title)") { m.cmd("toToday", ["id": it.id]) }
                         }
                         Divider()
-                        Button("全部放回待排池") { m.cmd("clearOver") }
+                        Button("全部放回项目") { m.cmd("clearOver") }
                     }
                     .menuStyle(.borderlessButton)
                     .fixedSize()
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
+                    .font(.system(size: 11))
                 }
             }
             if open.isEmpty && done.isEmpty {
-                Text("还没排事，在下面加一件。").font(.system(size: 12)).foregroundColor(.secondary)
+                Text("还没排事，在下面加一件。").font(.system(size: 12)).foregroundColor(p.muted)
             }
             ForEach(Array(open.prefix(3))) { it in row(it) }
             if open.count > 3 {
                 HStack(spacing: 6) {
-                    Mono(text: "还有 \(open.count - 3) 件")
-                    Button("挪到明天") { m.cmd("extraTmr") }.buttonStyle(Pill(kind: .outline, sig: sig))
+                    Text("还有 \(open.count - 3) 件").font(.system(size: 11)).foregroundColor(p.muted)
+                    Button("挪到明天") { m.cmd("extraTmr") }.buttonStyle(Pill(kind: .plain, p: p))
                 }
             }
             ForEach(done) { it in row(it) }
             TextField("加一件今天的事，回车", text: $draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .foregroundColor(p.ink)
                 .padding(8)
-                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(dark ? Color.white.opacity(0.05) : Color.white.opacity(0.8)))
-                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color.primary.opacity(0.14), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
                 .onSubmit { m.cmd("add", ["title": draft]); draft = "" }
         }
-        .modifier(CardBG())
     }
 
+    // O when done, an empty circle when not; never an X
     func row(_ it: RTask) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Button { m.cmd("toggle", ["id": it.id]) } label: {
-                Image(systemName: it.done ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 15))
-                    .foregroundColor(it.done ? sig : .primary)
-            }
-            .buttonStyle(.plain)
+        HStack(alignment: .center, spacing: 10) {
             Text(it.title)
                 .font(.system(size: 13, weight: .semibold))
-                .tracking(-0.1)
-                .strikethrough(it.done)
-                .foregroundColor(it.done ? .secondary : .primary)
+                .foregroundColor(it.done ? p.muted : p.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            Button { m.cmd("toggle", ["id": it.id]) } label: {
+                ZStack {
+                    if it.done {
+                        Text("O").font(hand(20)).foregroundColor(p.sig)
+                    } else {
+                        Circle().fill(p.field)
+                        Circle().strokeBorder(p.line, lineWidth: 1.5)
+                    }
+                }
+                .frame(width: 24, height: 24)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help(it.done ? "标成没做完" : "做完了")
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
         .contentShape(Rectangle())
         .contextMenu {
             if !it.done { Button("挪到明天") { m.cmd("tmr", ["id": it.id]) } }
@@ -439,31 +447,30 @@ struct RootView: View {
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(Array(list.enumerated()), id: \.offset) { pair in
                     HStack {
-                        Text(pair.element).font(.system(size: 12))
+                        Text(pair.element).font(.system(size: 12)).foregroundColor(p.ink)
                         Spacer()
                         Button { m.cmd("delB", ["i": pair.offset]) } label: {
                             Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
                         }
                         .buttonStyle(.plain)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(p.muted)
                     }
                 }
                 TextField("加一个 B，回车", text: $bDraft)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .padding(6)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(dark ? Color.white.opacity(0.05) : Color.white.opacity(0.8)))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.primary.opacity(0.14), lineWidth: 1))
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
                     .onSubmit { m.cmd("addB", ["title": bDraft]); bDraft = "" }
             }
             .padding(.top, 6)
         } label: {
             HStack(spacing: 6) {
-                Text("B 清单").font(.system(size: 13, weight: .bold)).tracking(-0.3)
-                Mono(text: "有尽头的小奖励")
+                Kick(text: "b list", color: p.ink)
+                Text("有尽头的小奖励").font(.system(size: 11)).foregroundColor(p.muted)
             }
         }
-        .modifier(CardBG())
     }
 }
 
@@ -520,7 +527,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
         container = NSView(frame: NSRect(origin: .zero, size: rect.size))
         container.wantsLayer = true
-        container.layer?.cornerRadius = 22
+        container.layer?.cornerRadius = 10
         container.layer?.cornerCurve = .continuous
         container.layer?.masksToBounds = true
         panel.contentView = container
@@ -545,6 +552,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
         model.send = { [weak self] d in self?.send(d) }
         model.showWeb = { [weak self] in self?.showWeb() }
+        model.onCollapse = { [weak self] c in self?.applyCollapsed(c, animate: true) }
+        if defaults.bool(forKey: "collapsed") { model.collapsed = true; applyCollapsed(true, animate: false) }
 
         setPinned(defaults.object(forKey: "pinned") as? Bool ?? true)
         panel.orderFrontRegardless()
@@ -582,9 +591,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         status.button?.title = model.running ? "✈︎ " + fmt(model.leftSec) : "✈︎"
     }
 
+    // fold to the band only, keeping the top edge where it is
+    func applyCollapsed(_ c: Bool, animate: Bool) {
+        defaults.set(c, forKey: "collapsed")
+        var f = panel.frame
+        let top = f.maxY
+        if c {
+            if f.height > BAND_H + 40 { defaults.set(Double(f.height), forKey: "expandedH") }
+            panel.minSize = NSSize(width: 220, height: BAND_H)
+            panel.maxSize = NSSize(width: 4000, height: BAND_H)
+            f.size.height = BAND_H
+        } else {
+            panel.minSize = NSSize(width: 260, height: 320)
+            panel.maxSize = NSSize(width: 4000, height: 4000)
+            let h = defaults.double(forKey: "expandedH")
+            f.size.height = h >= 320 ? h : 560
+        }
+        f.origin.y = top - f.size.height
+        panel.setFrame(f, display: true, animate: animate)
+        panel.invalidateShadow()
+        saveFrame()
+    }
+    // always remembered as the unfolded size, so a restart can unfold it
+    func saveFrame() {
+        guard !webShown, panel != nil else { return }
+        var f = panel.frame
+        if model.collapsed {
+            let h = max(320, defaults.double(forKey: "expandedH"))
+            f.origin.y = f.maxY - h
+            f.size.height = h
+        }
+        defaults.set(NSStringFromRect(f), forKey: "glassFrame2")
+    }
+    @objc func toggleCollapseMenu() { model.toggleCollapse() }
+
     // sign-in view
     func showWeb() {
         guard !webShown else { return }
+        if model.collapsed { model.collapsed = false; applyCollapsed(false, animate: false) }
         webShown = true
         savedFrame = panel.frame
         var f = panel.frame
@@ -657,9 +701,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             return i
         }
         _ = item("显示 / 隐藏", #selector(toggleShow))
+        _ = item("收起成一条 / 展开", #selector(toggleCollapseMenu))
         pinItem = item("保持在最前面", #selector(togglePin))
         pinItem.state = panel.level == .floating ? .on : .off
-        _ = item("换深色 / 浅色玻璃", #selector(toggleGlass))
+        _ = item("换深色 / 浅色", #selector(toggleGlass))
         let sizeItem = NSMenuItem(title: "大小", action: nil, keyEquivalent: "")
         let sizes = NSMenu()
         for (i, name) in ["小", "中", "大"].enumerated() {
@@ -691,21 +736,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     @objc func setSize(_ sender: NSMenuItem) {
         let dims: [NSSize] = [NSSize(width: 280, height: 440), NSSize(width: 320, height: 560), NSSize(width: 390, height: 700)]
         let d = dims[max(0, min(2, sender.tag))]
+        if model.collapsed { model.collapsed = false; applyCollapsed(false, animate: false) }
         var f = panel.frame
         f.origin.y += f.height - d.height
         f.size = d
         panel.setFrame(f, display: true, animate: true)
-        defaults.set(NSStringFromRect(panel.frame), forKey: "glassFrame2")
+        saveFrame()
     }
     @objc func reconnect() { hideWeb(); web.load(URLRequest(url: MINI_URL)) }
     @objc func openFull() { NSWorkspace.shared.open(FULL_URL) }
 
-    func windowDidMove(_ notification: Notification) {
-        if !webShown { defaults.set(NSStringFromRect(panel.frame), forKey: "glassFrame2") }
-    }
-    func windowDidEndLiveResize(_ notification: Notification) {
-        if !webShown { defaults.set(NSStringFromRect(panel.frame), forKey: "glassFrame2") }
-    }
+    func windowDidMove(_ notification: Notification) { saveFrame() }
+    func windowDidEndLiveResize(_ notification: Notification) { saveFrame() }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         panel.orderFrontRegardless()
         return true
