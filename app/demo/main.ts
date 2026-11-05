@@ -1,7 +1,8 @@
 // Visual demo of the "today" page and the project drawer, running on the real engine.
-import { cnd, createEngine, dayLoads, diff, drawer, fmtH, lineage, monIdx, pickOrder, sum, todayOf } from '../../engine/src';
+import { cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, investedOn, lineage, monIdx, pickOrder, sessionsOf, sessionsOn, sum, todayOf } from '../../engine/src';
 import type { Engine, Item } from '../../engine/src';
 import { seed } from './seed';
+import { dayStack, lampCount, projectRunway, sessionLabel, todayRunway } from './lights';
 
 const T = todayOf(Date.now());
 const store = seed(T);
@@ -16,7 +17,8 @@ const ui = {
   showAll: false,
   drawerOpen: false,
   picker: null as string | null,
-  timer: null as null | { id: string; kind: 'ten' | 'block'; endsAt: number; total: number; rang: boolean },
+  timer: null as null | { id: string; kind: 'ten' | 'block'; startAt: number; endsAt: number; total: number; rang: boolean },
+  justPlanted: '' as string,
   toast: null as null | { text: string; undo?: () => void; at: number },
 };
 
@@ -30,9 +32,26 @@ function moveTo(id: string, date: string | null, text: string) {
 function toggleDone(id: string) {
   const it = raw(id), now = !it.done;
   Object.assign(it, { done: now, doneOn: now ? T : null });
-  if (now) { chime(); if (ui.timer?.id === id) ui.timer = null; ui.skip = 0; }
+  if (now) { chime(); if (ui.timer?.id === id) plant(); ui.skip = 0; }
 }
 function say(text: string, undo?: () => void) { ui.toast = { text, undo, at: Date.now() }; }
+
+/** Ends the running timer and plants a tree for the time spent. Half a minute or more counts; nothing is ever lost. */
+function plant() {
+  const t = ui.timer; if (!t) return;
+  ui.timer = null;
+  const secs = Math.min(t.total, Math.round((Date.now() - t.startAt) / 1000));
+  if (secs < 30) return;
+  const it = raw(t.id), start = new Date(t.startAt);
+  const id = 'live' + Date.now().toString(36);
+  (store.sessions ||= {})[id] = { date: T, item: t.id, project: it.project || '', start: `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`, mins: Math.max(1, Math.round(secs / 60)) };
+  ui.justPlanted = id;
+  const m = Math.max(1, Math.round(secs / 60));
+  say(m >= 10 ? `又亮了 ${lampCount(m)} 盏灯 · ${fmtH(m / 60)}` : `亮了一点 · ${m} 分钟也算`);
+}
+const startTimer = (id: string, kind: 'ten' | 'block', secs: number) => { ui.timer = { id, kind, startAt: Date.now(), endsAt: Date.now() + secs * 1000, total: secs, rang: false }; };
+const colorOf = (eng: Engine, pid: string) => eng.derive().projMap.get(pid)?.color || '#8F9A93';
+function titleOf(eng: Engine, sid: string) { const s = store.sessions![sid]; return (s.item && store.items[s.item]?.title) || eng.derive().projMap.get(s.project)?.name || '专注'; }
 
 /* ---------- small pleasures ---------- */
 let ac: AudioContext | null = null;
@@ -76,7 +95,34 @@ function dayHead(eng: Engine) {
     <p class="tally">今天排了 <b class="mono">${fmtH(placed)}</b><span class="sep"></span>做完了 <b class="mono">${fmtH(done)}</b><span class="sep"></span>还剩 <b class="mono">${fmtH(placed - done)}</b></p>
     <div class="meter" role="img" aria-label="今天做完 ${Math.round(pct)}%"><i style="width:${pct}%"></i></div>
     ${over > 0.01 ? `<p class="soft">今天排的比可用的 ${fmtH(cap)} 多 ${fmtH(over)}。可以把一两件放回项目，明天再说。</p>` : ''}
+    ${groveToday(eng)}
   </div>`;
+}
+
+function groveToday(eng: Engine) {
+  const all = sessionsOf(store), today = sessionsOn(all, T);
+  const mins = sum(today.map(x => x.mins));
+  const label = (x: typeof today[number]) => sessionLabel(titleOf(eng, x.id), x);
+  return `<section class="grove-today" aria-label="今天的跑道灯">
+    <div class="grove-hd"><h3>今天点亮的灯</h3><span><b class="mono">${lampCount(mins)}</b> 盏<span class="sep"></span>投入 <b class="mono">${fmtH(mins / 60)}</b></span></div>
+    ${today.length
+      ? todayRunway(today, pid => colorOf(eng, pid), label, ui.justPlanted)
+      : `<p class="soft grove-empty">开始第一段专注，跑道就会亮起第一盏灯。一盏灯是 10 分钟，只做三分钟也会亮一点。</p>`}
+  </section>`;
+}
+
+function groveWeek(eng: Engine) {
+  const days = investedDays(sessionsOf(store), T, 7);
+  const total = sum(days.map(d => d.hours));
+  const label = (x: typeof days[number]['sessions'][number]) => sessionLabel(titleOf(eng, x.id), x);
+  return `<section class="block week" aria-label="最近七天">
+    <div class="grove-hd"><h3>最近七天</h3><span>一共 <b class="mono">${lampCount(total * 60)}</b> 盏<span class="sep"></span><b class="mono">${fmtH(total)}</b></span></div>
+    <div class="weekgrid">${days.map(d => `<div class="wday${d.date === T ? ' is-today' : ''}">
+      ${dayStack(d.sessions, pid => colorOf(eng, pid), label)}
+      <span class="wd">${d.date === T ? '今天' : WD[monIdx(d.date)]}</span><span class="wh mono">${d.hours ? fmtH(d.hours) : '–'}</span>
+    </div>`).join('')}</div>
+    <p class="soft legend">一盏灯 10 分钟，颜色是项目。</p>
+  </section>`;
 }
 
 function nowCard(eng: Engine, order: Item[]) {
@@ -130,6 +176,7 @@ function today(eng: Engine) {
       <button class="fold" type="button" data-act="all" aria-expanded="${ui.showAll}"><h3>今天全部</h3><span class="mono">${all.length}</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg></button>
       ${ui.showAll ? `<ul class="rows">${all.map(i => row(eng, i, { check: true, back: true })).join('')}</ul>` : ''}
     </section>
+    ${groveWeek(eng)}
   </main>`;
 }
 
@@ -138,6 +185,7 @@ function drawerView(eng: Engine) {
   const groups = drawer(eng);
   const waiting = sum(groups.map(g => g.items.length));
   const dv = eng.derive();
+  const inv = investedByProject(sessionsOf(store));
   return `<aside class="drawer${ui.drawerOpen ? ' open' : ''}" aria-label="项目">
     <button class="drawer-handle" type="button" data-act="drawer" aria-expanded="${ui.drawerOpen}"><b>项目</b><span>${waiting} 件还没排进日子</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10l4-4 4 4"/></svg></button>
     <div class="drawer-hd"><h2>项目</h2><p>还没排进日子的事都在这里。放到今天，或者挑一天。</p></div>
@@ -146,10 +194,12 @@ function drawerView(eng: Engine) {
       const p = g.project, st = g.status;
       const isExam = p ? dv.items.some(x => x.kind === 'exam' && x.date === p.deadline) : false;
       const pill = !st ? '' : st.cnt ? `<span class="pill flat mono">今天 ${st.cnt.tD}/${st.cnt.tT} ${esc(p!.count!.unit)}</span>` : `<span class="pill ${PILL[st.k || 'flat']}">${esc(st.label)}</span>`;
-      const sub = p ? [g.quotaToday > 0.01 ? `今天目标 ${fmtH(g.quotaToday)}` : '', `${cnd(p.deadline)}${isExam ? '考试' : '截止'}`].filter(Boolean).join(' · ') : '没有截止日，什么时候做都行';
+      const spent = inv[p ? p.id : ''] || 0;
+      const sub = [p && g.quotaToday > 0.01 ? `今天目标 ${fmtH(g.quotaToday)}` : '', spent > 0.01 ? `已投入 ${fmtH(spent)}` : '', p ? `${cnd(p.deadline)}${isExam ? '考试' : '截止'}` : '没有截止日，什么时候做都行'].filter(Boolean).join(' · ');
       return `<section class="grp">
         <header><span class="swatch" style="background:${p ? esc(p.color) : 'var(--muted)'}"></span><b>${p ? esc(p.name) : '生活和杂事'}</b>${pill}</header>
         <p class="grp-sub">${sub}</p>
+        ${p && st && !st.cnt ? projectRunway(spent, st.rem, p.color) : ''}
         ${g.items.length ? `<ul class="items">${g.items.map(i => {
           const mod = p?.modules.find(m => m.id === i.module)?.name;
           return `<li class="it">
@@ -198,6 +248,7 @@ function render() {
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   tick();
+  ui.justPlanted = '';
 }
 
 /* ---------- timer ---------- */
@@ -218,15 +269,15 @@ root.addEventListener('click', e => {
   const { act, id, day } = el.dataset;
   const title = id ? raw(id).title : '';
   switch (act) {
-    case 'ten': ui.timer = { id: id!, kind: 'ten', endsAt: Date.now() + 600e3, total: 600, rang: false }; break;
-    case 'block': { const s = Math.round((raw(id!).hours || 1) * 3600); ui.timer = { id: id!, kind: 'block', endsAt: Date.now() + s * 1000, total: s, rang: false }; break; }
-    case 'stop': ui.timer = null; break;
+    case 'ten': plant(); startTimer(id!, 'ten', 600); break;
+    case 'block': plant(); startTimer(id!, 'block', Math.round((raw(id!).hours || 1) * 3600)); break;
+    case 'stop': plant(); break;
     case 'swap': ui.skip++; break;
     case 'done': toggleDone(id!); break;
     case 'all': ui.showAll = !ui.showAll; break;
     case 'drawer': ui.drawerOpen = !ui.drawerOpen; break;
     case 'today': moveTo(id!, T, `「${title}」放到今天了`); break;
-    case 'back': if (ui.timer?.id === id) ui.timer = null; moveTo(id!, null, `「${title}」放回项目了`); break;
+    case 'back': if (ui.timer?.id === id) plant(); moveTo(id!, null, `「${title}」放回项目了`); break;
     case 'pick': ui.picker = id!; break;
     case 'assign': ui.picker = null; moveTo(id!, day!, `「${title}」排到${day === T ? '今天' : dayL(day!)}`); break;
     case 'close': ui.picker = null; break;

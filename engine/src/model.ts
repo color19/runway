@@ -84,6 +84,8 @@ export interface Store {
   items: Record<string, Record<string, any>>;
   projects: Record<string, Record<string, any>>;
   settings: { main?: Record<string, any> };
+  /** Focus sessions, see sessions.ts. Absent in old backups. */
+  sessions?: Record<string, Record<string, any>>;
 }
 
 export const DEF_SETTINGS = { cap: [4, 5, 5, 5, 5, 3, 4], over: {}, weekStart: 1, dayStart: 0, balance: true, askActual: true, accent: 'burgundy', palette: 'classic', nick: '', tags: [], gcal: false, home: 'today', pinned: false, theme: 'dark', look: 'art' };

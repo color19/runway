@@ -8,7 +8,7 @@
   --paper:#F3F3F0; --card:#FFFFFF; --sunk:#E9E9E5; --line:#DADAD4; --ink:#15171C; --muted:#6B6E76;
   --signal:#1F3BE0; --signal-soft:#E3E7FC; --on-signal:#FFFFFF;
   --good:#2F6B3F; --tight:#8A6110; --short:#A2412A;
-  --scrim:rgba(21,23,28,.32); --lift:0 1px 2px rgba(21,23,28,.05),0 14px 34px -14px rgba(31,59,224,.28);
+  --scrim:rgba(21,23,28,.32); --ground:#CFCFC7; --lamp-off:#E2E2DC; --tarmac:#ECECE7; --centre:#D6D6CF; --glow:0 0 0; --lift:0 1px 2px rgba(21,23,28,.05),0 14px 34px -14px rgba(31,59,224,.28);
   --f-text:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
 }
@@ -16,12 +16,12 @@
   --paper:#121316; --card:#1B1D21; --sunk:#24272C; --line:#30333A; --ink:#ECEDEF; --muted:#9A9DA5;
   --signal:#7B8CFF; --signal-soft:#252B4D; --on-signal:#0F1118;
   --good:#79C49A; --tight:#D8B260; --short:#E78C69;
-  --scrim:rgba(0,0,0,.55); --lift:0 1px 2px rgba(0,0,0,.3),0 14px 34px -14px rgba(123,140,255,.35); color-scheme:dark}}
+  --scrim:rgba(0,0,0,.55); --ground:#3A3D44; --lamp-off:#2A2D33; --tarmac:#17191D; --centre:#2C2F36; --glow:0 0 7px; --lift:0 1px 2px rgba(0,0,0,.3),0 14px 34px -14px rgba(123,140,255,.35); color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#121316; --card:#1B1D21; --sunk:#24272C; --line:#30333A; --ink:#ECEDEF; --muted:#9A9DA5;
   --signal:#7B8CFF; --signal-soft:#252B4D; --on-signal:#0F1118;
   --good:#79C49A; --tight:#D8B260; --short:#E78C69;
-  --scrim:rgba(0,0,0,.55); --lift:0 1px 2px rgba(0,0,0,.3),0 14px 34px -14px rgba(123,140,255,.35); color-scheme:dark}
+  --scrim:rgba(0,0,0,.55); --ground:#3A3D44; --lamp-off:#2A2D33; --tarmac:#17191D; --centre:#2C2F36; --glow:0 0 7px; --lift:0 1px 2px rgba(0,0,0,.3),0 14px 34px -14px rgba(123,140,255,.35); color-scheme:dark}
 
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font:15px/1.55 var(--f-text);-webkit-font-smoothing:antialiased}
@@ -150,6 +150,34 @@ h1,h2,h3{text-wrap:balance;margin:0}
 
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);border-radius:10px;padding:9px 14px;display:flex;gap:14px;align-items:center;font-size:13px;z-index:60;max-width:calc(100% - 32px);animation:rise .2s ease}
 .toast button{border:0;background:none;color:var(--signal-soft);font-weight:500;padding:0}
+.grove-today{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.grove-hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.grove-hd h3{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:.06em}
+.grove-hd>span{font-size:13px;color:var(--muted);display:flex;align-items:baseline;gap:4px}
+.grove-hd b{color:var(--ink);font-weight:500;font-size:15px}
+.grove-hd .sep{width:1px;height:12px;background:var(--line);margin:0 8px;align-self:center}
+.grove-empty{padding:6px 0 2px}
+/* runway lights: one lamp is 10 minutes; a part-lit lamp fills from the bottom */
+.lamp{display:block;width:var(--lw,9px);height:var(--lh,18px);border-radius:3px;flex:none;
+  background:linear-gradient(to top,var(--c) var(--f),var(--lamp-off) var(--f));box-shadow:var(--glow) color-mix(in srgb,var(--c) 70%,transparent)}
+.lamp.on{animation:lampOn .45s ease both;animation-delay:var(--d,0ms)}
+@keyframes lampOn{0%{opacity:0;transform:scaleY(.3)}60%{opacity:1;filter:brightness(1.5)}100%{transform:none;filter:none}}
+.sess{display:flex;gap:3px;flex-wrap:wrap}
+.strip{--lw:12px;--lh:26px;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-end;padding:12px 12px 14px;border-radius:10px;background:var(--tarmac);
+  background-image:repeating-linear-gradient(90deg,var(--centre) 0 14px,transparent 14px 24px);background-size:100% 2px;background-repeat:no-repeat;background-position:0 calc(100% - 5px)}
+.week .grove-hd{margin-bottom:10px}
+.weekgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:end}
+.wday{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.stack{--lw:100%;--lh:5px;width:min(40px,100%);display:flex;flex-direction:column-reverse;gap:2px;min-height:40px;justify-content:flex-start;padding-bottom:3px;border-bottom:1.5px solid var(--ground)}
+.stack .sess{flex-direction:column-reverse;gap:2px}
+.stack .lamp{border-radius:1.5px;background:linear-gradient(to right,var(--c) var(--f),var(--lamp-off) var(--f))}
+.wd{font-size:12px;color:var(--muted)}
+.wh{font-size:12px}
+.wday.is-today .wd{color:var(--signal);font-weight:500}
+.legend{margin-top:8px;font-size:12px}
+/* a project's own runway: lit up to the share already invested */
+.prun{height:6px;margin:0 0 8px 17px;border-radius:3px;background:repeating-linear-gradient(90deg,var(--lamp-off) 0 6px,transparent 6px 9px);position:relative;overflow:hidden}
+.prun i{position:absolute;inset:0 auto 0 0;width:var(--p);background:repeating-linear-gradient(90deg,var(--c) 0 6px,transparent 6px 9px)}
 .foot{margin:40px 0 0;font-size:12px;color:var(--muted);max-width:60ch}
 @keyframes fade{from{opacity:0}}
 @keyframes rise{from{opacity:0;transform:translate(-50%,8px)}}

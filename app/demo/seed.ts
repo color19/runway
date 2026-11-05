@@ -42,17 +42,34 @@ export function seed(T: Day): Store {
   put(task('洗衣服', '', '', 0.5));
   put(task('买菜', '', '', 0.75));
 
+  // focus sessions: today so far, plus the last six days
+  const sessions: Store['sessions'] = {};
+  let sn = 0;
+  const sess = (n: number, project: string, item: string, start: string, mins: number) => { sessions['s' + (++sn)] = { date: d(n), project, item, start, mins }; };
+  sess(0, 'cfa', 'i1', '08:50', 45); sess(0, 'cfa', 'i1', '09:45', 50); sess(0, 'cfa', 'i1', '10:45', 25);
+  sess(0, 'cfa', 'i2', '14:10', 10); sess(0, 'cfa', 'i2', '14:25', 20); sess(0, 'c632', 'i4', '16:00', 35);
+  const past: Array<[number, string, number[]]> = [
+    [-1, 'cfa', [50, 45, 30]], [-1, 'p643', [40]], [-1, 'job', [20]],
+    [-2, 'cfa', [25, 45, 60]], [-2, 'c632', [35]],
+    [-3, 'p643', [95]], [-3, 'cfa', [30]], [-3, 'job', [20]],
+    [-4, 'cfa', [10, 20, 30, 45]],
+    [-5, 'cfa', [60]], [-5, 'c632', [50]], [-5, 'p643', [25]], [-5, '', [8]],
+    [-6, 'cfa', [45, 45]],
+  ];
+  for (const [n, p, ms] of past) ms.forEach((m, i) => sess(n, p, '', `${String(9 + i * 2).padStart(2, '0')}:00`, m));
+
   return {
+    sessions,
     settings: { main: { cap: [8, 8, 8, 8, 8, 8, 8], balance: true } },
     projects: {
-      cfa: { name: 'CFA Level 1', start: '2026-10-02', deadline: '2026-11-17', buffer: 1, color: '#1F3BE0',
+      cfa: { name: 'CFA Level 1', start: '2026-10-02', deadline: '2026-11-17', buffer: 1, color: '#2E6B4F',
         modules: [
           { id: 'm-ci', name: '公司发行人' }, { id: 'm-pm', name: '组合管理' }, { id: 'm-der', name: '衍生品' },
           { id: 'm-econ', name: '经济学' }, { id: 'm-eth', name: '道德' }, { id: 'm-alt', name: '另类投资' }, { id: 'm-mock', name: '模考与错题' },
         ] },
-      c632: { name: '632 作业 3', start: d(-4), deadline: d(3), color: '#2F6B3F' },
-      p643: { name: '643 Project', start: '2026-10-20', deadline: '2026-11-14', color: '#8A6110' },
-      job: { name: '求职', start: '2026-10-15', deadline: '2026-12-31', color: '#6B6E76',
+      c632: { name: '632 作业 3', start: d(-4), deadline: d(3), color: '#7FA23A' },
+      p643: { name: '643 Project', start: '2026-10-20', deadline: '2026-11-14', color: '#C58B2B' },
+      job: { name: '求职', start: '2026-10-15', deadline: '2026-12-31', color: '#8A6BA8',
         count: { unit: '份', mins: 20, plan: [{ from: '2026-10-15', n: 2 }], log: { [d(-3)]: 2, [d(-2)]: 1, [d(-1)]: 2, [d(0)]: 1 } } },
     },
     items,
