@@ -561,6 +561,61 @@ button.swatch:hover{transform:scale(1.3)}
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .wv-chip,:root:not([data-theme="light"]) .gv-track,:root:not([data-theme="light"]) .wv-bar .cap{background:color-mix(in srgb,var(--p) 70%,#000)}}
 :root[data-theme="dark"] .wv-chip,:root[data-theme="dark"] .gv-track,:root[data-theme="dark"] .wv-bar .cap{background:color-mix(in srgb,var(--p) 70%,#000)}
+/* project layer */
+.pj-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 4px;scrollbar-width:none;min-width:0}
+.pj-tabs::-webkit-scrollbar{display:none}
+.pj-tabs button{flex:none;display:flex;align-items:center;gap:7px;border:0;border-radius:8px;padding:6px 12px;font-size:13px;color:var(--muted);background:var(--cream);box-shadow:inset 0 0 0 1px var(--cream-l);white-space:nowrap}
+.pj-tabs button i{width:8px;height:8px;border-radius:2px}
+.pj-tabs button[aria-current]{color:var(--ink);font-weight:500;background:var(--lilac);box-shadow:inset 0 0 0 1.5px var(--lilac-l)}
+.pj{padding-bottom:10px}
+.pj-top{display:flex;flex-direction:column;gap:8px;padding:12px 18px 10px;border-bottom:1px solid var(--pl)}
+.pj-sum{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pj-top .prun{margin:0}
+.pj-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);align-self:flex-end;cursor:pointer}
+.pj-toggle input{margin:0;accent-color:var(--signal)}
+.pj-mod{border-bottom:1px solid var(--pl)}
+.pj-mod:last-child{border-bottom:0}
+.pj-mhd{display:flex;align-items:center;gap:8px;padding:10px 16px 10px 10px;flex-wrap:wrap}
+.pj-mhd b{font:600 15px/1.3 var(--f-display)}
+.pj-mhd .soft{flex:1;min-width:120px}
+.pj-mod.quiet .pj-mhd b{color:var(--muted)}
+.pj-fold{width:22px;height:22px;flex:none;border:0;background:none;border-radius:6px;color:var(--muted);display:grid;place-items:center;padding:0}
+.pj-fold:hover{background:color-mix(in srgb,var(--pl) 60%,transparent);color:var(--ink)}
+.pj-fold svg{transition:transform .15s}
+.pj-fold[aria-expanded="true"] svg{transform:rotate(90deg)}
+.pj-gap{width:22px;flex:none}
+.pj-tree,.pj-kids{list-style:none;margin:0;padding:0}
+.pj-tree{padding:0 12px 8px 10px}
+.pj-kids{margin-left:21px;padding-left:10px;border-left:1px solid var(--pl)}
+.pj-row{display:flex;align-items:center;gap:8px;padding:5px 0;min-width:0;border-radius:6px}
+.pj-row[draggable="true"]{cursor:grab}
+.pj-row .mark{width:24px;height:24px;font-size:18px;flex:none}
+.pj-row .mark.o{font-size:21px}
+.pj-t{flex:1;min-width:0;display:flex;align-items:baseline;gap:4px 10px;flex-wrap:wrap}
+.pj-t .ed{font-size:14px;min-width:0}
+.pj-t small{font-size:11px;color:var(--muted)}
+.pj-node.d1>.pj-row .pj-t .ed{font-weight:500}
+.pj-node.done>.pj-row .ed{color:var(--muted)}
+.pj-a{display:flex;gap:4px;flex:none}
+.pj-a .mini{padding:3px 9px}
+.pj-add{display:flex;gap:6px;align-items:center;padding:4px 0 8px 52px}
+.pj-mhd+.pj-add{padding:0 16px 10px 40px}
+.pj-add input{flex:1;min-width:0;border:0;border-radius:8px;padding:7px 10px;font-size:14px;background:color-mix(in srgb,var(--p) 30%,#fff);box-shadow:inset 0 0 0 1px var(--pl)}
+.pj-add input:focus{outline:2px solid color-mix(in srgb,var(--signal) 40%,transparent);box-shadow:inset 0 0 0 1px var(--signal)}
+.pj-none,.pj-empty{margin:0;padding:0 18px 12px 40px;font-size:12px;color:var(--muted)}
+.grp-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grp header .grp-name b{flex:none}
+@media (max-width:860px){
+  .pj-top{padding:12px 14px 10px}
+  .pj-tree{padding:0 8px 8px 4px}
+  .pj-kids{margin-left:15px;padding-left:6px}
+  .pj-t{flex-direction:column;align-items:flex-start;gap:2px}
+  .pj-add{padding-left:30px}
+  .pj-mhd+.pj-add{padding:0 12px 10px 30px}
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .pj-add input{background:color-mix(in srgb,var(--p) 70%,#000)}}
+:root[data-theme="dark"] .pj-add input{background:color-mix(in srgb,var(--p) 70%,#000)}
+.pj-name{text-transform:none;letter-spacing:0}
 </style>
 <div id="app"></div>
 <script>/*BUNDLE*/</script>

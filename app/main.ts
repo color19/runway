@@ -1,6 +1,6 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { add, cnd, createEngine, range, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
-import type { Engine, Item, ProjectStatus, Session, Store } from '../engine/src';
+import { MAX_DEPTH, add, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import type { Engine, Item, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
@@ -31,7 +31,14 @@ const ui = {
   drawerOpen: false,
   picker: null as string | null,
   colorFor: null as string | null,
-  layer: 'today' as 'today' | 'week' | 'global',
+  layer: 'today' as 'today' | 'project' | 'week' | 'global',
+  pid: '',
+  /** Folds the viewer flipped away from the default (fully done modules start folded). */
+  fold: new Set<string>(),
+  showDone: false,
+  addUnder: '',
+  subText: '',
+  focusSub: false,
   weekOff: 0,
   sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap',
   editId: '',
@@ -57,6 +64,17 @@ const raw = (id: string) => S.data.items[id];
 const colorOf = (eng: Engine, pid: string) => eng.derive().projMap.get(pid)?.color || LOOSE_COLOR;
 const nameOf = (eng: Engine, pid: string) => eng.derive().projMap.get(pid)?.name || '其他';
 const titleOf = (eng: Engine, s: Session) => (s.item && S.data.items[s.item]?.title) || nameOf(eng, s.project);
+const parentOf = (id: string): string | undefined => S.data.items[id]?.parent || undefined;
+/** Ids of tasks that have steps under them; their time is the sum of the steps. */
+const parentIds = () => new Set(Object.values(S.data.items).filter(x => !x.old && x.parent && S.data.items[x.parent] && !S.data.items[x.parent].old).map(x => x.parent as string));
+const kidsOf = (id: string) => Object.entries(S.data.items).filter(([, x]) => !x.old && x.parent === id).map(([k]) => k);
+/** "CFA Level 1 › 固定收益 · 离考试 13 天" with the task a step sits under put in. */
+function trail(eng: Engine, it: Item) {
+  const l = lineage(eng, it), up = parentOf(it.id), pt = up && raw(up) && !raw(up).old ? raw(up).title : '';
+  if (!pt) return l;
+  if (!l) return pt;
+  return l.includes(' · ') ? l.replace(' · ', ` › ${pt} · `) : `${l} › ${pt}`;
+}
 const isEmpty = () => !Object.keys(S.data.items).length && !Object.keys(S.data.projects).length;
 
 /* ---------- changing the data ---------- */
@@ -73,6 +91,14 @@ function toggleDone(id: string) {
   if (now && ui.timer?.id === id) plant();
   patch(id, { done: now, doneOn: now ? T() : null });
   if (now) { chime(); ui.skip = 0; }
+  if (now) for (const k of descendants(id, Object.keys(S.data.items).map(x => ({ id: x })), parentOf)) if (!raw(k).old && !raw(k).done) patch(k, { done: true, doneOn: T() });
+  // a task with steps is done exactly when all its steps are
+  for (let c = id, up = parentOf(c), n = 0; up && raw(up) && n < MAX_DEPTH + 1; c = up, up = parentOf(c), n++) {
+    const all = kidsOf(up).every(k => !!raw(k).done);
+    if (all && !raw(up).done) patch(up, { done: true, doneOn: T() });
+    else if (!all && raw(up).done) patch(up, { done: false, doneOn: null });
+    else break;
+  }
 }
 
 /** Ends the running timer and puts the time spent on today's runway. Half a minute or more counts. */
@@ -135,7 +161,7 @@ function header() {
   return `<header class="bar">
     <div class="brand">Runway</div>
     <nav class="layers" aria-label="视角">
-      ${(['global', 'week', 'today'] as const).map(l => `<button type="button" data-act="layer" data-layer="${l}"${ui.layer === l ? ' aria-current="page"' : ''}>${{ global: '全局', week: '本周', today: '今天' }[l]}</button>`).join('')}
+      ${(['global', 'project', 'week', 'today'] as const).map(l => `<button type="button" data-act="layer" data-layer="${l}"${ui.layer === l ? ' aria-current="page"' : ''}>${{ global: '全局', project: '项目', week: '本周', today: '今天' }[l]}</button>`).join('')}
     </nav>
     <button class="savestate ${S.mode}" type="button" data-act="data"><i></i>${saved}</button>
   </header>
@@ -250,7 +276,7 @@ function nowCard(eng: Engine, order: Item[]) {
   return `<article class="now${running ? ' running' : ''}">
     <div class="now-label">${running ? (ui.timer!.kind === 'ten' ? '先做 10 分钟' : '整块进行中') : '现在做'}</div>
     <h2><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></h2>
-    ${lineage(eng, it) ? `<p class="lin">${esc(lineage(eng, it))}</p>` : ''}
+    ${trail(eng, it) ? `<p class="lin">${esc(trail(eng, it))}</p>` : ''}
     ${it.note ? `<p class="lin note">${esc(it.note.split('\n')[0].slice(0, 120))}</p>` : ''}
     <p class="est mono">${time ? time + ' · ' : ''}预计 ${fmtH(it.hours || it.est)}</p>
     ${running ? `<div class="clock mono" id="clock">--:--</div><div class="track" aria-hidden="true"><i id="track"></i></div>` : ''}
@@ -267,7 +293,7 @@ function nowCard(eng: Engine, order: Item[]) {
 }
 
 function row(eng: Engine, it: Item, opts: { check?: boolean; back?: boolean } = {}) {
-  const lin = lineage(eng, it);
+  const lin = trail(eng, it);
   const when = it.time ? `${it.time}${it.end ? '–' + it.end : ''}` : it.kind === 'task' && (it.hours || it.est) ? fmtH(it.hours || it.est) : '';
   return `<li class="row${it.done ? ' done' : ''}${it.kind !== 'task' ? ' event' : ''}">
     ${opts.check && it.kind === 'task' ? `<input class="check" type="checkbox" id="c-${it.id}" data-act="done" data-id="${it.id}" ${it.done ? 'checked' : ''} aria-label="做完了：${esc(it.title)}">` : `<span class="dotslot"></span>`}
@@ -293,7 +319,8 @@ function quickView(eng: Engine) {
 
 const PILL: Record<string, string> = { good: 'good', mid: 'tight', bad: 'short', flat: 'flat' };
 function drawerView(eng: Engine) {
-  const groups = drawer(eng);
+  const holders = parentIds();
+  const groups = drawer(eng).map(g => ({ ...g, items: g.items.filter(i => !holders.has(i.id)) }));
   const waiting = sum(groups.map(g => g.items.length));
   const dv = eng.derive(), t = T();
   const inv = investedByProject(sessionsWithLogs(view()));
@@ -312,7 +339,7 @@ function drawerView(eng: Engine) {
       const sub = [p && g.quotaToday > 0.01 ? `今天目标 ${fmtH(g.quotaToday)}` : '', spent > 0.01 ? `已投入 ${fmtH(spent)}` : '', p ? `${cnd(p.deadline)}${isExam ? '考试' : '截止'}${diff(t, p.deadline) >= 0 ? '' : '（已过）'}` : '没有截止日，什么时候做都行'].filter(Boolean).join(' · ');
       const color = p ? p.color : LOOSE_COLOR;
       return `<section class="grp">
-        <header>${p ? `<button class="swatch" type="button" data-act="color" data-pid="${p.id}" style="background:${esc(color)}" aria-label="换 ${esc(p.name)} 的颜色" aria-expanded="${ui.colorFor === p.id}"></button>` : `<span class="swatch" style="background:${LOOSE_COLOR}"></span>`}<b>${p ? esc(p.name) : '生活和杂事'}</b>${pill}</header>
+        <header>${p ? `<button class="swatch" type="button" data-act="color" data-pid="${p.id}" style="background:${esc(color)}" aria-label="换 ${esc(p.name)} 的颜色" aria-expanded="${ui.colorFor === p.id}"></button>` : `<span class="swatch" style="background:${LOOSE_COLOR}"></span>`}${p ? `<button class="ed grp-name" type="button" data-act="proj" data-pid="${p.id}"><b>${esc(p.name)}</b></button>` : '<b>生活和杂事</b>'}${pill}</header>
         ${p && ui.colorFor === p.id ? `<div class="palette" role="group" aria-label="选颜色">${PALETTE.map(([n, c]) => `<button type="button" data-act="setcolor" data-pid="${p.id}" data-color="${c}" style="background:${c}" aria-label="${n}" aria-pressed="${c.toLowerCase() === color.toLowerCase()}" title="${n}"></button>`).join('')}</div>` : ''}
         <p class="grp-sub">${sub}</p>
         ${p && st && !st.cnt ? projectRunway(spent, st.rem, color) : ''}
@@ -382,7 +409,7 @@ function dataSheet() {
 function openEdit(id: string) {
   const it = raw(id); if (!it) return;
   ui.sheet = 'edit'; ui.editId = id;
-  ui.draft = { title: it.title || '', date: it.date || '', time: it.time || '', end: it.end || '', hours: String(r2(Number(it.hours) || 0)), project: it.project || '', note: it.note || '' };
+  ui.draft = { title: it.title || '', date: it.date || '', time: it.time || '', end: it.end || '', hours: String(r2(Number(it.hours) || 0)), project: it.project || '', parent: it.parent || '', note: it.note || '' };
 }
 function editView(eng: Engine) {
   if (ui.sheet !== 'edit') return '';
@@ -404,6 +431,7 @@ function editView(eng: Engine) {
           ${projects.map(p => `<option value="${esc(p.id)}"${p.id === d.project ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
         </select></label>
       </div>
+      ${task ? parentField(eng, ui.editId, d.project, d.parent) : ''}
       <label class="fld"><span>备注</span><textarea id="ed-note" name="note" rows="3">${esc(d.note)}</textarea></label>
       <p class="soft tiny">日期空着，就是放在项目里，还没排进哪天。</p>
       <div class="acts">
@@ -421,21 +449,26 @@ function saveEdit() {
   const date = d.date || null;
   const next: Record<string, any> = { ...it, title: d.title.trim() || it.title, date, time: date ? d.time : '', end: date ? d.end : '', project: d.project, note: d.note };
   if (d.project !== (it.project || '')) next.module = '';
+  let undoHolder = () => {};
   if ((it.kind || 'task') === 'task') {
     const h = Math.max(0, r2(Number(d.hours) || 0));
     next.hours = h;
     if (!(Number(it.est) > 0)) next.est = h;
+    const up = d.parent && raw(d.parent) && !raw(d.parent).old && (raw(d.parent).project || '') === d.project && d.parent !== id ? d.parent : '';
+    next.parent = up;
+    if (up) { next.module = raw(up).module || ''; if (up !== (it.parent || '')) undoHolder = becomeHolder(up); }
   }
   S.put('items', id, next);
   ui.sheet = null; ui.editId = '';
-  say('改好了', () => S.put('items', id, prev));
+  say('改好了', () => { S.put('items', id, prev); undoHolder(); });
 }
 /** Soft "not doing it": the task leaves every list but stays in the data and the backup. */
 function drop(id: string) {
   if (ui.timer?.id === id) plant();
   const title = raw(id).title;
-  patch(id, { old: true });
-  say(`「${title}」不做了`, () => patch(id, { old: false }));
+  const under = descendants(id, Object.keys(S.data.items).map(k => ({ id: k })), parentOf).filter(k => !raw(k).old);
+  for (const k of [id, ...under]) { if (ui.timer?.id === k) plant(); patch(k, { old: true }); }
+  say(`「${title}」${under.length ? `和下面 ${under.length} 步` : ''}不做了`, () => { for (const k of [id, ...under]) patch(k, { old: false }); });
 }
 
 /** End of the day: what got done, and where each unfinished task goes. Nothing is marked late. */
@@ -557,7 +590,7 @@ function globalView(eng: Engine) {
     const cnt = st.cnt ? `今天 ${st.cnt.tD}/${st.cnt.tT} ${p.count?.unit || ''}` : '';
     const sub = [`${cnd(p.deadline)}${isExam ? '考试' : '截止'} · 还有 ${left} 天`, cnt || (st.rem > 0.01 ? `还剩 ${fmtH(st.rem)}` : ''), cnt ? '' : (st.short || '')].filter(Boolean).join(' · ');
     return `<div class="gv-row">
-      <div class="gv-name"><span><i style="background:${esc(c)}"></i><b>${esc(p.name)}</b></span>${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}</div>
+      <div class="gv-name"><span><i style="background:${esc(c)}"></i><button class="ed" type="button" data-act="proj" data-pid="${p.id}"><b>${esc(p.name)}</b></button></span>${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}</div>
       <div class="gv-track">${grid}<span class="gv-bar" style="left:${X(from)}%;width:${Math.max(0.8, X(p.deadline) - X(from))}%;--c:${esc(c)}"></span><span class="gv-end" style="left:${X(p.deadline)}%;--c:${esc(c)}" title="${esc(cnd(p.deadline))}"></span></div>
       <p class="gv-sub">${esc(sub)}</p>
     </div>`;
@@ -616,6 +649,109 @@ function saveCap() {
   say('每天能用的时间改好了', () => S.put('settings', 'main', { ...mainSettings(), cap: prev }));
 }
 
+/* ---------- project layer: module › task › step › smaller step ---------- */
+/** A task getting its first step: from now on its time is the steps' time. Returns how to undo that. */
+function becomeHolder(pid: string) {
+  const it = raw(pid);
+  if (!it || kidsOf(pid).length || !(Number(it.hours) > 0 || Number(it.est) > 0)) return () => {};
+  const prev = { hours: it.hours, est: it.est };
+  patch(pid, { hours: 0, est: 0 });
+  return () => patch(pid, prev);
+}
+function addSub(parentId: string, moduleId: string) {
+  const eng = createEngine(view(), T());
+  const q = parseQuick(ui.subText, eng);
+  if (!q.title || !ui.pid) return;
+  const up = parentId && raw(parentId) ? raw(parentId) : null;
+  const order = Math.max(0, ...Object.values(S.data.items).map(x => Number(x.order) || 0)) + 1;
+  const holderHad = up ? Number(up.hours) || 0 : 0;
+  const undoHolder = up ? becomeHolder(parentId) : () => {};
+  const id = uid('i');
+  S.put('items', id, { kind: 'task', title: q.title, date: null, time: '', end: '', hours: q.hours, est: q.hours, done: false, doneOn: null, project: ui.pid, module: up ? (up.module || '') : moduleId, parent: up ? parentId : '', tags: [], note: '', order, log: {}, actual: null });
+  if (up?.done) patch(parentId, { done: false, doneOn: null });
+  ui.subText = ''; ui.focusSub = true;
+  const switched = up && holderHad > 0 && !kidsOf(parentId).some(k => k !== id);
+  say(`记下了「${q.title}」${switched ? `，「${up!.title}」的时间改成按小步加起来算` : ''}`, () => { S.put('items', id, null); undoHolder(); });
+}
+const folded = (key: string, byDefault: boolean) => ui.fold.has(key) ? !byDefault : byDefault;
+function foldBtn(key: string, open: boolean, label: string) {
+  return `<button class="pj-fold" type="button" data-act="fold" data-key="${esc(key)}" data-def="${open ? 0 : 1}" aria-expanded="${open}" aria-label="${open ? '收起' : '展开'}：${esc(label)}"><svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 2.5 7.5 6 4 9.5"/></svg></button>`;
+}
+function addForm(parentId: string, moduleId: string, step: boolean) {
+  return `<form class="pj-add" data-form="sub" data-parent="${esc(parentId)}" data-module="${esc(moduleId)}">
+    <input id="sub-input" type="text" autocomplete="off" maxlength="200" value="${esc(ui.subText)}" placeholder="${step ? '拆一小步，比如：先把题号分好 15m' : '加一件事，比如：FI 错题重做 1h'}" aria-label="${step ? '加一小步' : '加一件事'}">
+    <button class="mini signal" type="submit">记下</button><button class="mini ghost" type="button" data-act="sub-cancel">好了</button>
+  </form>`;
+}
+function nodeView(n: TreeNode, t: string): string {
+  const it = n.item, kids = n.children.filter(k => ui.showDone || k.open > 0);
+  if (!ui.showDone && n.open === 0) return '';
+  const holder = n.children.length > 0, open = holder && (!folded(it.id, false) || ui.addUnder === it.id);
+  const steps = n.total - 1, stepsDone = steps - (n.open - (it.done ? 0 : 1));
+  const when = it.date ? (it.done ? '' : it.date < t ? `原来排在 ${cnd(it.date)}` : it.date === t ? '今天' : dayL(it.date)) : '';
+  const meta = [holder ? `${stepsDone}/${steps} 步` : '', !it.done && (holder ? n.hours : it.hours) > 0.001 ? (holder ? `还剩 ${fmtH(n.hours)}` : fmtH(it.hours)) : '', when].filter(Boolean).join(' · ');
+  const later = !it.done && (!it.date || it.date < t);
+  return `<li class="pj-node d${n.depth}${it.done ? ' done' : ''}">
+    <div class="pj-row"${!it.done && !holder ? ` draggable="true" data-drag="${it.id}"` : ''}>
+      ${holder ? foldBtn(it.id, open, it.title) : '<span class="pj-gap"></span>'}
+      <button class="mark${it.done ? ' o' : ''}" type="button" data-act="done" data-id="${it.id}" aria-label="${it.done ? '标成没做完' : '标成做完'}：${esc(it.title)}">${it.done ? 'O' : ''}</button>
+      <div class="pj-t"><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button>${meta ? `<small class="mono">${esc(meta)}</small>` : ''}</div>
+      <div class="pj-a">
+        ${later && !holder ? `<button class="mini signal" type="button" data-act="today" data-id="${it.id}">放到今天</button>` : ''}
+        ${n.depth < MAX_DEPTH && !it.done ? `<button class="mini" type="button" data-act="sub" data-id="${it.id}" aria-label="在「${esc(it.title)}」下面拆一小步">+</button>` : ''}
+      </div>
+    </div>
+    ${ui.addUnder === it.id ? addForm(it.id, '', true) : ''}
+    ${holder && open && kids.length ? `<ul class="pj-kids">${kids.map(k => nodeView(k, t)).join('')}</ul>` : ''}
+  </li>`;
+}
+function projectView(eng: Engine) {
+  const t = T(), dv = eng.derive();
+  const projs = [...dv.projects].sort((a, b) => Number(a.deadline < t) - Number(b.deadline < t) || a.deadline.localeCompare(b.deadline));
+  if (!projs.length) return `<main class="plan"><section class="pad pad-lilac pj"><div class="pad-hd"><span>project</span><span></span></div><p class="soft pj-empty">还没有项目。</p></section></main>`;
+  const p = projs.find(x => x.id === ui.pid) || projs[0];
+  ui.pid = p.id;
+  const st = eng.projStatus(p), w = calm(st), c = p.color || LOOSE_COLOR;
+  const groups = projectTree(p, dv.items, parentOf);
+  const spent = investedByProject(sessionsWithLogs(view()))[p.id] || 0;
+  const isExam = dv.items.some(x => x.kind === 'exam' && x.date === p.deadline);
+  const left = diff(t, p.deadline);
+  const open = sum(groups.map(g => g.open)), total = sum(groups.map(g => g.total));
+  return `<main class="plan">
+    <nav class="pj-tabs" aria-label="选项目">${projs.map(x => `<button type="button" data-act="proj" data-pid="${x.id}"${x.id === p.id ? ' aria-current="page"' : ''}><i style="background:${esc(x.color || LOOSE_COLOR)}"></i>${esc(x.name)}</button>`).join('')}</nav>
+    <section class="pad pad-lilac pj" aria-label="${esc(p.name)}">
+      <div class="pad-hd"><span>project · <b class="pj-name">${esc(p.name)}</b></span><span>${cnd(p.deadline)}${isExam ? '考试' : '截止'}${left >= 0 ? ` · 还有 ${left} 天` : ''}</span></div>
+      <div class="pj-top">
+        <div class="pj-sum">${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}<span class="soft">${total ? `${open} 件没做，共 ${total} 件` : '还没有事'}${st.rem > 0.01 && !st.cnt ? ` · 还剩 ${fmtH(st.rem)}` : ''}${spent > 0.01 ? ` · 已投入 ${fmtH(spent)}` : ''}</span></div>
+        ${st.cnt ? '' : projectRunway(spent, st.rem, c)}
+        <label class="pj-toggle"><input type="checkbox" data-act="show-done"${ui.showDone ? ' checked' : ''}> 显示做完的</label>
+      </div>
+      ${groups.map(g => {
+        const key = 'm:' + g.id, isOpen = !folded(key, g.open === 0 && !ui.showDone) || ui.addUnder === key;
+        const nodes = g.nodes.filter(n => ui.showDone || n.open > 0);
+        const info = g.open ? `${g.open} 件没做${g.hours > 0.01 ? ` · 还剩 ${fmtH(g.hours)}` : ''}` : g.total ? '都做完了' : '还没有事';
+        return `<section class="pj-mod${g.open ? '' : ' quiet'}">
+          <header class="pj-mhd">${foldBtn(key, isOpen, g.name)}<b>${esc(g.name)}</b><span class="soft tiny">${info}${g.due ? ` · ${cnd(g.due)}前` : ''}</span><button class="mini" type="button" data-act="sub" data-id="${esc(key)}">+ 任务</button></header>
+          ${ui.addUnder === key ? addForm('', g.id, false) : ''}
+          ${isOpen ? (nodes.length ? `<ul class="pj-tree">${nodes.map(n => nodeView(n, t)).join('')}</ul>` : g.total ? `<p class="pj-none">都做完了。想看就打开"显示做完的"。</p>` : `<p class="pj-none">还没有事，点"+ 任务"加一件。</p>`) : ''}
+        </section>`; }).join('')}
+    </section>
+  </main>`;
+}
+/** Tasks this one can sit under: same project, not itself or its own steps, and not already at the deepest level. */
+function parentField(eng: Engine, id: string, project: string, current: string) {
+  const p = project ? eng.derive().projMap.get(project) : null;
+  if (!p) return '';
+  const below = new Set(descendants(id, Object.keys(S.data.items).map(k => ({ id: k })), parentOf));
+  const groups = projectTree(p, eng.derive().items, parentOf);
+  const opts = (n: TreeNode): string => n.item.id === id || below.has(n.item.id) || n.depth >= MAX_DEPTH ? '' :
+    `<option value="${esc(n.item.id)}"${n.item.id === current ? ' selected' : ''}>${'　'.repeat(n.depth - 1)}${esc(n.item.title)}${n.item.done ? '（做完了）' : ''}</option>` + n.children.map(opts).join('');
+  return `<label class="fld"><span>放在哪件事下面</span><select id="ed-parent" name="parent">
+    <option value=""${current ? '' : ' selected'}>不放，自己就是一件事</option>
+    ${groups.map(g => { const o = g.nodes.map(opts).join(''); return o ? `<optgroup label="${esc(g.name)}">${o}</optgroup>` : ''; }).join('')}
+  </select></label>`;
+}
+
 function emptyView() {
   return `<main class="empty-app">
     <h1>Runway 还没有数据</h1>
@@ -640,12 +776,14 @@ function render() {
   const y = window.scrollY;
   const dScroll = (root.querySelector('.groups') as HTMLElement | null)?.scrollTop ?? 0;
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
-  const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : today(eng);
+  const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : ui.layer === 'project' ? projectView(eng) : today(eng);
   const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
   root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
+  else if (ui.focusSub) document.getElementById('sub-input')?.focus();
+  ui.focusSub = false;
   tick();
   ui.justPlanted = '';
 }
@@ -722,6 +860,14 @@ root.addEventListener('click', e => {
     case 'close': ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } break;
     case 'undo': ui.toast?.undo?.(); ui.toast = null; break;
     case 'layer': ui.layer = el.dataset.layer as typeof ui.layer; ui.sheet = null; window.scrollTo(0, 0); render(); window.scrollTo(0, 0); return;
+    case 'proj': ui.layer = 'project'; ui.pid = pid!; ui.addUnder = ''; ui.sheet = null; ui.drawerOpen = false; render(); window.scrollTo(0, 0); return;
+    case 'fold': { const k = el.dataset.key!; if (ui.fold.has(k)) ui.fold.delete(k); else ui.fold.add(k); break; }
+    case 'sub': {
+      ui.addUnder = ui.addUnder === id ? '' : id!; ui.subText = ''; ui.focusSub = !!ui.addUnder;
+      break;
+    }
+    case 'sub-cancel': ui.addUnder = ''; ui.subText = ''; break;
+    case 'show-done': ui.showDone = (el as HTMLInputElement).checked; ui.fold.clear(); break;
     case 'wk': ui.weekOff = Number(el.dataset.step) ? ui.weekOff + Number(el.dataset.step) : 0; break;
     case 'cap-day': { const by = Number(el.dataset.by); setDays([day!], c => c + by, `${cnd(day!)}能用的时间${by > 0 ? '多了' : '少了'} 1 小时`); break; }
     case 'give': { const days = range(el.dataset.from!, el.dataset.to!).filter(d => eng.capOf(d) > 0); setDays(days, c => c + 1, `${days.length} 天每天多给了 1 小时`); break; }
@@ -748,10 +894,11 @@ root.addEventListener('click', e => {
 root.addEventListener('change', e => {
   const t = e.target as HTMLInputElement;
   if (t.dataset.act === 'file') readFile(t);
+  if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; render(); }
   if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"]') && t.name) ui.draft[t.name] = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
-root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"]') && t.name) ui.draft[t.name] = t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
 /* drag a task to another day, or onto the project drawer to put it back */
 let dragId = '';
@@ -780,7 +927,7 @@ root.addEventListener('drop', e => {
   render();
 });
 root.addEventListener('dragend', () => { dragId = ''; root.querySelectorAll('.hot,.dragging').forEach(x => x.classList.remove('hot', 'dragging')); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.addUnder && !ui.sheet) { ui.addUnder = ''; ui.subText = ''; render(); return; } if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } render(); } });
 
 /* ---------- start ---------- */
 toFloat = startBridge(S, T);
