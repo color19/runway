@@ -116,6 +116,16 @@ export function startBridge(S: Store, today: () => string) {
           setSpiral('state', { ...s, idx: i, endsAt: Date.now() + blockMin(i) * 60000, left: blockMin(i) * 60, bi: (s.bi || 0) + (isA(s.idx || 0) ? 0 : 1), acc: 0, runFrom: isA(i) ? Date.now() : null, rang: false });
           break;
         }
+        // tick off what is being done now; the stretch so far is its focus time, and the clock keeps going for the next one
+        case 'doneNow': {
+          const x = D.items[id]; if (!x || x.done) break;
+          if (isA(s.idx || 0)) {
+            logFocus(id, runSecs(s), s.runFrom || Date.now());
+            setSpiral('state', { ...s, acc: 0, runFrom: s.endsAt ? Date.now() : null });
+          }
+          putItem(id, { done: true, doneOn: t });
+          break;
+        }
         case 'more10': setSpiral('state', { ...s, acc: isA(s.idx || 0) ? runSecs(s) : 0, runFrom: isA(s.idx || 0) ? Date.now() : null, endsAt: Date.now() + 600000, rang: false }); break;
         case 'swapB': setSpiral('state', { ...s, bi: (s.bi || 0) + 1 }); break;
         case 'reset': setSpiral('state', { date: t, idx: 0, endsAt: null, left: blockMin(0) * 60, bi: s.bi || 0, acc: 0, runFrom: null }); break;

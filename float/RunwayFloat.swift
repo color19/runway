@@ -351,28 +351,43 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder func doneNow(a: Bool) -> some View {
+        if a, let it = m.current {
+            Button("做完了") { m.cmd("doneNow", ["id": it.id]) }.buttonStyle(Pill(kind: .plain, p: p))
+        }
+    }
+
     @ViewBuilder func controls(a: Bool) -> some View {
         let sec = m.leftSec
         let fresh = sec == blockMin(m.idx) * 60
-        HStack(spacing: 6) {
-            if m.running && sec <= 0 {
+        if m.running && sec <= 0 {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("时间到").font(mono(11)).foregroundColor(p.sig)
-                if a {
-                    Button("去玩 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .primary, p: p))
-                    Button("再做 10 分钟") { m.cmd("more10") }.buttonStyle(Pill(kind: .plain, p: p))
+                HStack(spacing: 6) {
+                    if a {
+                        Button("去玩 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .primary, p: p))
+                        doneNow(a: a)
+                        Button("再做 10 分钟") { m.cmd("more10") }.buttonStyle(Pill(kind: .quiet, p: p))
+                    } else {
+                        Button("回来做 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .primary, p: p))
+                    }
+                }
+            }
+        } else {
+            HStack(spacing: 6) {
+                if m.running {
+                    Button("暂停") { m.cmd("pause") }.buttonStyle(Pill(kind: .plain, p: p))
+                    doneNow(a: a)
+                    Button("这段结束") { m.cmd("next") }.buttonStyle(Pill(kind: .quiet, p: p))
+                    if !a && (m.st?.b.count ?? 0) > 1 {
+                        Button("换一个") { m.cmd("swapB") }.buttonStyle(Pill(kind: .quiet, p: p))
+                    }
                 } else {
-                    Button("回来做 \(blockMin(m.idx + 1)) 分钟") { m.cmd("next") }.buttonStyle(Pill(kind: .primary, p: p))
-                }
-            } else if m.running {
-                Button("暂停") { m.cmd("pause") }.buttonStyle(Pill(kind: .plain, p: p))
-                Button("这段结束") { m.cmd("next") }.buttonStyle(Pill(kind: .quiet, p: p))
-                if !a && (m.st?.b.count ?? 0) > 1 {
-                    Button("换一个") { m.cmd("swapB") }.buttonStyle(Pill(kind: .quiet, p: p))
-                }
-            } else {
-                Button(fresh ? "开始" : "继续") { m.cmd("start") }.buttonStyle(Pill(kind: .primary, p: p))
-                if m.idx > 0 || !fresh {
-                    Button("重来") { m.cmd("reset") }.buttonStyle(Pill(kind: .quiet, p: p))
+                    Button(fresh ? "开始" : "继续") { m.cmd("start") }.buttonStyle(Pill(kind: .primary, p: p))
+                    doneNow(a: a)
+                    if m.idx > 0 || !fresh {
+                        Button("重来") { m.cmd("reset") }.buttonStyle(Pill(kind: .quiet, p: p))
+                    }
                 }
             }
         }
