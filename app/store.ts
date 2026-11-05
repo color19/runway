@@ -1,14 +1,20 @@
 // Where the data lives. On claude.ai the page keeps it in its own database (the `db` capability), so the
 // phone and the Mac see the same thing. Without it the page still runs, from memory only, and says so.
 // The rest of the app only sees `data` and `put`; a local-first backend can replace this file later.
+// The share build (__SHARE__) gives every viewer their own copy under data/users/<id>/, and when the
+// link cannot write to the database at all it keeps the data in this browser instead.
 import type { Store } from '../engine/src';
+
+declare const __SHARE__: boolean;
+const LOCAL_KEY = 'runway-share-data';
+const REFUSED = new Set(['invalid_argument', 'not_granted', 'capability_disabled', 'capability_removed', 'revoked']);
 
 export type Col = 'items' | 'projects' | 'settings' | 'notes' | 'sessions' | 'spiral';
 const COLS: Col[] = ['items', 'projects', 'settings', 'notes', 'sessions', 'spiral'];
 type Docs = Record<string, Record<string, any>>;
 /** `spiral` holds the Mac float window's spiral timer: docs `state`, `b` (reward list) and `block`. */
 export type Data = Required<Store> & { notes: Docs; spiral: Docs };
-export type Mode = 'loading' | 'live' | 'memory' | 'error';
+export type Mode = 'loading' | 'live' | 'local' | 'memory' | 'error';
 
 /** Sessions are kept one document per day: { list: [{id, item, project, start, mins}] }. */
 const sessionsToDays = (s: Docs) => {
@@ -24,6 +30,30 @@ export function createStore(onChange: () => void) {
   let problem = '';
   const chains = new Map<string, Promise<void>>();
   const days: Record<string, Record<string, any>> = {};
+  let base: any = null;
+  const offs: Array<() => void> = [];
+  const colRef = (col: Col) => base ? base.collection(col) : db.collection(col);
+
+  /** The browser keeps the whole thing as one JSON value; sessions stay in their per-day shape. */
+  let saveTimer = 0;
+  function saveLocal() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ items: data.items, projects: data.projects, settings: data.settings, notes: data.notes, spiral: data.spiral, days })); }
+      catch { problem = '这台设备的浏览器存不下数据了，有一处改动没存上。先导出一份备份。'; onChange(); }
+    }, 300) as unknown as number;
+  }
+  function goLocal(keep: boolean) {
+    offs.splice(0).forEach(f => { try { f(); } catch { /* already closed */ } });
+    db = null;
+    if (!keep) {
+      let saved: any = null;
+      try { saved = JSON.parse(localStorage.getItem(LOCAL_KEY) || 'null'); } catch { saved = null; }
+      if (saved) { for (const col of COLS) if (col !== 'sessions') absorb(col, saved[col] || {}); absorb('sessions', saved.days || {}); }
+    }
+    try { localStorage.setItem(LOCAL_KEY + ':on', '1'); mode = 'local'; saveLocal(); } catch { mode = 'memory'; }
+    onChange();
+  }
 
   function absorb(col: Col, docs: Record<string, any>) {
     if (col !== 'sessions') { (data as any)[col] = docs; return; }
@@ -35,19 +65,25 @@ export function createStore(onChange: () => void) {
 
   async function connect() {
     const c = (window as any).claude;
+    if (__SHARE__) { let on = false; try { on = localStorage.getItem(LOCAL_KEY + ':on') === '1'; } catch { on = false; } if (on) { goLocal(false); return; } }
     try { db = c && c.use ? await c.use('db') : null; } catch { db = null; }
-    if (!db) { mode = 'memory'; onChange(); return; }
+    if (!db) { if (__SHARE__) goLocal(false); else { mode = 'memory'; onChange(); } return; }
+    if (__SHARE__) {
+      let id: string | null = null;
+      try { const u = await c.use('user'); id = u ? await u.id() : null; } catch { id = null; }
+      if (id) base = db.doc('data/users/' + id + '/runway');
+    }
     const seen = new Set<Col>();
     const timer = setTimeout(() => { if (mode === 'loading') { mode = 'error'; problem = '数据 10 秒还没读到，可能是网络问题。稍等一下再刷新。'; onChange(); } }, 10000);
     for (const col of COLS) {
-      db.collection(col).onSnapshot((snap: any) => {
+      offs.push(colRef(col).onSnapshot((snap: any) => {
         const m: Record<string, any> = {};
         snap.docs.forEach((d: any) => { if (d.exists) m[d.id] = structuredClone(d.data()); });
         absorb(col, m);
         if (!snap.metadata.fromCache) seen.add(col);
         if (seen.size === COLS.length && mode !== 'live') { clearTimeout(timer); mode = 'live'; problem = ''; }
         onChange();
-      }, (e: any) => { clearTimeout(timer); mode = 'error'; problem = e?.code === 'revoked' ? '这个页面的数据权限被收回了。' : `数据连接断了（${e?.code || '未知'}）。刷新页面试试。`; onChange(); });
+      }, (e: any) => { clearTimeout(timer); if (__SHARE__ && REFUSED.has(e?.code)) { goLocal(false); return; } mode = 'error'; problem = e?.code === 'revoked' ? '这个页面的数据权限被收回了。' : `数据连接断了（${e?.code || '未知'}）。刷新页面试试。`; onChange(); }));
     }
   }
 
@@ -55,6 +91,7 @@ export function createStore(onChange: () => void) {
   function queue(key: string, job: () => Promise<void>) {
     const prev = chains.get(key) || Promise.resolve();
     const next = prev.catch(() => {}).then(job).catch((e: any) => {
+      if (__SHARE__ && db && REFUSED.has(e?.code)) { goLocal(true); return; }
       problem = e?.code === 'quota_exceeded' ? '存储满了，有一处改动没存上。' : `有一处改动没存上（${e?.code || '未知'}），刷新后可能会丢。`;
       onChange();
     });
@@ -66,8 +103,9 @@ export function createStore(onChange: () => void) {
   function put(col: Exclude<Col, 'sessions'>, id: string, body: Record<string, any> | null) {
     if (body) (data as any)[col][id] = body; else delete (data as any)[col][id];
     onChange();
+    if (mode === 'local') saveLocal();
     if (!db) return Promise.resolve();
-    const ref = db.collection(col).doc(id);
+    const ref = colRef(col).doc(id);
     return queue(col + '/' + id, () => body ? ref.set(body) : ref.delete());
   }
 
@@ -76,8 +114,9 @@ export function createStore(onChange: () => void) {
     data.sessions[id] = s;
     const day = days[s.date] = { list: [...(days[s.date]?.list || []), { id, item: s.item, project: s.project, start: s.start, mins: s.mins }] };
     onChange();
+    if (mode === 'local') saveLocal();
     if (!db) return Promise.resolve();
-    return queue('sessions/' + s.date, () => db.collection('sessions').doc(s.date).set(day));
+    return queue('sessions/' + s.date, () => colRef('sessions').doc(s.date).set(day));
   }
 
   /** Replace everything with a backup (old Runway format, optionally with sessions). */
@@ -96,12 +135,14 @@ export function createStore(onChange: () => void) {
     }
     for (const col of COLS) absorb(col, target[col]);
     onChange();
+    if (mode === 'local') saveLocal();
     if (!db) { progress(jobs.length, jobs.length); return; }
     let done = 0;
     const worker = async () => {
       while (jobs.length) {
         const [col, id, body] = jobs.shift()!;
-        const ref = db.collection(col).doc(id);
+        if (!db) { done++; continue; }
+        const ref = colRef(col).doc(id);
         await queue(col + '/' + id, () => body ? ref.set(body) : ref.delete());
         progress(++done, done + jobs.length);
       }

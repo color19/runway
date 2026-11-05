@@ -81,6 +81,7 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .savestate i{width:7px;height:7px;border-radius:50%;background:var(--muted)}
 .savestate.live i{background:var(--good)}
 .savestate.memory i,.savestate.error i{background:var(--short)}
+.savestate.local i{background:var(--tight)}
 .problem{margin:-6px 0 16px;padding:10px 14px;border-radius:10px;background:color-mix(in srgb,var(--short) 10%,var(--card));font-size:13px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .problem button{border:0;background:none;color:var(--signal);font-size:13px;padding:0}
 .loading{color:var(--muted);padding:48px 0}
@@ -535,7 +536,7 @@ button.swatch:hover{transform:scale(1.3)}
 .gv-grid i{position:absolute;top:0;bottom:0;width:1px;background:var(--pl)}
 .gv-bar{position:absolute;top:4px;bottom:4px;border-radius:4px;background:color-mix(in srgb,var(--c) var(--hl),transparent)}
 .gv-end{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;transform:rotate(45deg);background:var(--c);border-radius:2px;box-shadow:0 0 0 2px var(--p);z-index:1}
-.gv-empty{padding:14px 18px}
+.gv-empty{padding:14px 18px;display:flex;align-items:center;gap:10px}
 .gv-load .pad-hd .mini{font-size:12px}
 .gv-curve{display:grid;align-items:end;height:110px;gap:1px;border-bottom:1px solid var(--pl)}
 .gv-col{position:relative;height:100%}
@@ -566,6 +567,8 @@ button.swatch:hover{transform:scale(1.3)}
 .pj-tabs::-webkit-scrollbar{display:none}
 .pj-tabs button{flex:none;display:flex;align-items:center;gap:7px;border:0;border-radius:8px;padding:6px 12px;font-size:13px;color:var(--muted);background:var(--cream);box-shadow:inset 0 0 0 1px var(--cream-l);white-space:nowrap}
 .pj-tabs button i{width:8px;height:8px;border-radius:2px}
+.pad-hd .pj-edit{margin-left:8px}
+.pj-tabs button.pj-new{background:transparent;box-shadow:inset 0 0 0 1px var(--cream-l);border:0;color:var(--signal)}
 .pj-tabs button[aria-current]{color:var(--ink);font-weight:500;background:var(--lilac);box-shadow:inset 0 0 0 1.5px var(--lilac-l)}
 .pj{padding-bottom:10px}
 .pj-top{display:flex;flex-direction:column;gap:8px;padding:12px 18px 10px;border-bottom:1px solid var(--pl)}
@@ -573,6 +576,7 @@ button.swatch:hover{transform:scale(1.3)}
 .pj-top .prun{margin:0}
 .pj-toggle{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);align-self:flex-end;cursor:pointer}
 .pj-toggle input{margin:0;accent-color:var(--signal)}
+.edit .pj-toggle{align-self:flex-start;font-size:13px;color:var(--ink)}
 .pj-mod{border-bottom:1px solid var(--pl)}
 .pj-mod:last-child{border-bottom:0}
 .pj-mhd{display:flex;align-items:center;gap:8px;padding:10px 16px 10px 10px;flex-wrap:wrap}

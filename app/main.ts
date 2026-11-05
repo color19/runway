@@ -6,6 +6,8 @@ import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './rib
 import { backupOf, createStore, parseBackup } from './store';
 import { startBridge } from './bridge';
 
+declare const __SHARE__: boolean;
+
 const WD = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const WD_EN = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const dayL = (d: string) => `${cnd(d)} ${WD[monIdx(d)]}`;
@@ -40,7 +42,7 @@ const ui = {
   subText: '',
   focusSub: false,
   weekOff: 0,
-  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap',
+  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj',
   editId: '',
   draft: {} as Record<string, string>,
   pending: null as null | ReturnType<typeof parseBackup>,
@@ -157,7 +159,7 @@ function chime() {
 
 /* ---------- views ---------- */
 function header() {
-  const saved = S.mode === 'live' ? '已保存' : S.mode === 'memory' ? '没有保存' : S.mode === 'loading' ? '读取中' : '保存出了问题';
+  const saved = S.mode === 'live' ? '已保存' : S.mode === 'local' ? '存在这台设备' : S.mode === 'memory' ? '没有保存' : S.mode === 'loading' ? '读取中' : '保存出了问题';
   return `<header class="bar">
     <div class="brand">Runway</div>
     <nav class="layers" aria-label="视角">
@@ -166,7 +168,7 @@ function header() {
     <button class="savestate ${S.mode}" type="button" data-act="data"><i></i>${saved}</button>
   </header>
   ${S.problem ? `<p class="problem" role="alert">${esc(S.problem)}<button type="button" data-act="dismiss">知道了</button></p>` : ''}
-  ${S.mode === 'memory' ? `<p class="problem">这个页面现在拿不到数据库，看到的是示例，改动刷新就会丢。在 claude.ai 里打开这个页面才能保存。</p>` : ''}`;
+  ${S.mode === 'memory' ? `<p class="problem">${__SHARE__ ? '这个页面现在存不了数据，改动刷新就会丢。' : '这个页面现在拿不到数据库，看到的是示例，改动刷新就会丢。在 claude.ai 里打开这个页面才能保存。'}</p>` : ''}`;
 }
 
 function legend(eng: Engine, list: Session[]) {
@@ -311,7 +313,7 @@ function quickView(eng: Engine) {
   const q = ui.quick.trim() ? parseQuick(ui.quick, eng) : null;
   const hint = q && q.title ? [q.project ? nameOf(eng, q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : '';
   return `<form class="quick" data-form="quick">
-    <input id="quick-input" type="text" autocomplete="off" placeholder="随手记一件事，比如：Ethics 错题 #CFA 45m" value="${esc(ui.quick)}" aria-label="随手记">
+    <input id="quick-input" type="text" autocomplete="off" placeholder="${__SHARE__ ? '随手记一件事，比如：写报告第一段 45m' : '随手记一件事，比如：Ethics 错题 #CFA 45m'}" value="${esc(ui.quick)}" aria-label="随手记">
     <div class="quick-row"><span class="soft">${hint ? '会记成：' + esc(hint) : '可以加 #项目 和时长'}</span>
       <button class="mini" type="submit">记下</button><button class="mini signal" type="button" data-act="quick-today">记下并放到今天</button></div>
   </form>`;
@@ -383,7 +385,7 @@ function pickerView(eng: Engine) {
 function dataSheet() {
   if (ui.sheet !== 'data' && ui.sheet !== 'import') return '';
   const n = Object.keys(S.data.items).length, np = Object.keys(S.data.projects).length, ns = Object.keys(S.data.sessions).length;
-  const where = S.mode === 'live' ? '存在这个页面自己的数据库里。电脑和手机打开同一个链接，看到的是同一份。' : S.mode === 'memory' ? '现在拿不到数据库，只存在这一次打开的页面里，刷新就会丢。' : '数据库现在有问题，改动可能没存上。';
+  const where = S.mode === 'live' ? (__SHARE__ ? '存在这个页面的数据库里，只有你自己看得到。电脑和手机用同一个账号打开这个链接，看到的是同一份。' : '存在这个页面自己的数据库里。电脑和手机打开同一个链接，看到的是同一份。') : S.mode === 'local' ? '这个链接存不进云端，数据存在这台设备的浏览器里。换设备或清理浏览器之前，先导出一份备份。' : S.mode === 'memory' ? '现在拿不到数据库，只存在这一次打开的页面里，刷新就会丢。' : '数据库现在有问题，改动可能没存上。';
   if (ui.sheet === 'import' && ui.pending) {
     const b = ui.pending;
     return `<div class="scrim" data-act="close"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="从备份恢复">
@@ -398,7 +400,7 @@ function dataSheet() {
     <p>${where}</p>
     <p class="soft">现在有 ${n} 件事、${np} 个项目、${ns} 段专注。</p>
     <div class="acts col">
-      <label class="btn filebtn">从旧版备份导入…<input id="file-import" type="file" accept=".json,application/json" data-act="file"></label>
+      <label class="btn filebtn">${__SHARE__ ? '从备份导入…' : '从旧版备份导入…'}<input id="file-import" type="file" accept=".json,application/json" data-act="file"></label>
       <button class="btn" type="button" data-act="export">导出备份</button>
     </div>
     <p class="soft">导出的文件就是旧版 Runway 的备份格式，旧版"导出与备份"里可以直接恢复，随时能退回去。</p>
@@ -613,7 +615,7 @@ function globalView(eng: Engine) {
     <section class="pad pad-sage gv" aria-label="全局">
       <div class="pad-hd"><span>all projects · 全局</span><span>${cnd(t)} 到 ${cnd(end)}</span></div>
       <div class="gv-row gv-head"><span></span><div class="gv-axis">${mondays.filter((_, i) => i % Math.max(1, Math.ceil(mondays.length / 6)) === 0 && i > 0 || (i === 0 && X(mondays[0]) > 9)).map(d => `<span style="left:${X(d)}%">${d.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')}</span>`).join('')}<span class="gv-today" style="left:0">今天</span></div></div>
-      ${lanes || `<p class="soft gv-empty">还没有进行中的项目。</p>`}${other}
+      ${lanes || `<p class="soft gv-empty">还没有进行中的项目。<button class="mini" type="button" data-act="proj-new">+ 新项目</button></p>`}${other}
     </section>
     <section class="pad pad-butter gv-load" aria-label="每天的负荷">
       <div class="pad-hd"><span>load · 每天要做多少</span><button class="mini" type="button" data-act="cap-open">每天能用多少小时</button></div>
@@ -679,7 +681,7 @@ function foldBtn(key: string, open: boolean, label: string) {
 }
 function addForm(parentId: string, moduleId: string, step: boolean) {
   return `<form class="pj-add" data-form="sub" data-parent="${esc(parentId)}" data-module="${esc(moduleId)}">
-    <input id="sub-input" type="text" autocomplete="off" maxlength="200" value="${esc(ui.subText)}" placeholder="${step ? '拆一小步，比如：先把题号分好 15m' : '加一件事，比如：FI 错题重做 1h'}" aria-label="${step ? '加一小步' : '加一件事'}">
+    <input id="sub-input" type="text" autocomplete="off" maxlength="200" value="${esc(ui.subText)}" placeholder="${step ? '拆一小步，比如：先把题号分好 15m' : (__SHARE__ ? '加一件事，比如：读第 3 章 1h' : '加一件事，比如：FI 错题重做 1h')}" aria-label="${step ? '加一小步' : '加一件事'}">
     <button class="mini signal" type="submit">记下</button><button class="mini ghost" type="button" data-act="sub-cancel">好了</button>
   </form>`;
 }
@@ -708,19 +710,20 @@ function nodeView(n: TreeNode, t: string): string {
 function projectView(eng: Engine) {
   const t = T(), dv = eng.derive();
   const projs = [...dv.projects].sort((a, b) => Number(a.deadline < t) - Number(b.deadline < t) || a.deadline.localeCompare(b.deadline));
-  if (!projs.length) return `<main class="plan"><section class="pad pad-lilac pj"><div class="pad-hd"><span>project</span><span></span></div><p class="soft pj-empty">还没有项目。</p></section></main>`;
+  if (!projs.length) return `<main class="plan"><section class="pad pad-lilac pj"><div class="pad-hd"><span>project</span><span></span></div><p class="soft pj-empty">还没有项目。</p><div class="acts pj-empty"><button class="btn primary" type="button" data-act="proj-new">建一个项目</button></div></section></main>`;
   const p = projs.find(x => x.id === ui.pid) || projs[0];
   ui.pid = p.id;
   const st = eng.projStatus(p), w = calm(st), c = p.color || LOOSE_COLOR;
   const groups = projectTree(p, dv.items, parentOf);
+  if (!groups.length) groups.push({ id: '', name: '要做的事', due: '', nodes: [], total: 0, open: 0, hours: 0 });
   const spent = investedByProject(sessionsWithLogs(view()))[p.id] || 0;
   const isExam = dv.items.some(x => x.kind === 'exam' && x.date === p.deadline);
   const left = diff(t, p.deadline);
   const open = sum(groups.map(g => g.open)), total = sum(groups.map(g => g.total));
   return `<main class="plan">
-    <nav class="pj-tabs" aria-label="选项目">${projs.map(x => `<button type="button" data-act="proj" data-pid="${x.id}"${x.id === p.id ? ' aria-current="page"' : ''}><i style="background:${esc(x.color || LOOSE_COLOR)}"></i>${esc(x.name)}</button>`).join('')}</nav>
+    <nav class="pj-tabs" aria-label="选项目">${projs.map(x => `<button type="button" data-act="proj" data-pid="${x.id}"${x.id === p.id ? ' aria-current="page"' : ''}><i style="background:${esc(x.color || LOOSE_COLOR)}"></i>${esc(x.name)}</button>`).join('')}<button type="button" class="pj-new" data-act="proj-new">+ 新项目</button></nav>
     <section class="pad pad-lilac pj" aria-label="${esc(p.name)}">
-      <div class="pad-hd"><span>project · <b class="pj-name">${esc(p.name)}</b></span><span>${cnd(p.deadline)}${isExam ? '考试' : '截止'}${left >= 0 ? ` · 还有 ${left} 天` : ''}</span></div>
+      <div class="pad-hd"><span>project · <b class="pj-name">${esc(p.name)}</b></span><span>${cnd(p.deadline)}${isExam ? '考试' : '截止'}${left >= 0 ? ` · 还有 ${left} 天` : ''}<button class="mini pj-edit" type="button" data-act="proj-edit" data-pid="${p.id}">改</button></span></div>
       <div class="pj-top">
         <div class="pj-sum">${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}<span class="soft">${total ? `${open} 件没做，共 ${total} 件` : '还没有事'}${st.rem > 0.01 && !st.cnt ? ` · 还剩 ${fmtH(st.rem)}` : ''}${spent > 0.01 ? ` · 已投入 ${fmtH(spent)}` : ''}</span></div>
         ${st.cnt ? '' : projectRunway(spent, st.rem, c)}
@@ -753,12 +756,67 @@ function parentField(eng: Engine, id: string, project: string, current: string) 
 }
 
 function emptyView() {
+  if (__SHARE__) return `<main class="empty-app">
+    <h1>从最近的一个截止日开始</h1>
+    <p>Runway 从考试和截止日往回倒推，算出每天大概要做多少，再告诉你现在先做哪一件。</p>
+    <p>先建一个项目：一场考试、一份作业，或者任何有截止日的事。然后在项目里写下要做的几件事和大概要几小时。</p>
+    <div class="acts"><button class="btn primary" type="button" data-act="proj-new">建第一个项目</button>
+    <button class="btn" type="button" data-act="start">先随便记几件事</button></div>
+  </main>`;
   return `<main class="empty-app">
     <h1>Runway 还没有数据</h1>
     <p>把旧版 Runway 的数据搬过来：在旧版的"导出与备份"里导出 JSON，然后在这里导入。</p>
     <div class="acts"><label class="btn primary filebtn">导入旧版备份…<input id="file-import-empty" type="file" accept=".json,application/json" data-act="file"></label>
+    <button class="btn" type="button" data-act="proj-new">建一个项目</button>
     <button class="btn" type="button" data-act="start">从零开始</button></div>
   </main>`;
+}
+
+/* ---------- making and changing a project ---------- */
+/** The exam that sits on a project's deadline: linked by project, or (old data) just on the same day. */
+const examOf = (pid: string) => { const dl = S.data.projects[pid]?.deadline; return Object.entries(S.data.items).find(([, x]) => x.kind === 'exam' && !x.old && (x.project === pid || (!x.project && dl && x.date === dl))); };
+function openProj(pid: string) {
+  const p = pid ? S.data.projects[pid] : null;
+  ui.sheet = 'proj'; ui.editId = pid;
+  ui.draft = p
+    ? { name: p.name || '', start: p.start || T(), deadline: p.deadline || '', exam: examOf(pid) ? '1' : '', modules: (p.modules || []).map((m: any) => m.name).join('\n') }
+    : { name: '', start: T(), deadline: add(T(), 30), exam: '', modules: '' };
+}
+function projSheet() {
+  if (ui.sheet !== 'proj') return '';
+  const d = ui.draft, isNew = !ui.editId;
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="${isNew ? '新项目' : '改项目'}">
+    <header><h2>${isNew ? '新项目' : '改项目'}</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <form class="edit" data-form="proj">
+      <label class="fld"><span>名字</span><input id="pj-name" name="name" type="text" maxlength="80" required autocomplete="off" value="${esc(d.name)}" placeholder="比如：期中考试、毕业论文、搬家"></label>
+      <div class="fld-row">
+        <label class="fld"><span>从哪天开始做</span><input id="pj-start" name="start" type="date" value="${esc(d.start)}"></label>
+        <label class="fld"><span>截止那天</span><input id="pj-deadline" name="deadline" type="date" required value="${esc(d.deadline)}"></label>
+      </div>
+      <label class="pj-toggle"><input id="pj-exam" name="exam" type="checkbox"${d.exam ? ' checked' : ''}> 截止那天是一场考试</label>
+      <label class="fld"><span>分几块（可以不填，一行一块）</span><textarea id="pj-modules" name="modules" rows="3" placeholder="比如：第 1–3 章&#10;第 4–6 章&#10;模拟题">${esc(d.modules)}</textarea></label>
+      <p class="soft tiny">建好以后在"项目"里加要做的事和大概要几小时，引擎会照截止日把它们摊到每一天。</p>
+      <div class="acts"><button class="btn primary" type="submit">${isNew ? '建好了' : '保存'}</button><button class="btn" type="button" data-act="close">取消</button></div>
+    </form>
+  </div>`;
+}
+function saveProj() {
+  const d = ui.draft, name = (d.name || '').trim();
+  if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(d.deadline || '')) return;
+  const pid = ui.editId || uid('p'), prev = S.data.projects[pid];
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(d.start || '') && d.start <= d.deadline ? d.start : (d.deadline < T() ? d.deadline : T());
+  const old = prev?.modules || [];
+  const modules = (d.modules || '').split('\n').map(x => x.trim()).filter(Boolean).map(n => old.find((m: any) => m.name === n) || { id: uid('m'), name: n });
+  const used = new Set(Object.values(S.data.projects).map(x => String(x.color || '').toLowerCase()));
+  const color = prev?.color || (PALETTE.find(([, c]) => !used.has(c.toLowerCase())) || PALETTE[Object.keys(S.data.projects).length % PALETTE.length])[1];
+  S.put('projects', pid, { buffer: 0, ...prev, name, start, deadline: d.deadline, color, modules });
+  const ex = examOf(pid);
+  if (d.exam && ex) S.put('items', ex[0], { ...ex[1], date: d.deadline });
+  else if (d.exam) { const order = Math.max(0, ...Object.values(S.data.items).map(x => Number(x.order) || 0)) + 1; S.put('items', uid('i'), { kind: 'exam', title: name, date: d.deadline, time: '', end: '', done: false, project: pid, order }); }
+  else if (ex) S.put('items', ex[0], { ...ex[1], old: true });
+  ui.sheet = null; ui.editId = ''; ui.started = true; ui.layer = 'project'; ui.pid = pid;
+  say(prev ? '项目改好了' : `建好了「${name}」，接着加要做的事`);
 }
 
 function toastView() {
@@ -777,8 +835,8 @@ function render() {
   const dScroll = (root.querySelector('.groups') as HTMLElement | null)?.scrollTop ?? 0;
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
   const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : ui.layer === 'project' ? projectView(eng) : today(eng);
-  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${toastView()}`;
+  const body = isEmpty() && !ui.started && (S.mode === 'live' || S.mode === 'local' || __SHARE__) ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${projSheet()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
@@ -871,6 +929,8 @@ root.addEventListener('click', e => {
     case 'wk': ui.weekOff = Number(el.dataset.step) ? ui.weekOff + Number(el.dataset.step) : 0; break;
     case 'cap-day': { const by = Number(el.dataset.by); setDays([day!], c => c + by, `${cnd(day!)}能用的时间${by > 0 ? '多了' : '少了'} 1 小时`); break; }
     case 'give': { const days = range(el.dataset.from!, el.dataset.to!).filter(d => eng.capOf(d) > 0); setDays(days, c => c + 1, `${days.length} 天每天多给了 1 小时`); break; }
+    case 'proj-new': openProj(''); break;
+    case 'proj-edit': openProj(pid!); break;
     case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
     case 'color': ui.colorFor = ui.colorFor === pid ? null : pid!; break;
     case 'setcolor': { const p = S.data.projects[pid!]; if (p) S.put('projects', pid!, { ...p, color: el.dataset.color }); ui.colorFor = null; break; }
@@ -897,8 +957,8 @@ root.addEventListener('change', e => {
   if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; render(); }
   if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"]') && t.name) ui.draft[t.name] = t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
-root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"]') && t.name) ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
 /* drag a task to another day, or onto the project drawer to put it back */
 let dragId = '';
@@ -933,6 +993,6 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.addUnde
 toFloat = startBridge(S, T);
 render();
 S.connect().then(async () => {
-  if (S.mode === 'memory') await S.replaceAll(seed(T()), () => {});
+  if (S.mode === 'memory' && !__SHARE__) await S.replaceAll(seed(T()), () => {});
   render();
 });

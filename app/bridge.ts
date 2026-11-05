@@ -7,6 +7,8 @@
 import { add, diff, r2 } from '../engine/src';
 import type { createStore } from './store';
 
+declare const __SHARE__: boolean;
+
 type Store = ReturnType<typeof createStore>;
 const A_MIN = [10, 20, 30, 40, 45], B_MIN = [10, 15];
 const blockMin = (i: number) => i % 2 === 0 ? A_MIN[Math.min(i / 2, A_MIN.length - 1)] : B_MIN[Math.min((i - 1) / 2, B_MIN.length - 1)];
@@ -67,11 +69,11 @@ export function startBridge(S: Store, today: () => string) {
   };
 
   function post() {
-    if (S.mode !== 'live' && S.mode !== 'memory') return;
+    if (S.mode !== 'live' && S.mode !== 'local' && S.mode !== 'memory') return;
     try {
       const t = today(), s = spiralState(), ex = nextExam();
       NB.postMessage(JSON.stringify({
-        today: t, nick: set().nick || 'Yan', local: S.mode !== 'live',
+        today: t, nick: set().nick || (__SHARE__ ? '' : 'Yan'), local: S.mode !== 'live',
         acc: ({ blue: ['#1F3BE0', '#7B8CFF'], orange: ['#E2541C', '#FF7A45'], green: ['#11704F', '#4FD19A'], rose: ['#C42A5A', '#FF7AA3'] } as Record<string, string[]>)[set().mzAcc || 'blue'] || ['#1F3BE0', '#7B8CFF'],
         mode: examOn() && !ui.spin ? 'exam' : 'spiral',
         examMode: examOn(),
