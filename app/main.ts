@@ -1,5 +1,5 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import { add, cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Engine, Item, Session, Store } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
@@ -31,7 +31,9 @@ const ui = {
   drawerOpen: false,
   picker: null as string | null,
   colorFor: null as string | null,
-  sheet: null as null | 'data' | 'import',
+  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap',
+  editId: '',
+  draft: {} as Record<string, string>,
   pending: null as null | ReturnType<typeof parseBackup>,
   busy: '',
   started: false,
@@ -198,12 +200,13 @@ function page(eng: Engine) {
         ${groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
           <span class="tg-sub" style="--c:${esc(colorOf(eng, pid))}">${esc(pid ? shortName(nameOf(eng, pid)) : '生活')}</span>
           <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}">
-            <span class="tl-t">${esc(it.title)}</span>
-            <span class="tl-m mono">${it.time ? it.time : fmtH(it.hours || it.est)}</span>
+            <span class="tl-t"><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></span>
+            <span class="tl-m mono">${it.time ? it.time : (it.hours || it.est) ? fmtH(it.hours || it.est) : ''}</span>
             <button class="mark${it.done ? ' o' : logged(it) ? ' tri' : ''}" type="button" data-act="done" data-id="${it.id}" aria-label="${it.done ? '标成没做完' : '标成做完'}：${esc(it.title)}">${it.done ? 'O' : logged(it) ? '△' : ''}</button>
             ${!it.done ? `<button class="mini ghost" type="button" data-act="back" data-id="${it.id}" aria-label="放回项目：${esc(it.title)}">放回</button>` : '<span></span>'}
           </li>`).join('')}</ul>
         </div>`).join('') : `<p class="soft">今天还没排事。从右边的项目里放一件进来。</p>`}
+        <div class="tasks-foot"><button class="btn quiet" type="button" data-act="wrap">收工</button></div>
       </section>
     </div>
     <aside class="pad pad-sky pg-side" aria-label="时间表">
@@ -246,7 +249,7 @@ function nowCard(eng: Engine, order: Item[]) {
   const time = it.time ? `${it.time}${it.end ? '–' + it.end : ''}` : '';
   return `<article class="now${running ? ' running' : ''}">
     <div class="now-label">${running ? (ui.timer!.kind === 'ten' ? '先做 10 分钟' : '整块进行中') : '现在做'}</div>
-    <h2>${esc(it.title)}</h2>
+    <h2><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></h2>
     ${lineage(eng, it) ? `<p class="lin">${esc(lineage(eng, it))}</p>` : ''}
     ${it.note ? `<p class="lin note">${esc(it.note.split('\n')[0].slice(0, 120))}</p>` : ''}
     <p class="est mono">${time ? time + ' · ' : ''}预计 ${fmtH(it.hours || it.est)}</p>
@@ -265,10 +268,10 @@ function nowCard(eng: Engine, order: Item[]) {
 
 function row(eng: Engine, it: Item, opts: { check?: boolean; back?: boolean } = {}) {
   const lin = lineage(eng, it);
-  const when = it.time ? `${it.time}${it.end ? '–' + it.end : ''}` : it.kind === 'task' ? fmtH(it.hours || it.est) : '';
+  const when = it.time ? `${it.time}${it.end ? '–' + it.end : ''}` : it.kind === 'task' && (it.hours || it.est) ? fmtH(it.hours || it.est) : '';
   return `<li class="row${it.done ? ' done' : ''}${it.kind !== 'task' ? ' event' : ''}">
     ${opts.check && it.kind === 'task' ? `<input class="check" type="checkbox" id="c-${it.id}" data-act="done" data-id="${it.id}" ${it.done ? 'checked' : ''} aria-label="做完了：${esc(it.title)}">` : `<span class="dotslot"></span>`}
-    <div class="row-t"><span>${esc(it.title)}</span>${lin ? `<small>${esc(lin)}</small>` : ''}</div>
+    <div class="row-t"><span><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></span>${lin ? `<small>${esc(lin)}</small>` : ''}</div>
     <span class="row-m mono">${when}</span>
     ${opts.back && it.kind === 'task' && !it.done ? `<button class="mini" type="button" data-act="back" data-id="${it.id}">放回项目</button>` : '<span></span>'}
   </li>`;
@@ -317,7 +320,7 @@ function drawerView(eng: Engine) {
           const mod = p?.modules.find(m => m.id === i.module)?.name;
           const was = i.date && i.date < t ? `原来排在 ${cnd(i.date)}` : '';
           return `<li class="it">
-            <div class="it-t"><span>${esc(i.title)}</span><small>${[mod, (i.hours || i.est) ? fmtH(i.hours || i.est) : '', was].filter(Boolean).map(esc).join(' · ')}</small></div>
+            <div class="it-t"><span><button class="ed" type="button" data-act="edit" data-id="${i.id}">${esc(i.title)}</button></span><small>${[mod, (i.hours || i.est) ? fmtH(i.hours || i.est) : '', was].filter(Boolean).map(esc).join(' · ')}</small></div>
             <div class="it-a"><button class="mini signal" type="button" data-act="today" data-id="${i.id}">放到今天</button><button class="mini" type="button" data-act="pick" data-id="${i.id}">挑一天</button></div>
           </li>`; }).join('')}</ul>` : `<p class="grp-none">没有待排的事，引擎会按剩下的量往后摊。</p>`}
       </section>`; }).join('')}
@@ -351,7 +354,7 @@ function pickerView(eng: Engine) {
 }
 
 function dataSheet() {
-  if (!ui.sheet) return '';
+  if (ui.sheet !== 'data' && ui.sheet !== 'import') return '';
   const n = Object.keys(S.data.items).length, np = Object.keys(S.data.projects).length, ns = Object.keys(S.data.sessions).length;
   const where = S.mode === 'live' ? '存在这个页面自己的数据库里。电脑和手机打开同一个链接，看到的是同一份。' : S.mode === 'memory' ? '现在拿不到数据库，只存在这一次打开的页面里，刷新就会丢。' : '数据库现在有问题，改动可能没存上。';
   if (ui.sheet === 'import' && ui.pending) {
@@ -375,6 +378,91 @@ function dataSheet() {
   </div>`;
 }
 
+/** Click a task to change it. Values live in ui.draft so a re-render from the database never wipes what is being typed. */
+function openEdit(id: string) {
+  const it = raw(id); if (!it) return;
+  ui.sheet = 'edit'; ui.editId = id;
+  ui.draft = { title: it.title || '', date: it.date || '', time: it.time || '', end: it.end || '', hours: String(r2(Number(it.hours) || 0)), project: it.project || '', note: it.note || '' };
+}
+function editView(eng: Engine) {
+  if (ui.sheet !== 'edit') return '';
+  const it = raw(ui.editId); if (!it) return '';
+  const d = ui.draft, task = (it.kind || 'task') === 'task';
+  const projects = eng.derive().projects.slice();
+  if (d.project && !projects.some(p => p.id === d.project) && S.data.projects[d.project]) projects.push({ id: d.project, name: S.data.projects[d.project].name } as any);
+  const f = (name: string, label: string, type = 'text', extra = '') => `<label class="fld"><span>${label}</span><input id="ed-${name}" name="${name}" type="${type}" value="${esc(d[name])}" autocomplete="off" ${extra}></label>`;
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="改这件事">
+    <header><h2>改这件事</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <form class="edit" data-form="edit">
+      ${f('title', '名字', 'text', 'maxlength="200" required')}
+      <div class="fld-row">${f('date', '哪天', 'date')}${f('time', '开始', 'time')}${f('end', '结束', 'time')}</div>
+      <div class="fld-row">
+        ${task ? f('hours', '还要多少小时', 'number', 'min="0" max="24" step="0.25" inputmode="decimal"') : ''}
+        <label class="fld"><span>项目</span><select id="ed-project" name="project">
+          <option value=""${d.project ? '' : ' selected'}>生活和杂事</option>
+          ${projects.map(p => `<option value="${esc(p.id)}"${p.id === d.project ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
+        </select></label>
+      </div>
+      <label class="fld"><span>备注</span><textarea id="ed-note" name="note" rows="3">${esc(d.note)}</textarea></label>
+      <p class="soft tiny">日期空着，就是放在项目里，还没排进哪天。</p>
+      <div class="acts">
+        <button class="btn primary" type="submit">保存</button>
+        <button class="btn" type="button" data-act="close">取消</button>
+        <span class="grow"></span>
+        ${!it.done ? `<button class="btn quiet" type="button" data-act="drop" data-id="${esc(ui.editId)}">不做了</button>` : ''}
+      </div>
+    </form>
+  </div>`;
+}
+function saveEdit() {
+  const id = ui.editId, it = raw(id); if (!it) return;
+  const d = ui.draft, prev = { ...it };
+  const date = d.date || null;
+  const next: Record<string, any> = { ...it, title: d.title.trim() || it.title, date, time: date ? d.time : '', end: date ? d.end : '', project: d.project, note: d.note };
+  if (d.project !== (it.project || '')) next.module = '';
+  if ((it.kind || 'task') === 'task') {
+    const h = Math.max(0, r2(Number(d.hours) || 0));
+    next.hours = h;
+    if (!(Number(it.est) > 0)) next.est = h;
+  }
+  S.put('items', id, next);
+  ui.sheet = null; ui.editId = '';
+  say('改好了', () => S.put('items', id, prev));
+}
+/** Soft "not doing it": the task leaves every list but stays in the data and the backup. */
+function drop(id: string) {
+  if (ui.timer?.id === id) plant();
+  const title = raw(id).title;
+  patch(id, { old: true });
+  say(`「${title}」不做了`, () => patch(id, { old: false }));
+}
+
+/** End of the day: what got done, and where each unfinished task goes. Nothing is marked late. */
+function wrapView(eng: Engine) {
+  if (ui.sheet !== 'wrap') return '';
+  const t = T();
+  const tasks = eng.itemsOn(t).filter(i => i.kind === 'task');
+  const done = tasks.filter(i => i.done), open = tasks.filter(i => !i.done);
+  const mins = sum(sessionsOn(sessionsWithLogs(view()), t).map(x => x.mins));
+  const note = String(S.data.notes[t]?.text || '').split('\n')[0];
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="收工">
+    <header><h2>收工</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <p>${done.length ? `今天做完了 ${done.length} 件` : '今天还没有勾掉的事'}${mins ? `，跑道上一共 ${fmtH(mins / 60)}` : ''}。${done.length || mins ? '' : '有些日子就是这样，明天再来。'}</p>
+    ${done.length ? `<p class="wrap-done">${done.map(i => esc(i.title)).join(' · ')}</p>` : ''}
+    ${open.length ? `<h3 class="kick">没做完的，放到哪</h3>
+      <ul class="wrap-list">${open.map(i => `<li>
+        <span class="wt">${esc(i.title)}${(i.hours || i.est) ? `<small class="mono"> ${fmtH(i.hours || i.est)}</small>` : ''}</span>
+        <button class="mini signal" type="button" data-act="tmrw" data-id="${i.id}">明天</button>
+        <button class="mini" type="button" data-act="back" data-id="${i.id}">放回项目</button>
+        <button class="mini ghost" type="button" data-act="drop" data-id="${i.id}">不做了</button>
+      </li>`).join('')}</ul>` : `<p class="soft">今天排的都安排好了。</p>`}
+    <label class="fld"><span>comment</span><input id="wrap-comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
+    <div class="acts"><button class="btn primary" type="button" data-act="close">好了</button></div>
+  </div>`;
+}
+
 function emptyView() {
   return `<main class="empty-app">
     <h1>Runway 还没有数据</h1>
@@ -392,17 +480,18 @@ function toastView() {
 
 function render() {
   const active = document.activeElement as HTMLElement | null;
-  const typing = active?.id === 'quick-input' || active?.id === 'comment';
-  const caret = typing ? (active as HTMLInputElement).selectionStart : null;
+  const typing = !!active?.id && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) && root.contains(active);
+  let caret: number | null = null;
+  try { caret = typing ? (active as HTMLInputElement).selectionStart : null; } catch { caret = null; }
   const eng = createEngine(view(), T());
   const y = window.scrollY;
   const dScroll = (root.querySelector('.groups') as HTMLElement | null)?.scrollTop ?? 0;
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
   const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${today(eng)}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${toastView()}`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
-  if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); if (caret != null) q.setSelectionRange(caret, caret); } }
+  if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
   tick();
   ui.justPlanted = '';
 }
@@ -469,10 +558,14 @@ root.addEventListener('click', e => {
     case 'all': ui.showAll = !ui.showAll; break;
     case 'drawer': ui.drawerOpen = !ui.drawerOpen; break;
     case 'today': moveTo(id!, T(), `「${title}」放到今天了`); break;
+    case 'edit': ui.picker = null; openEdit(id!); break;
+    case 'wrap': ui.sheet = 'wrap'; break;
+    case 'drop': drop(id!); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } break;
+    case 'tmrw': moveTo(id!, add(T(), 1), `「${title}」挪到明天了`); break;
     case 'back': ui.picker = null; if (ui.timer?.id === id) plant(); moveTo(id!, null, `「${title}」放回项目了`); break;
     case 'pick': ui.picker = id!; break;
     case 'assign': ui.picker = null; moveTo(id!, day!, `「${title}」排到${day === T() ? '今天' : dayL(day!)}`); break;
-    case 'close': ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; } break;
+    case 'close': ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } break;
     case 'undo': ui.toast?.undo?.(); ui.toast = null; break;
     case 'layer': say(`${el.dataset.layer}这一层还没做，下一步加上`); break;
     case 'color': ui.colorFor = ui.colorFor === pid ? null : pid!; break;
@@ -497,11 +590,11 @@ root.addEventListener('click', e => {
 root.addEventListener('change', e => {
   const t = e.target as HTMLInputElement;
   if (t.dataset.act === 'file') readFile(t);
-  if (t.id === 'comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
+  if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
-root.addEventListener('submit', e => { e.preventDefault(); if ((e.target as HTMLElement).dataset.form === 'quick') { addQuick(createEngine(view(), T()), false); render(); } });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; } render(); } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"]') && t.name) ui.draft[t.name] = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } render(); } });
 
 /* ---------- start ---------- */
 toFloat = startBridge(S, T);
