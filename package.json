@@ -1,0 +1,18 @@
+{
+  "name": "runway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runway：为备考服务的 deadline 倒推计划工具",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "golden": "node tools/legacy-oracle.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
