@@ -18,7 +18,7 @@ func fmt(_ sec: Int) -> String { let a = abs(sec); return (sec < 0 ? "+" : "") +
 
 
 // MARK: - What the page sends
-struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: String; let done: Bool }
+struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: String; let done: Bool; let time: String? }
 struct RSpiral: Decodable, Equatable { var idx: Int; var endsAt: Double?; var left: Int; var bi: Int }
 struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
@@ -33,6 +33,7 @@ struct RState: Decodable, Equatable {
     let b: [String]
     let tasks: [RTask]
     let overdue: [RTask]
+    let now: String?
 }
 
 final class Model: ObservableObject {
@@ -75,6 +76,8 @@ final class Model: ObservableObject {
     }
     var open: [RTask] { (st?.tasks ?? []).filter { !$0.done } }
     var done: [RTask] { (st?.tasks ?? []).filter { $0.done } }
+    /** The page picks it by the clock: the task whose slot is running, else the next one. */
+    var current: RTask? { open.first { $0.id == st?.now } ?? open.first }
     var greeting: String {
         let h = Calendar.current.component(.hour, from: now)
         return h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : "晚上好"
@@ -90,7 +93,7 @@ final class Model: ObservableObject {
         return String(format: "%02d.%02d ", c.month ?? 0, c.day ?? 0) + wd
     }
     var whatTitle: String {
-        if isA(idx) { return open.first?.title ?? "先在下面加一件今天的事" }
+        if isA(idx) { return current?.title ?? "先在下面加一件今天的事" }
         let b = st?.b ?? []
         return b.isEmpty ? "离开屏幕，喝口水" : b[(st?.spiral.bi ?? 0) % b.count]
     }
@@ -100,7 +103,7 @@ final class Model: ObservableObject {
     }
 }
 
-// MARK: - Paper (Runway's Analogue Keeper memo pad: butter paper, a darker band, tone-on-tone lines, Klein-blue pen)
+// MARK: - Paper (Runway's Analogue Keeper memo pad as frosted glass: butter tint over a blur, a darker band, tone-on-tone lines, Klein-blue pen)
 extension Color {
     init(hex: String) {
         var h = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
@@ -115,9 +118,10 @@ let BAND_H: CGFloat = 38
 
 struct Paper {
     let dark: Bool
-    var paper: Color { Color(hex: dark ? "#24231A" : "#F4F0D6") }
-    var band: Color { Color(hex: dark ? "#2E2C1F" : "#E9E2B6") }
-    var line: Color { Color(hex: dark ? "#3A3726" : "#DED6A6") }
+    var paper: Color { Color(hex: dark ? "#24231A" : "#F4F0D6").opacity(dark ? 0.7 : 0.6) }
+    var band: Color { Color(hex: dark ? "#2E2C1F" : "#E9E2B6").opacity(dark ? 0.82 : 0.78) }
+    var line: Color { Color(hex: dark ? "#4A4630" : "#CFC596").opacity(dark ? 0.75 : 0.65) }
+    var sheen: Color { Color.white.opacity(dark ? 0.08 : 0.45) }
     var ink: Color { Color(hex: dark ? "#ECEDEA" : "#2A2D2E") }
     var muted: Color { Color(hex: dark ? "#9DA2A0" : "#73787A") }
     var sig: Color { Color(hex: dark ? "#8A98FF" : "#1F3BE0") }
@@ -209,9 +213,15 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(p.paper)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+        .background(
+            ZStack(alignment: .top) {
+                p.paper
+                LinearGradient(colors: [p.sheen, .clear], startPoint: .top, endPoint: .bottom).frame(height: 120)
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).inset(by: 1).strokeBorder(p.sheen, lineWidth: 0.5))
         .environment(\.colorScheme, dark ? .dark : .light)
     }
 
@@ -392,13 +402,7 @@ struct RootView: View {
             if open.isEmpty && done.isEmpty {
                 Text("还没排事，在下面加一件。").font(.system(size: 12)).foregroundColor(p.muted)
             }
-            ForEach(Array(open.prefix(3))) { it in row(it) }
-            if open.count > 3 {
-                HStack(spacing: 6) {
-                    Text("还有 \(open.count - 3) 件").font(.system(size: 11)).foregroundColor(p.muted)
-                    Button("挪到明天") { m.cmd("extraTmr") }.buttonStyle(Pill(kind: .plain, p: p))
-                }
-            }
+            ForEach(open) { it in row(it) }
             ForEach(done) { it in row(it) }
             TextField("加一件今天的事，回车", text: $draft)
                 .textFieldStyle(.plain)
@@ -414,6 +418,9 @@ struct RootView: View {
     // O when done, an empty circle when not; never an X
     func row(_ it: RTask) -> some View {
         HStack(alignment: .center, spacing: 10) {
+            if let t = it.time, !t.isEmpty, !it.done {
+                Text(t).font(mono(10)).foregroundColor(p.muted).frame(width: 36, alignment: .leading)
+            }
             Text(it.title)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(it.done ? p.muted : p.ink)
@@ -502,6 +509,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var frame: WKFrameInfo?
     var webShown = false
     var savedFrame: NSRect?
+    var fx: NSVisualEffectView!
     let bridge = Bridge()
     let model = Model()
     let defaults = UserDefaults.standard
@@ -527,10 +535,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
         container = NSView(frame: NSRect(origin: .zero, size: rect.size))
         container.wantsLayer = true
-        container.layer?.cornerRadius = 10
+        container.layer?.cornerRadius = 12
         container.layer?.cornerCurve = .continuous
         container.layer?.masksToBounds = true
         panel.contentView = container
+
+        // the frosted glass under the paper
+        fx = NSVisualEffectView(frame: container.bounds)
+        fx.autoresizingMask = [.width, .height]
+        fx.material = .popover
+        fx.blendingMode = .behindWindow
+        fx.state = .active
+        container.addSubview(fx)
+        applyAppearance()
 
         // hidden Runway page: the real data lives here
         bridge.owner = self
@@ -731,7 +748,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
     @objc func togglePin() { setPinned(panel.level != .floating) }
     @objc func toggleShow() { if panel.isVisible { panel.orderOut(nil) } else { panel.orderFrontRegardless() } }
-    @objc func toggleGlass() { defaults.set(!defaults.bool(forKey: "darkGlass"), forKey: "darkGlass") }
+    @objc func toggleGlass() { defaults.set(!defaults.bool(forKey: "darkGlass"), forKey: "darkGlass"); applyAppearance() }
+    func applyAppearance() { panel.appearance = NSAppearance(named: defaults.bool(forKey: "darkGlass") ? .darkAqua : .aqua) }
     @objc func signIn() { showWeb() }
     @objc func setSize(_ sender: NSMenuItem) {
         let dims: [NSSize] = [NSSize(width: 280, height: 440), NSSize(width: 320, height: 560), NSSize(width: 390, height: 700)]

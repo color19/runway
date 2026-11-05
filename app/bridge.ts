@@ -28,7 +28,9 @@ export function startBridge(S: Store, today: () => string) {
   const isTask = (x: any) => (x.kind || 'task') === 'task' && !x.old && !(x.note || '').startsWith('砍掉');
   const set = () => D.settings.main || {};
   const examOn = () => !!set().examMode;
-  const byOrder = (a: any, b: any) => (a.time || '99').localeCompare(b.time || '99') || (a.order || 0) - (b.order || 0);
+  // times before 05:00 belong to the night of the same day, so they sort after the evening
+  const tkey = (h: string) => !h ? '9' : h < '05:00' ? '2' + h : '1' + h;
+  const byOrder = (a: any, b: any) => tkey(a.time || '').localeCompare(tkey(b.time || '')) || (a.order || 0) - (b.order || 0);
   const todayA = () => { const t = today(); return all().filter(x => isTask(x) && x.date === t && (!x.done || x.doneOn === t)).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0) || byOrder(a, b)); };
   const todayBlocks = () => { const t = today(); return all().filter(x => isTask(x) && x.date === t && (!x.done || x.doneOn === t)).sort(byOrder); };
   const overdue = () => { const t = today(); return all().filter(x => isTask(x) && !x.done && x.date && x.date < t).sort((a, b) => b.date.localeCompare(a.date)); };
@@ -56,7 +58,13 @@ export function startBridge(S: Store, today: () => string) {
   }
   /** Seconds the current "do" stretch has run so far, including earlier runs before a pause. */
   const runSecs = (s: any) => (s.acc || 0) + (s.runFrom ? Math.max(0, Math.round((Math.min(Date.now(), s.endsAt || Date.now()) - s.runFrom) / 1000)) : 0);
-  const firstOpen = () => todayA().find(x => !x.done)?.id || null;
+  /** What to do now: the task whose slot is running, else the next one by the clock, else one without a time, else the first. */
+  const firstOpen = () => {
+    const open = todayA().filter(x => !x.done), now = tkey(nowHM());
+    const hit = open.find(x => x.time && x.end && tkey(x.time) <= now && now < tkey(x.end))
+      || open.find(x => x.time && tkey(x.time) >= now) || open.find(x => !x.time) || open[0];
+    return hit?.id || null;
+  };
 
   function post() {
     if (S.mode !== 'live' && S.mode !== 'memory') return;
@@ -76,6 +84,7 @@ export function startBridge(S: Store, today: () => string) {
         block: (() => { const x: any = currentBlock(); if (!x) return null; const b = blockState(), mine = b && b.id === x.id, total = mine ? b.total : blockSecs(x);
           return { id: x.id, title: x.title || '', time: x.time || '', end: x.end || '', note: (x.note || '').split('\n')[0].slice(0, 60), total, left: mine ? Math.max(-5999, blockLeft(b)) : total, endsAt: mine ? (b.endsAt || null) : null }; })(),
         b: Bs(),
+        now: firstOpen(),
         tasks: (examOn() ? todayBlocks() : todayA()).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
       }));
