@@ -66,7 +66,19 @@ Runway 其实已经是一个工作台：任务池像 Akiflow，倒推像 Motion�
 - **缺收工仪式。** Sunsama 每天结束时逼你处理没做完的事。Runway 浮窗有"多出来的挪到明天"，但主界面没有一个固定的收工流程。
 - **层级够用，不要再加。** 3x3 的日周月年人生五层是为"记录一生"设计的。备考只需要三层：考试、科目、今天这一块。Runway 的项目、模块、任务正好对应。
 - **不要变成全能 app。** 3x3 往阅读、影音、日记扩展，Lunatask 往习惯、心情扩展。Runway 的定位应该是"考试工作台"，只做备考相关的事。
+  （2026-11-04 更新：用户决定范围扩到学习和生活，并以 ADHD 友好为核心，见 PRODUCT.md。边界改为：生活里"要做的事"进来，日记、心情、影音这类纯记录先不做。）
 - **3x3 的教训和 Runway 一样。** 两者都是功能多、概念自创、上手难。Runway 的"航速、落地、PAPI 灯"和 3x3 的"三层链接"是同一种问题：作者自己懂，新人看不懂。
+
+## ADHD 友好设计（2026-11-04 补充）
+
+能找到的几乎都是从业者文章和产品宣传，没有系统研究，只能当设计假设。反复出现的几点：
+
+- **时间盲：** 感觉不到过了多久、估不准要多久。对策是把时间画出来、计时一直可见、用固定长度的时段减少决定。爱沙尼亚的 [Dual Timer](https://evalab.artun.ee/dual-timer/) 设计文档引用了 Turjeman-Levi 等人 2021 年的研究，用 5 到 45 分钟的固定时段。
+- **卡在开头：** 难的是开始，不是知道做什么。对策是把模糊任务变成第一步、给一个"状态差"的单任务模式。
+- **逾期和连续天数会让人弃用：** 一天没做，看到红字或断掉的记录，就开始回避 app，越回避越多逾期。对策是没做完的安静地往后挪、不做打卡。见 [anti-streak todo apps](https://noodl-blog.pages.dev/blog/anti-streak-todo-apps)、[Best to-do apps for ADHD](https://focusdose.pages.dev/blog/best-to-do-list-apps-for-adhd)。
+- **选择太多：** 根据当下的时间和精力只推荐一件。见 [How ADHD brains actually plan](https://staycomposed.pages.dev/method/how-adhd-brains-actually-plan/)。
+
+Runway 自己的数据就是证据：10 月攒下 75 件没做完的旧任务，最后只能整批隐藏。
 
 ## 对 Runway 的取舍
 
