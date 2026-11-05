@@ -48,7 +48,8 @@ export function startBridge(S: Store, today: () => string) {
     const t = nowHM();
     return open.find(x => x.time && x.end && x.time <= t && t < x.end) || open.find(x => !x.time || x.time >= t) || open[0] || null;
   }
-  function nextExam() { const t = today(); return all().filter(x => (x.kind === 'exam' || x.kind === 'deadline') && x.date >= t && !x.done).sort((a, b) => a.date.localeCompare(b.date))[0]; }
+  // the page header counts down to the nearest exam, so the float starts there too
+  function nextExam() { const t = today(); return all().filter(x => x.kind === 'exam' && x.date >= t && !x.done && !x.old).sort((a, b) => a.date.localeCompare(b.date))[0]; }
 
   /** Focus time as a session, logged on the task the old way too so the old Runway would still see it. */
   function logFocus(itemId: string | null, secs: number, startedAt: number) {

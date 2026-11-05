@@ -186,6 +186,7 @@ struct RootView: View {
     var target: RTarget? {
         let ts = m.st?.targets ?? []
         if let t = ts.first(where: { $0.id == pick }) { return t }
+        if let ex = m.st?.exam, let t = ts.first(where: { $0.title == ex.title && $0.days == ex.days }) { return t }
         if let t = ts.first { return t }
         if let ex = m.st?.exam, ex.days >= 0 { return RTarget(id: "", title: ex.title, days: ex.days) }
         return nil
