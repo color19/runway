@@ -1,4 +1,4 @@
-import { investedByProject, investedDays, investedOn, sessionsOf, sessionsOn } from '../src';
+import { investedByProject, investedDays, investedOn, sessionsOf, sessionsOn, sessionsWithLogs } from '../src';
 import type { Store } from '../src';
 
 const store: Store = {
@@ -30,3 +30,38 @@ test('最近 7 天，没投入的日子是 0', () => {
   expect(days[4].hours).toBe(1.5);
 });
 test('旧备份没有专注记录也能读', () => expect(sessionsOf({ items: {}, projects: {}, settings: {} })).toEqual([]));
+
+describe('旧版计时记录换算成灯', () => {
+  const s2: Store = {
+    projects: {}, settings: {},
+    items: {
+      i1: { title: 'Corp', project: 'cfa', log: { '2026-11-04': 1.5, '2026-11-03': 0.5 } },
+      i2: { title: '旧任务', project: 'cfa', old: true, log: { '2026-10-10': 2 } },
+      i3: { title: '没记时间', project: 'cfa' },
+    },
+    sessions: { s1: { item: 'i1', project: 'cfa', date: '2026-11-04', start: '09:00', mins: 60 } },
+  };
+  const all = sessionsWithLogs(s2);
+  test('已有计时的部分不重复算', () => expect(investedOn(all, '2026-11-04')).toBe(1.5));
+  test('只有旧版记录的日子也有灯', () => expect(investedOn(all, '2026-11-03')).toBe(0.5));
+  test('隐藏的旧任务不算', () => expect(investedOn(all, '2026-10-10')).toBe(0));
+});
+
+describe('做完但没计时的事', () => {
+  const s3: Store = {
+    projects: {}, settings: {},
+    items: {
+      a: { title: '勾掉的', kind: 'task', project: 'cfa', done: true, doneOn: '2026-11-04', est: 2 },
+      b: { title: '浮窗计时的', kind: 'task', project: 'cfa', done: true, doneOn: '2026-11-04', est: 2, actual: 1.5 },
+      c: { title: '有记录的', kind: 'task', project: 'cfa', done: true, doneOn: '2026-11-04', est: 2, log: { '2026-11-04': 1 } },
+      d: { title: '没做完', kind: 'task', project: 'cfa', done: false, date: '2026-11-04', est: 2 },
+      e: { title: '日程', kind: 'event', done: true, doneOn: '2026-11-04', est: 1 },
+    },
+  };
+  const all = sessionsOn(sessionsWithLogs(s3), '2026-11-04');
+  const of = (item: string) => all.filter(x => x.item === item);
+  test('没计时的按预计时长算，标成估计', () => { expect(of('a')[0].mins).toBe(120); expect(of('a')[0].estimated).toBe(true); });
+  test('有实际用时的按实际算，不算估计', () => { expect(of('b')[0].mins).toBe(90); expect(of('b')[0].estimated).toBe(false); });
+  test('有计时记录的只算记录，不重复', () => expect(of('c').map(x => x.mins)).toEqual([60]));
+  test('没做完的和日程不算', () => { expect(of('d')).toEqual([]); expect(of('e')).toEqual([]); });
+});

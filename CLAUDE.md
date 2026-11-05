@@ -7,6 +7,7 @@ Runway 是一个**对 ADHD 友好**的计划工具：从考试和截止日倒推
 ## 仓库结构
 
 - `engine/`：排程引擎，纯 TypeScript，不碰 DOM、不碰存储。所有界面都只通过它算数字。
+- `app/`：界面。`main.ts` 是页面，`store.ts` 是唯一碰存储的地方，`lights.ts` 画跑道灯。`npm run build` 打包成一个 HTML，发布到 https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG 。
 - `legacy/runway.html`：现在线上在用的单文件版本（claude.ai artifact 的副本），只读参考，不要改。
 - `legacy/float/`：Mac 浮窗 Runway Float 的 Swift 源码和构建脚本，只读参考。
 - `tools/legacy-oracle.mjs`：把旧页面里的原函数切出来在 Node 里跑，作为引擎的标准答案。
@@ -22,8 +23,8 @@ Runway 是一个**对 ADHD 友好**的计划工具：从考试和截止日倒推
 5. **做事时一次只给一件事。** "现在"这一层只突出眼前这一件；全局、项目、本周属于计划状态，一键切过去。
 6. **说人话。** 不造新概念和黑话，用"今天目标、做完了、还剩"这样的说法。
 7. **不加皮肤。** 旧版叠了三层视觉主题、六张名画，是不可维护的主因。新界面只有一套视觉，改视觉先改设计说明，再改代码。
-8. **本地优先。** 数据存本机，不依赖 claude.ai 登录。
-9. **数据格式向后兼容。** 必须能直接读入旧版"导出与备份"的 JSON（见 `engine/test/fixtures/`）。
+8. **本地优先是方向。** 目前版本跑在 claude.ai 上，数据存在 artifact 的数据库里，为的是电脑和手机同一份。所有存储只经过 `app/store.ts`，以后换成本机存储只改这一个文件。
+9. **数据格式向后兼容。** 必须能直接读入旧版"导出与备份"的 JSON（见 `engine/test/fixtures/`），导出的文件也必须能被旧版读回。计时同时写进事项的 `log`，旧版才看得到时间。
 
 ## 常用命令
 

@@ -1,6 +1,6 @@
 // Example data for the visual demo: what the CFA run-up looks like, dated relative to today.
-import type { Day, Store } from '../../engine/src';
-import { add } from '../../engine/src';
+import type { Day, Store } from '../engine/src';
+import { add } from '../engine/src';
 
 export function seed(T: Day): Store {
   const d = (n: number) => add(T, n);
@@ -62,14 +62,14 @@ export function seed(T: Day): Store {
     sessions,
     settings: { main: { cap: [8, 8, 8, 8, 8, 8, 8], balance: true } },
     projects: {
-      cfa: { name: 'CFA Level 1', start: '2026-10-02', deadline: '2026-11-17', buffer: 1, color: '#2E6B4F',
+      cfa: { name: 'CFA Level 1', start: '2026-10-02', deadline: '2026-11-17', buffer: 1, color: '#5B7FB8',
         modules: [
           { id: 'm-ci', name: '公司发行人' }, { id: 'm-pm', name: '组合管理' }, { id: 'm-der', name: '衍生品' },
           { id: 'm-econ', name: '经济学' }, { id: 'm-eth', name: '道德' }, { id: 'm-alt', name: '另类投资' }, { id: 'm-mock', name: '模考与错题' },
         ] },
-      c632: { name: '632 作业 3', start: d(-4), deadline: d(3), color: '#7FA23A' },
-      p643: { name: '643 Project', start: '2026-10-20', deadline: '2026-11-14', color: '#C58B2B' },
-      job: { name: '求职', start: '2026-10-15', deadline: '2026-12-31', color: '#8A6BA8',
+      c632: { name: '632 作业 3', start: d(-4), deadline: d(3), color: '#3E8A5E' },
+      p643: { name: '643 Project', start: '2026-10-20', deadline: '2026-11-14', color: '#8E6CC4' },
+      job: { name: '求职', start: '2026-10-15', deadline: '2026-12-31', color: '#D08A1E',
         count: { unit: '份', mins: 20, plan: [{ from: '2026-10-15', n: 2 }], log: { [d(-3)]: 2, [d(-2)]: 1, [d(-1)]: 2, [d(0)]: 1 } } },
     },
     items,

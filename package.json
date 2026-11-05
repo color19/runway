@@ -9,7 +9,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "golden": "node tools/legacy-oracle.mjs",
-    "demo": "node tools/build-demo.mjs"
+    "build": "node tools/build-app.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

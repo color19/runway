@@ -1,7 +1,7 @@
 // Runway lights: time invested, drawn as lamps. One lamp is 10 minutes of focus, lit in the project's colour.
 // A session cut short leaves a partly lit lamp; nothing ever goes dark again.
-import type { Session } from '../../engine/src';
-import { fmtH } from '../../engine/src';
+import type { Session } from '../engine/src';
+import { fmtH } from '../engine/src';
 
 export const LAMP_MINS = 10;
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
@@ -9,7 +9,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt
 /** Lamps for one session: whole lamps, then a part-lit one for the remainder. */
 function lamps(s: Session, color: string, label: string, opts: { fresh?: boolean }) {
   const full = Math.floor(s.mins / LAMP_MINS), part = (s.mins % LAMP_MINS) / LAMP_MINS;
-  const one = (k: number, fill: number) => `<i class="lamp${opts.fresh ? ' on' : ''}" style="--c:${esc(color)};--f:${Math.round(fill * 100)}%${opts.fresh ? `;--d:${k * 70}ms` : ''}"></i>`;
+  const one = (k: number, fill: number) => `<i class="lamp${opts.fresh ? ' on' : ''}${s.estimated ? ' est' : ''}" style="--c:${esc(color)};--f:${Math.round(fill * 100)}%${opts.fresh ? `;--d:${k * 70}ms` : ''}"></i>`;
   let html = '';
   for (let k = 0; k < full; k++) html += one(k, 1);
   if (part > 0) html += one(full, part);
@@ -25,8 +25,8 @@ export function todayRunway(sessions: Session[], colorOf: (pid: string) => strin
 }
 
 /** One day as a stack of lamps from the ground up, for the seven-day view. */
-export function dayStack(sessions: Session[], colorOf: (pid: string) => string, labelOf: (s: Session) => string) {
-  return `<div class="stack">${sessions.map(s => lamps(s, colorOf(s.project), labelOf(s), {})).join('')}</div>`;
+export function dayStack(sessions: Session[], colorOf: (pid: string) => string, labelOf: (s: Session) => string, lampPx = 5, gapPx = 2) {
+  return `<div class="stack" style="--lh:${lampPx}px;--lg:${gapPx}px">${sessions.map(s => lamps(s, colorOf(s.project), labelOf(s), {})).join('')}</div>`;
 }
 
 /**
@@ -40,4 +40,4 @@ export function projectRunway(invested: number, remaining: number, color: string
   return `<div class="prun" style="--c:${esc(color)};--p:${pct.toFixed(1)}%" role="img" aria-label="已投入 ${fmtH(invested)}，还剩约 ${fmtH(remaining)}"><i></i></div>`;
 }
 
-export const sessionLabel = (title: string, s: Session) => `${title || '专注'} · ${s.start ? s.start + ' 起 ' : ''}${fmtH(s.mins / 60)}`;
+export const sessionLabel = (title: string, s: Session) => `${title || '专注'} · ${s.start ? s.start + ' 起 ' : ''}${fmtH(s.mins / 60)}${s.estimated ? '（没计时，按预计算）' : ''}`;
