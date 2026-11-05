@@ -1,8 +1,8 @@
-// Runway: the "today" page, the project drawer and the runway lights, on the real engine and real data.
-import { cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+// Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
+import { cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Engine, Item, Session, Store } from '../engine/src';
 import { seed } from './seed';
-import { dayStack, lampCount, projectRunway, sessionLabel, todayRunway } from './lights';
+import { axisFor, projectRunway, ribbon, ruler, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
 import { startBridge } from './bridge';
 
@@ -70,7 +70,7 @@ function toggleDone(id: string) {
   if (now) { chime(); ui.skip = 0; }
 }
 
-/** Ends the running timer and lights lamps for the time spent. Half a minute or more counts. */
+/** Ends the running timer and puts the time spent on today's runway. Half a minute or more counts. */
 function plant() {
   const t = ui.timer; if (!t) return;
   ui.timer = null;
@@ -83,7 +83,7 @@ function plant() {
   // also log it the old way, so a backup read by the old Runway keeps the time
   patch(t.id, { log: { ...(it.log || {}), [d]: r2((Number(it.log?.[d]) || 0) + mins / 60) } });
   ui.justPlanted = id;
-  say(mins >= 10 ? `又亮了 ${lampCount(mins)} 盏灯 · ${fmtH(mins / 60)}` : `亮了一点 · ${mins} 分钟也算`);
+  say(`跑道上多了 ${fmtH(mins / 60)}${mins < 10 ? '，几分钟也算' : ''}`);
 }
 const startTimer = (id: string, kind: 'ten' | 'block', secs: number) => { ui.timer = { id, kind, startAt: Date.now(), endsAt: Date.now() + secs * 1000, total: secs, rang: false }; };
 
@@ -143,57 +143,69 @@ function header(eng: Engine) {
   ${S.mode === 'memory' ? `<p class="problem">这个页面现在拿不到数据库，看到的是示例，改动刷新就会丢。在 claude.ai 里打开这个页面才能保存。</p>` : ''}`;
 }
 
-function dayHead(eng: Engine) {
-  const t = T();
-  const tasks = eng.itemsOn(t).filter(i => i.kind === 'task');
-  const placed = sum(tasks.map(i => i.done ? i.est : i.hours));
-  const done = sum(tasks.filter(i => i.done).map(i => i.est));
-  const cap = eng.capOf(t);
-  const pct = placed > 0 ? Math.min(100, done / placed * 100) : 0;
-  const over = placed - cap;
-  return `<div class="dayhead">
-    <h1>${dayL(t)}</h1>
-    <p class="tally">今天排了 <b class="mono">${fmtH(placed)}</b><span class="sep"></span>做完了 <b class="mono">${fmtH(done)}</b><span class="sep"></span>还剩 <b class="mono">${fmtH(Math.max(0, placed - done))}</b></p>
-    <div class="meter" role="img" aria-label="今天做完 ${Math.round(pct)}%"><i style="width:${pct}%"></i></div>
-    ${over > 0.01 ? `<p class="soft">今天排的比可用的 ${fmtH(cap)} 多 ${fmtH(over)}。可以把一两件放回项目，明天再说。</p>` : ''}
-    ${lightsToday(eng)}
-  </div>`;
-}
-
 function legend(eng: Engine, list: Session[]) {
   const by = new Map<string, number>();
-  for (const s of list) by.set(s.project, (by.get(s.project) || 0) + s.mins);
+  for (const x of list) by.set(x.project, (by.get(x.project) || 0) + x.mins);
   if (!by.size) return '';
   return `<ul class="legend-chips">${[...by.entries()].sort((a, b) => b[1] - a[1]).map(([pid, m]) =>
     `<li><i style="background:${esc(colorOf(eng, pid))}"></i>${esc(nameOf(eng, pid))}<span class="mono">${fmtH(m / 60)}</span></li>`).join('')}</ul>`;
 }
 
-function lightsToday(eng: Engine) {
-  const t = T(), all = sessionsWithLogs(view()), today = sessionsOn(all, t);
-  const mins = sum(today.map(x => x.mins)), estMins = sum(today.filter(x => x.estimated).map(x => x.mins));
-  return `<section class="grove-today" aria-label="今天点亮的灯">
-    <div class="grove-hd"><h3>今天点亮的灯</h3><span><b class="mono">${lampCount(mins)}</b> 盏<span class="sep"></span>投入 <b class="mono">${fmtH(mins / 60)}</b></span></div>
-    ${today.length
-      ? todayRunway(today, pid => colorOf(eng, pid), x => sessionLabel(titleOf(eng, x), x), ui.justPlanted) + legend(eng, today) + (estMins ? `<p class="soft legend">空心的 ${fmtH(estMins / 60)} 是做完了但没计时的事，按预计时长算。下次点"开始整块"，灯就是实心的。</p>` : '')
-      : `<p class="soft grove-empty">开始第一段专注，跑道就会亮起第一盏灯。一盏灯是 10 分钟，只做三分钟也会亮一点。</p>`}
+/** The hero: today's date, three numbers, and the whole day as one runway. */
+function hero(eng: Engine) {
+  const t = T(), d = parse(t);
+  const items = eng.itemsOn(t);
+  const tasks = items.filter(i => i.kind === 'task');
+  const placed = sum(tasks.map(i => i.done ? i.est : i.hours));
+  const done = sum(tasks.filter(i => i.done).map(i => i.est));
+  const cap = eng.capOf(t), over = placed - cap;
+  const sessions = sessionsOn(sessionsWithLogs(view()), t);
+  const invested = sum(sessions.map(x => x.mins)) / 60;
+  const planned = items.filter(i => !i.done && i.time && (i.kind === 'task' || i.kind === 'event'));
+  const now = nowMin();
+  const tm = ui.timer, startMin = tm ? new Date(tm.startAt).getHours() * 60 + new Date(tm.startAt).getMinutes() : 0;
+  const ax = axisFor(sessions, planned, [now, ...(tm ? [startMin] : [])]);
+  const live = tm && raw(tm.id) ? { startMin, nowMin: now, color: colorOf(eng, raw(tm.id).project || ''), title: raw(tm.id).title } : null;
+  const anyEst = sessions.some(x => x.estimated);
+  return `<section class="hero" aria-label="今天的跑道">
+    <div class="hero-top">
+      <h1 class="hero-date"><span class="num">${d.getMonth() + 1}</span><small>月</small><span class="num">${d.getDate()}</span><small>日</small><em>${WD[monIdx(t)]}</em></h1>
+      <dl class="hero-stats">
+        <div><dt>投入</dt><dd class="mono">${fmtH(invested)}</dd></div>
+        <div><dt>做完</dt><dd class="mono">${fmtH(done)}</dd></div>
+        <div><dt>排了</dt><dd class="mono">${fmtH(placed)}</dd></div>
+      </dl>
+    </div>
+    <div class="hero-run">
+      ${ruler(ax)}
+      ${ribbon({ sessions, planned, axis: ax, colorOf: pid => colorOf(eng, pid), titleOf: x => titleOf(eng, x), nowMin: now, live, fresh: ui.justPlanted, big: true })}
+    </div>
+    <div class="hero-foot">
+      ${legend(eng, sessions)}
+      ${untimed(sessions, pid => colorOf(eng, pid), pid => nameOf(eng, pid))}
+    </div>
+    ${!sessions.length && !planned.length ? `<p class="soft hero-note">开始第一段专注，今天的跑道就从这里铺起来。几分钟也算。</p>` : ''}
+    ${anyEst ? `<p class="soft hero-note">斜纹的是做完了但没计时的事，按预计时长画在排的时段上。虚线框是还没到点的计划。</p>` : planned.length ? `<p class="soft hero-note">虚线框是还没到点的计划，做完的会变成实心。</p>` : ''}
+    ${over > 0.01 ? `<p class="soft hero-note">今天排的比可用的 ${fmtH(cap)} 多 ${fmtH(over)}，可以把一两件放回项目。</p>` : ''}
   </section>`;
 }
 
-function lightsWeek(eng: Engine) {
+function weekRuns(eng: Engine) {
   const t = T(), days = investedDays(sessionsWithLogs(view()), t, 7);
   const total = sum(days.map(d => d.hours));
-  // the tallest day fits in about 140px: lamps get thinner on heavy weeks instead of the column growing
-  const most = Math.max(1, ...days.map(d => sum(d.sessions.map(x => Math.ceil(x.mins / 10)))));
-  const per = 140 / most, lampPx = per >= 7 ? 5 : Math.max(1.2, per * 0.72), gapPx = per >= 7 ? 2 : Math.max(0.4, per * 0.28);
-  const anyEst = days.some(d => d.sessions.some(x => x.estimated));
+  const ax = axisFor(days.flatMap(d => d.sessions));
   return `<section class="block week" aria-label="最近七天">
-    <div class="grove-hd"><h3>最近七天</h3><span>一共 <b class="mono">${lampCount(total * 60)}</b> 盏<span class="sep"></span><b class="mono">${fmtH(total)}</b></span></div>
-    <div class="weekgrid">${days.map(d => `<div class="wday${d.date === t ? ' is-today' : ''}">
-      ${dayStack(d.sessions, pid => colorOf(eng, pid), x => sessionLabel(titleOf(eng, x), x), lampPx, gapPx)}
-      <span class="wd">${d.date === t ? '今天' : WD[monIdx(d.date)]}</span><span class="wh mono">${d.hours ? fmtH(d.hours) : '–'}</span>
-    </div>`).join('')}</div>
+    <div class="grove-hd"><h3>最近七天</h3><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
+    <div class="wk">
+      <div class="wk-row wk-head"><span></span>${ruler(ax)}<span></span><span></span></div>
+      ${days.map(d => `<div class="wk-row${d.date === t ? ' is-today' : ''}">
+        <span class="wd">${d.date === t ? '今天' : WD[monIdx(d.date)]}</span>
+        ${ribbon({ sessions: d.sessions, axis: ax, colorOf: pid => colorOf(eng, pid), titleOf: x => titleOf(eng, x), nowMin: d.date === t ? nowMin() : undefined })}
+        <span class="wk-untimed">${untimed(d.sessions, pid => colorOf(eng, pid), pid => nameOf(eng, pid))}</span>
+        <span class="wh mono">${d.hours ? fmtH(d.hours) : '–'}</span>
+      </div>`).join('')}
+    </div>
     ${legend(eng, days.flatMap(d => d.sessions))}
-    <p class="soft legend">一盏灯 10 分钟。${anyEst ? '空心的灯是做完了但没计时的事，按预计时长算。' : ''}点项目名前的色块可以换颜色。</p>
   </section>`;
 }
 
@@ -242,14 +254,13 @@ function today(eng: Engine) {
   const next = order.filter(i => i !== cur).slice(0, 2);
   const all = eng.itemsOn(T());
   return `<main class="today">
-    ${dayHead(eng)}
     ${nowCard(eng, order)}
     ${next.length ? `<section class="block"><h3>接下来</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
     <section class="block">
       <button class="fold" type="button" data-act="all" aria-expanded="${ui.showAll}"><h3>今天全部</h3><span class="mono">${all.length}</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg></button>
       ${ui.showAll ? `<ul class="rows">${all.map(i => row(eng, i, { check: true, back: true })).join('')}</ul>` : ''}
     </section>
-    ${lightsWeek(eng)}
+    ${weekRuns(eng)}
   </main>`;
 }
 
@@ -373,7 +384,7 @@ function render() {
   const y = window.scrollY;
   const dScroll = (root.querySelector('.groups') as HTMLElement | null)?.scrollTop ?? 0;
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
-  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${today(eng)}${drawerView(eng)}</div>`;
+  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `${hero(eng)}<div class="cols">${today(eng)}${drawerView(eng)}</div>`;
   root.innerHTML = `${header(eng)}${body}${pickerView(eng)}${dataSheet()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
@@ -391,7 +402,14 @@ function tick() {
   if (track) track.style.width = `${Math.min(100, (1 - Math.max(0, left) / t.total) * 100)}%`;
   if (left <= 0 && !t.rang) { t.rang = true; chime(); }
 }
-setInterval(() => { tick(); if (ui.toast && Date.now() - ui.toast.at > 5000 && root.querySelector('.toast')) { ui.toast = null; render(); } }, 1000);
+let lastMinute = new Date().getMinutes();
+setInterval(() => {
+  tick();
+  if (ui.toast && Date.now() - ui.toast.at > 5000 && root.querySelector('.toast')) { ui.toast = null; render(); return; }
+  // once a minute: the now line moves and a running timer's segment grows
+  const m = new Date().getMinutes();
+  if (m !== lastMinute) { lastMinute = m; if (!(document.activeElement as HTMLElement | null)?.closest('input')) render(); }
+}, 1000);
 
 /* ---------- backup ---------- */
 async function exportBackup() {

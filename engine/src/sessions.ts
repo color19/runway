@@ -58,7 +58,8 @@ export function sessionsWithLogs(store: Store): Session[] {
     for (const [d, h] of Object.entries(it.log || {})) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue;
       const mins = Math.round((Number(h) || 0) * 60) - (covered.get(id + '|' + d) || 0);
-      if (mins > 0) extra.push({ id: `log:${id}:${d}`, item: id, project: it.project || '', date: d, start: '', mins });
+      // the old timer kept no clock time; the task's scheduled time is the best guess, and only on its own day
+      if (mins > 0) extra.push({ id: `log:${id}:${d}`, item: id, project: it.project || '', date: d, start: it.date === d ? it.time || '' : '', mins });
     }
   }
   // done tasks with no timing at all still show up: at their recorded actual time, or else at their estimate
@@ -68,7 +69,7 @@ export function sessionsWithLogs(store: Store): Session[] {
     if (!day || Object.keys(it.log || {}).length || real.some(s => s.item === id)) continue;
     const actual = it.actual != null ? Number(it.actual) : null;
     const hours = actual != null && actual > 0 ? actual : Number(it.est ?? it.hours) || 0;
-    if (hours > 0) extra.push({ id: `done:${id}`, item: id, project: it.project || '', date: day, start: it.time || '', mins: Math.round(hours * 60), estimated: !(actual != null && actual > 0) });
+    if (hours > 0) extra.push({ id: `done:${id}`, item: id, project: it.project || '', date: day, start: it.date === day ? it.time || '' : '', mins: Math.round(hours * 60), estimated: !(actual != null && actual > 0) });
   }
   return [...real, ...extra].sort((a, b) => a.date.localeCompare(b.date) || (a.start || '99').localeCompare(b.start || '99'));
 }

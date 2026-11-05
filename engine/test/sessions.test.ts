@@ -65,3 +65,16 @@ describe('做完但没计时的事', () => {
   test('有计时记录的只算记录，不重复', () => expect(of('c').map(x => x.mins)).toEqual([60]));
   test('没做完的和日程不算', () => { expect(of('d')).toEqual([]); expect(of('e')).toEqual([]); });
 });
+
+describe('旧记录的钟点', () => {
+  const s4: Store = {
+    projects: {}, settings: {},
+    items: {
+      a: { title: '排了时段', project: 'cfa', date: '2026-11-04', time: '14:00', log: { '2026-11-04': 1, '2026-11-03': 0.5 } },
+      b: { title: '勾掉的', kind: 'task', project: 'cfa', date: '2026-11-04', time: '09:30', done: true, doneOn: '2026-11-04', est: 2 },
+    },
+  };
+  const all = sessionsWithLogs(s4);
+  test('排在当天的用排的钟点', () => expect(sessionsOn(all, '2026-11-04').map(x => x.start).sort()).toEqual(['09:30', '14:00']));
+  test('不在排的那天就不猜钟点', () => expect(sessionsOn(all, '2026-11-03')[0].start).toBe(''));
+});
