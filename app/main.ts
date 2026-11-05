@@ -177,18 +177,24 @@ function page(eng: Engine) {
   const logged = (it: Item) => Object.keys(it.log || {}).some(k => k === t) || sessions.some(x => x.item === it.id && !x.estimated);
   return `<section class="page" aria-label="今天这一页">
     <div class="pg-main">
+      <div class="pad pad-cream">
+      <div class="pad-hd"><span>today</span><span class="mono">${t.replace(/-/g, '.')}</span></div>
       <header class="pg-head">
-        <div class="pg-date"><span class="kick">${d.getFullYear()} · ${String(d.getMonth() + 1).padStart(2, '0')} · ${String(d.getDate()).padStart(2, '0')} · ${WD[monIdx(t)]}</span><h1>${WD_EN[monIdx(t)]}</h1></div>
+        <div class="pg-date"><span class="kick">${WD[monIdx(t)]} · ${d.getMonth() + 1}月${d.getDate()}日</span><h1>${WD_EN[monIdx(t)].toLowerCase()}</h1></div>
         <div class="pg-nums">
-          ${exam ? `<div><span class="kick">D-DAY · ${esc(shortName(exam.title))}</span><b class="hand">D-${diff(t, exam.date!)}</b></div>` : ''}
-          <div><span class="kick">TOTAL TIME</span><b class="hand signal">${hoursUpper(invested)}</b></div>
+          ${exam ? `<div><span class="kick">d-day · ${esc(shortName(exam.title))}</span><b class="big">D-${diff(t, exam.date!)}</b></div>` : ''}
+          <div><span class="kick">total time</span><b class="big signal">${hoursUpper(invested)}</b></div>
         </div>
       </header>
-      <label class="pg-comment"><span class="kick">COMMENT</span><input id="comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
-      ${nowCard(eng, order)}
-      ${next.length ? `<section class="block"><h3 class="kick">NEXT</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
-      <section class="block tasks">
-        <div class="tasks-hd"><h3 class="kick">TASKS</h3><span class="soft">排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}</span></div>
+      <label class="pg-comment"><span class="kick">comment</span><input id="comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
+      </div>
+      <div class="pad pad-butter">
+        <div class="pad-hd"><span>focus on</span><span>${order.length ? `还有 ${order.length} 件` : '都做完了'}</span></div>
+        ${nowCard(eng, order)}
+        ${next.length ? `<section class="block next"><h3 class="kick">next</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
+      </div>
+      <section class="pad pad-sage tasks">
+        <div class="pad-hd"><span>tasks</span><span>排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}</span></div>
         ${groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
           <span class="tg-sub" style="--c:${esc(colorOf(eng, pid))}">${esc(pid ? shortName(nameOf(eng, pid)) : '生活')}</span>
           <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}">
@@ -200,8 +206,8 @@ function page(eng: Engine) {
         </div>`).join('') : `<p class="soft">今天还没排事。从右边的项目里放一件进来。</p>`}
       </section>
     </div>
-    <aside class="pg-side" aria-label="时间表">
-      <h3 class="kick">TIME TABLE</h3>
+    <aside class="pad pad-sky pg-side" aria-label="时间表">
+      <div class="pad-hd"><span>time table</span><span>10 min</span></div>
       ${timetable({ sessions, planned, axis: ax, colorOf: pid => colorOf(eng, pid), titleOf: x => titleOf(eng, x), nowMin: now, live, fresh: ui.justPlanted })}
       ${legend(eng, sessions)}
       ${untimed(sessions, pid => colorOf(eng, pid), pid => nameOf(eng, pid))}
@@ -214,8 +220,8 @@ function weekRuns(eng: Engine) {
   const t = T(), days = investedDays(sessionsWithLogs(view()), t, 7);
   const total = sum(days.map(d => d.hours));
   const ax = axisFor(days.flatMap(d => d.sessions));
-  return `<section class="block week" aria-label="最近七天">
-    <div class="grove-hd"><h3 class="kick">WEEKLY · 最近七天</h3><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
+  return `<section class="pad pad-lilac week" aria-label="最近七天">
+    <div class="pad-hd"><span>weekly · 最近七天</span><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
     <div class="wk">
       <div class="wk-row wk-head"><span></span>${ruler(ax)}<span></span><span></span></div>
       ${days.map(d => `<div class="wk-row${d.date === t ? ' is-today' : ''}">
@@ -288,9 +294,9 @@ function drawerView(eng: Engine) {
   const waiting = sum(groups.map(g => g.items.length));
   const dv = eng.derive(), t = T();
   const inv = investedByProject(sessionsWithLogs(view()));
-  return `<aside class="drawer${ui.drawerOpen ? ' open' : ''}" aria-label="项目">
+  return `<aside class="drawer pad-sand${ui.drawerOpen ? ' open' : ''}" aria-label="项目">
     <button class="drawer-handle" type="button" data-act="drawer" aria-expanded="${ui.drawerOpen}"><b>项目</b><span>${waiting} 件还没排进日子</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10l4-4 4 4"/></svg></button>
-    <div class="drawer-hd"><h2>项目</h2><p>还没排进日子的事都在这里。放到今天，或者挑一天。</p></div>
+    <div class="pad-hd drawer-hd"><span>projects</span><span>还没排进日子的事</span></div>
     ${quickView(eng)}
     <div class="groups">
     ${groups.map(g => {

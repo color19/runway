@@ -32,4 +32,6 @@ Runway 是一个**对 ADHD 友好**的计划工具：从考试和截止日倒推
 ```bash
 npm test          # 单元测试 + 与旧版对照
 npm run typecheck # 类型检查
+npm run build     # 打包成 dist/runway.html
+node tools/preview-with-data.mjs <数据文件夹>  # 用一份真实数据在本地预览，数据放 .seed/，不要提交
 ```

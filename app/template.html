@@ -1,18 +1,25 @@
 <title>Runway</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=IBM+Plex+Mono:wght@400;500&family=Jost:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
 <style>
-/* Layout: a Korean study-planner page on a mint desk (header, comment, now, tasks | 10-minute timetable), the week below, the project drawer on the right. Phones: one column, drawer as a bottom sheet. Tokens follow DESIGN.md. */
+/* Layout: Analogue Keeper style memo pads on a desk: header, now and tasks pads | a long sky-blue timetable pad; the week pad below; the sand project drawer on the right. Phones: one column, drawer as a bottom sheet. Tokens follow DESIGN.md. */
 :root{
   --desk:#E6EEEC; --paper:#FFFEFA; --card:#FFFFFF; --sunk:#EEF1EF; --line:#E2E6E3; --rule:#E2E6E3; --ink:#14171A; --muted:#6B7470;
   --hl:46%; --hl-est:38%;
+  --desk:#EDECE8; --ink:#2A2D2E; --muted:#73787A;
+  --cream:#FBFAF6; --cream-b:#EFEDE6; --cream-l:#E4E1D8;
+  --butter:#F4F0D6; --butter-b:#E9E2B6; --butter-l:#DED6A6;
+  --sage:#E1EBE2; --sage-b:#CFDECF; --sage-l:#C1D4C3;
+  --sky:#E0E8F1; --sky-b:#CCD9E8; --sky-l:#BFCFE2;
+  --lilac:#E8E5EE; --lilac-b:#D8D3E2; --lilac-l:#CBC5D8;
+  --sand:#F2ECE1; --sand-b:#E6DCCB; --sand-l:#DACDB7;
   --signal:#1F3BE0; --signal-soft:#E4E8FD; --on-signal:#FFFFFF;
   --good:#2F6B3F; --tight:#8A6110; --short:#A2412A;
   --scrim:rgba(17,19,24,.32); --ground:#CBD1D9; --plan:rgba(17,19,24,.28);
   --lift:0 1px 2px rgba(17,19,24,.04),0 12px 32px -12px rgba(17,19,24,.14);
   --lift-signal:0 1px 2px rgba(17,19,24,.04),0 16px 36px -16px rgba(31,59,224,.35);
-  --f-display:"Instrument Sans","Noto Sans SC","PingFang SC",system-ui,sans-serif;
+  --f-display:"Jost","Noto Sans SC","PingFang SC",system-ui,sans-serif;
   --f-text:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
   --f-hand:"Gaegu","Noto Sans SC","PingFang SC",cursive;
@@ -20,7 +27,14 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --desk:#0E1211; --paper:#181C1B; --card:#1D2221; --sunk:#232A28; --line:#2C3331; --rule:#2C3331; --ink:#EDF0EE; --muted:#97A19D;
   --hl:64%; --hl-est:44%;
-  --signal:#8392FF; --signal-soft:#232A52; --on-signal:#0E1020;
+  --desk:#121313; --ink:#ECEDEA; --muted:#9DA2A0;
+  --cream:#1C1D1C; --cream-b:#252725; --cream-l:#2F322F;
+  --butter:#24231A; --butter-b:#2E2C1F; --butter-l:#3A3726;
+  --sage:#1B231D; --sage-b:#222C24; --sage-l:#2C382E;
+  --sky:#1A2028; --sky-b:#212833; --sky-l:#2B3442;
+  --lilac:#201E26; --lilac-b:#282530; --lilac-l:#33303D;
+  --sand:#24211C; --sand-b:#2D2922; --sand-l:#39342B;
+  --signal:#8A98FF; --signal-soft:#232A52; --on-signal:#0E1020;
   --good:#79C49A; --tight:#D8B260; --short:#E78C69;
   --scrim:rgba(0,0,0,.55); --ground:#3A3F48; --plan:rgba(238,240,243,.32);
   --lift:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.6);
@@ -28,7 +42,14 @@
 :root[data-theme="dark"]{
   --desk:#0E1211; --paper:#181C1B; --card:#1D2221; --sunk:#232A28; --line:#2C3331; --rule:#2C3331; --ink:#EDF0EE; --muted:#97A19D;
   --hl:64%; --hl-est:44%;
-  --signal:#8392FF; --signal-soft:#232A52; --on-signal:#0E1020;
+  --desk:#121313; --ink:#ECEDEA; --muted:#9DA2A0;
+  --cream:#1C1D1C; --cream-b:#252725; --cream-l:#2F322F;
+  --butter:#24231A; --butter-b:#2E2C1F; --butter-l:#3A3726;
+  --sage:#1B231D; --sage-b:#222C24; --sage-l:#2C382E;
+  --sky:#1A2028; --sky-b:#212833; --sky-l:#2B3442;
+  --lilac:#201E26; --lilac-b:#282530; --lilac-l:#33303D;
+  --sand:#24211C; --sand-b:#2D2922; --sand-l:#39342B;
+  --signal:#8A98FF; --signal-soft:#232A52; --on-signal:#0E1020;
   --good:#79C49A; --tight:#D8B260; --short:#E78C69;
   --scrim:rgba(0,0,0,.55); --ground:#3A3F48; --plan:rgba(238,240,243,.32);
   --lift:0 1px 2px rgba(0,0,0,.3),0 16px 40px -16px rgba(0,0,0,.6);
@@ -350,6 +371,93 @@ button.swatch:hover{transform:scale(1.3)}
   .toast{bottom:calc(80px + env(safe-area-inset-bottom,0px))}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ---------- analogue keeper: memo pads ---------- */
+.pad{--p:var(--cream);--pb:var(--cream-b);--pl:var(--cream-l);background:var(--p);border-radius:10px;position:relative;
+  box-shadow:0 1px 0 var(--pl),0 3px 0 -1px var(--p),0 4px 0 -1px var(--pl),0 6px 0 -2px var(--p),0 7px 0 -2px var(--pl);overflow:hidden}
+.pad-cream{--p:var(--cream);--pb:var(--cream-b);--pl:var(--cream-l)}
+.pad-butter{--p:var(--butter);--pb:var(--butter-b);--pl:var(--butter-l)}
+.pad-sage{--p:var(--sage);--pb:var(--sage-b);--pl:var(--sage-l)}
+.pad-sky{--p:var(--sky);--pb:var(--sky-b);--pl:var(--sky-l)}
+.pad-lilac{--p:var(--lilac);--pb:var(--lilac-b);--pl:var(--lilac-l)}
+.pad-sand{--p:var(--sand);--pb:var(--sand-b);--pl:var(--sand-l)}
+.pad-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--pb);margin:-1px -1px 0;padding:7px 16px;font:500 12px/1.3 var(--f-display);letter-spacing:.04em;color:var(--ink);text-transform:lowercase}
+.pad-hd span:last-child{color:var(--muted);text-transform:none;letter-spacing:0;font-family:var(--f-text);font-size:12px}
+.pad-hd b{font-weight:500;color:var(--ink)}
+.kick{font:500 12px/1.2 var(--f-display);letter-spacing:.04em;text-transform:lowercase;color:var(--muted)}
+.big{font:600 40px/1 var(--f-display);letter-spacing:-.01em}
+.signal{color:var(--signal)}
+
+.page{background:transparent;box-shadow:none;border-radius:0;overflow:visible;display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:20px;align-items:start}
+.pg-main{padding:0;gap:20px}
+.pg-main>.pad{display:flex;flex-direction:column}
+.pad-cream .pg-head,.pad-cream .pg-comment{margin:0 20px}
+.pad-cream .pg-head{padding:16px 0 14px;border-bottom:1px solid var(--pl)}
+.pad-cream .pg-comment{padding:10px 0 14px;border-bottom:0}
+.pg-date h1{font:600 44px/1 var(--f-display);letter-spacing:-.01em}
+.pg-nums b{font-size:40px}
+.pg-comment input{font:400 15px/1.5 var(--f-text)}
+
+/* now pad */
+.pad-butter .now{background:transparent;box-shadow:none;border-radius:0;padding:16px 20px 14px}
+.pad-butter .now::before{display:none}
+.pad-butter{box-shadow:0 1px 0 var(--pl),0 3px 0 -1px var(--p),0 4px 0 -1px var(--pl),0 6px 0 -2px var(--p),0 7px 0 -2px var(--pl),0 18px 30px -18px rgba(70,60,10,.35)}
+.now-label{color:var(--ink);letter-spacing:.04em;text-transform:lowercase;font:500 12px/1.2 var(--f-display)}
+.now-label::before{background:var(--signal)}
+.now h2{font-size:26px}
+.now .acts .btn:not(.primary):not(.quiet){background:var(--p);box-shadow:inset 0 0 0 1px var(--pl)}
+.pad-butter .next{padding:0 20px 14px}
+.pad-butter .next .rows .row{border-top:1px solid var(--pl)}
+
+/* tasks pad: ruled lines in the pad's own colour */
+.tasks .tg{border-bottom:1px solid var(--pl);margin:0 16px}
+.tasks .tg:last-child{border-bottom:0}
+.tg-sub{border-right:1px solid var(--pl);font:600 13px/1.3 var(--f-display)}
+.tl{border-top:1px solid var(--pl)}
+.mark{box-shadow:inset 0 0 0 1.5px var(--pl);background:color-mix(in srgb,var(--p) 50%,#fff)}
+.mark.o,.mark.tri{background:transparent}
+.tasks>.soft{padding:14px 16px}
+
+/* timetable pad: a long sky-blue pad with its own grid */
+.pg-side{padding:0;border-left:0;background:var(--p);gap:0}
+.pg-side .tt{margin:8px 14px 0;border-top:0}
+.pg-side .legend-chips,.pg-side .rb-untimed,.pg-side .tiny{margin:10px 16px 0}
+.pg-side>:last-child{margin-bottom:16px}
+.tt-row{border-bottom:1px solid var(--pl)}
+.tt-h{border-right:1px solid var(--pl)}
+.tt-cells{background:linear-gradient(90deg,var(--pl) 1px,transparent 1px) 0 0/calc(100% / 6) 100% repeat-x}
+.tt-plan{border-color:color-mix(in srgb,var(--ink) 30%,transparent)}
+
+/* week pad */
+.week{padding:0;border-radius:10px}
+.week .wk{padding:12px 18px 6px}
+.week .legend-chips{padding:4px 18px 16px;margin:0}
+.week .rb{background:color-mix(in srgb,var(--p) 40%,#fff)}
+
+/* drawer pad */
+.drawer{background:var(--p);border-radius:10px;box-shadow:0 1px 0 var(--pl),0 3px 0 -1px var(--p),0 4px 0 -1px var(--pl)}
+.drawer-hd{margin:0;padding:9px 18px}
+.quick{margin:12px 18px 8px}
+.quick input{background:color-mix(in srgb,var(--p) 40%,#fff);box-shadow:inset 0 0 0 1px var(--pl)}
+.groups{border-top:1px solid var(--pl);padding:4px 18px 18px}
+.grp{border-bottom:1px solid var(--pl)}
+.it{border-top:1px dashed var(--pl)}
+.mini{background:color-mix(in srgb,var(--p) 40%,#fff);box-shadow:inset 0 0 0 1px var(--pl)}
+
+.bar .brand{font:600 20px/1 var(--f-display);text-transform:lowercase;letter-spacing:.01em}
+.layers{background:var(--cream);box-shadow:inset 0 0 0 1px var(--cream-l)}
+.savestate{background:var(--cream);box-shadow:inset 0 0 0 1px var(--cream-l)}
+
+@media (max-width:860px){
+  .page{grid-template-columns:minmax(0,1fr);gap:16px}
+  .pg-date h1{font-size:34px}
+  .pg-nums b,.big{font-size:30px}
+  .pad-cream .pg-head,.pad-cream .pg-comment{margin:0 16px}
+  .tasks .tg{margin:0 12px}
+  .drawer{border-radius:14px 14px 0 0}
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .mark:not(.o):not(.tri),:root:not([data-theme="light"]) .mini,:root:not([data-theme="light"]) .quick input,:root:not([data-theme="light"]) .week .rb{background:color-mix(in srgb,var(--p) 70%,#000)}}
+:root[data-theme="dark"] .mark:not(.o):not(.tri),:root[data-theme="dark"] .mini,:root[data-theme="dark"] .quick input,:root[data-theme="dark"] .week .rb{background:color-mix(in srgb,var(--p) 70%,#000)}
 </style>
 <div id="app"></div>
 <script>/*BUNDLE*/</script>
