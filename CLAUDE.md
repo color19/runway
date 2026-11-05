@@ -9,7 +9,8 @@ Runway 是一个**对 ADHD 友好**的计划工具：从考试和截止日倒推
 - `engine/`：排程引擎，纯 TypeScript，不碰 DOM、不碰存储。所有界面都只通过它算数字。
 - `app/`：界面。`main.ts` 是页面，`store.ts` 是唯一碰存储的地方，`lights.ts` 画跑道灯。`npm run build` 打包成一个 HTML，发布到 https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG 。
 - `legacy/runway.html`：现在线上在用的单文件版本（claude.ai artifact 的副本），只读参考，不要改。
-- `legacy/float/`：Mac 浮窗 Runway Float 的 Swift 源码和构建脚本，只读参考。
+- `float/`：Mac 浮窗 Runway Float，连的是新版页面。`bash float/build.sh` 编译并装到 ~/Applications。页面那一侧的协议在 `app/bridge.ts`，两边要一起改。
+- `legacy/float/`：浮窗连旧版时的源码，只读参考。
 - `tools/legacy-oracle.mjs`：把旧页面里的原函数切出来在 Node 里跑，作为引擎的标准答案。
 - `PRODUCT.md`：产品方向、ADHD 友好原则、范围边界和先做什么。动手前先读。
 - `RESEARCH.md`：同类项目调研。

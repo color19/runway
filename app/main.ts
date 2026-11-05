@@ -4,6 +4,7 @@ import type { Engine, Item, Session, Store } from '../engine/src';
 import { seed } from './seed';
 import { dayStack, lampCount, projectRunway, sessionLabel, todayRunway } from './lights';
 import { backupOf, createStore, parseBackup } from './store';
+import { startBridge } from './bridge';
 
 const WD = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 const dayL = (d: string) => `${cnd(d)} ${WD[monIdx(d)]}`;
@@ -20,7 +21,8 @@ export const PALETTE: Array<[string, string]> = [
 const LOOSE_COLOR = '#8F9A93';
 
 let raf = 0;
-const S = createStore(() => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); });
+let toFloat: () => void = () => {};
+const S = createStore(() => { toFloat(); if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); });
 
 const ui = {
   skip: 0,
@@ -466,6 +468,7 @@ root.addEventListener('submit', e => { e.preventDefault(); if ((e.target as HTML
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; } render(); } });
 
 /* ---------- start ---------- */
+toFloat = startBridge(S, T);
 render();
 S.connect().then(async () => {
   if (S.mode === 'memory') await S.replaceAll(seed(T()), () => {});

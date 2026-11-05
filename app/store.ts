@@ -3,10 +3,11 @@
 // The rest of the app only sees `data` and `put`; a local-first backend can replace this file later.
 import type { Store } from '../engine/src';
 
-export type Col = 'items' | 'projects' | 'settings' | 'notes' | 'sessions';
-const COLS: Col[] = ['items', 'projects', 'settings', 'notes', 'sessions'];
+export type Col = 'items' | 'projects' | 'settings' | 'notes' | 'sessions' | 'spiral';
+const COLS: Col[] = ['items', 'projects', 'settings', 'notes', 'sessions', 'spiral'];
 type Docs = Record<string, Record<string, any>>;
-export type Data = Required<Store> & { notes: Docs };
+/** `spiral` holds the Mac float window's spiral timer: docs `state`, `b` (reward list) and `block`. */
+export type Data = Required<Store> & { notes: Docs; spiral: Docs };
 export type Mode = 'loading' | 'live' | 'memory' | 'error';
 
 /** Sessions are kept one document per day: { list: [{id, item, project, start, mins}] }. */
@@ -17,7 +18,7 @@ const sessionsToDays = (s: Docs) => {
 };
 
 export function createStore(onChange: () => void) {
-  const data: Data = { items: {}, projects: {}, settings: {}, notes: {}, sessions: {} };
+  const data: Data = { items: {}, projects: {}, settings: {}, notes: {}, sessions: {}, spiral: {} };
   let db: any = null;
   let mode: Mode = 'loading';
   let problem = '';
@@ -80,10 +81,12 @@ export function createStore(onChange: () => void) {
   }
 
   /** Replace everything with a backup (old Runway format, optionally with sessions). */
-  async function replaceAll(b: { items?: Docs; projects?: Docs; settings?: Docs; notes?: Docs; sessions?: Docs }, progress: (done: number, total: number) => void) {
+  async function replaceAll(b: { items?: Docs; projects?: Docs; settings?: Docs; notes?: Docs; sessions?: Docs; spiral?: Docs }, progress: (done: number, total: number) => void) {
     const target: Record<Col, Docs> = {
       items: b.items || {}, projects: b.projects || {}, settings: b.settings || {}, notes: b.notes || {},
       sessions: Object.fromEntries(Object.entries(sessionsToDays(b.sessions || {})).map(([d, list]) => [d, { list }])),
+      // old backups carry no spiral: keep the float window's reward list and timer as they are
+      spiral: b.spiral || data.spiral,
     };
     const jobs: Array<[Col, string, Record<string, any> | null]> = [];
     for (const col of COLS) {
@@ -116,12 +119,12 @@ export function createStore(onChange: () => void) {
 
 /** The backup file: the old Runway format, plus this app's sessions. Old Runway ignores the extra key. */
 export function backupOf(data: Data) {
-  return { app: 'runway', version: 2, exportedAt: new Date().toISOString(), items: data.items, projects: data.projects, notes: data.notes, settings: data.settings, sessions: data.sessions };
+  return { app: 'runway', version: 2, exportedAt: new Date().toISOString(), items: data.items, projects: data.projects, notes: data.notes, settings: data.settings, sessions: data.sessions, spiral: data.spiral };
 }
 
 export function parseBackup(text: string) {
   let o: any;
   try { o = JSON.parse(text); } catch { return null; }
   if (!o || o.app !== 'runway' || typeof o.items !== 'object') return null;
-  return o as { items: Docs; projects?: Docs; settings?: Docs; notes?: Docs; sessions?: Docs; exportedAt?: string };
+  return o as { items: Docs; projects?: Docs; settings?: Docs; notes?: Docs; sessions?: Docs; spiral?: Docs; exportedAt?: string };
 }

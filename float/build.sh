@@ -1,0 +1,37 @@
+#!/bin/bash
+# Builds "Runway Float.app" into ~/Applications and opens it.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+if ! command -v swiftc >/dev/null 2>&1; then
+  echo "需要先装 Xcode 命令行工具：运行 xcode-select --install，装完再跑一次。"
+  exit 1
+fi
+
+APP="$HOME/Applications/Runway Float.app"
+pkill -x RunwayFloat 2>/dev/null || true
+mkdir -p "$APP/Contents/MacOS"
+
+echo "编译中，大约半分钟…"
+swiftc -O RunwayFloat.swift -o "$APP/Contents/MacOS/RunwayFloat" -framework Cocoa -framework SwiftUI -framework WebKit
+
+cat > "$APP/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Runway Float</string>
+  <key>CFBundleDisplayName</key><string>Runway Float</string>
+  <key>CFBundleIdentifier</key><string>local.color.runwayfloat</string>
+  <key>CFBundleExecutable</key><string>RunwayFloat</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleVersion</key><string>3</string>
+  <key>CFBundleShortVersionString</key><string>3.0</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSHighResolutionCapable</key><true/>
+</dict></plist>
+PLIST
+
+codesign --force --sign - "$APP" >/dev/null 2>&1 || true
+echo "好了：$APP"
+open "$APP"
