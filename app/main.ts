@@ -1,6 +1,6 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { add, cnd, createEngine, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
-import type { Engine, Item, Session, Store } from '../engine/src';
+import { add, cnd, createEngine, range, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import type { Engine, Item, ProjectStatus, Session, Store } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
@@ -31,7 +31,9 @@ const ui = {
   drawerOpen: false,
   picker: null as string | null,
   colorFor: null as string | null,
-  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap',
+  layer: 'today' as 'today' | 'week' | 'global',
+  weekOff: 0,
+  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap',
   editId: '',
   draft: {} as Record<string, string>,
   pending: null as null | ReturnType<typeof parseBackup>,
@@ -133,9 +135,7 @@ function header() {
   return `<header class="bar">
     <div class="brand">Runway</div>
     <nav class="layers" aria-label="视角">
-      <button type="button" data-act="layer" data-layer="全局">全局</button>
-      <button type="button" data-act="layer" data-layer="本周">本周</button>
-      <button type="button" aria-current="page">今天</button>
+      ${(['global', 'week', 'today'] as const).map(l => `<button type="button" data-act="layer" data-layer="${l}"${ui.layer === l ? ' aria-current="page"' : ''}>${{ global: '全局', week: '本周', today: '今天' }[l]}</button>`).join('')}
     </nav>
     <button class="savestate ${S.mode}" type="button" data-act="data"><i></i>${saved}</button>
   </header>
@@ -199,7 +199,7 @@ function page(eng: Engine) {
         <div class="pad-hd"><span>tasks</span><span>排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}</span></div>
         ${groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
           <span class="tg-sub" style="--c:${esc(colorOf(eng, pid))}">${esc(pid ? shortName(nameOf(eng, pid)) : '生活')}</span>
-          <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}">
+          <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}"${it.done ? '' : ` draggable="true" data-drag="${it.id}"`}>
             <span class="tl-t"><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></span>
             <span class="tl-m mono">${it.time ? it.time : (it.hours || it.est) ? fmtH(it.hours || it.est) : ''}</span>
             <button class="mark${it.done ? ' o' : logged(it) ? ' tri' : ''}" type="button" data-act="done" data-id="${it.id}" aria-label="${it.done ? '标成没做完' : '标成做完'}：${esc(it.title)}">${it.done ? 'O' : logged(it) ? '△' : ''}</button>
@@ -297,7 +297,7 @@ function drawerView(eng: Engine) {
   const waiting = sum(groups.map(g => g.items.length));
   const dv = eng.derive(), t = T();
   const inv = investedByProject(sessionsWithLogs(view()));
-  return `<aside class="drawer pad-sand${ui.drawerOpen ? ' open' : ''}" aria-label="项目">
+  return `<aside class="drawer pad-sand${ui.drawerOpen ? ' open' : ''}" aria-label="项目" data-drop="pool">
     <button class="drawer-handle" type="button" data-act="drawer" aria-expanded="${ui.drawerOpen}"><b>项目</b><span>${waiting} 件还没排进日子</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10l4-4 4 4"/></svg></button>
     <div class="pad-hd drawer-hd"><span>projects</span><span>还没排进日子的事</span></div>
     ${quickView(eng)}
@@ -319,7 +319,7 @@ function drawerView(eng: Engine) {
         ${g.items.length ? `<ul class="items">${g.items.map(i => {
           const mod = p?.modules.find(m => m.id === i.module)?.name;
           const was = i.date && i.date < t ? `原来排在 ${cnd(i.date)}` : '';
-          return `<li class="it">
+          return `<li class="it" draggable="true" data-drag="${i.id}">
             <div class="it-t"><span><button class="ed" type="button" data-act="edit" data-id="${i.id}">${esc(i.title)}</button></span><small>${[mod, (i.hours || i.est) ? fmtH(i.hours || i.est) : '', was].filter(Boolean).map(esc).join(' · ')}</small></div>
             <div class="it-a"><button class="mini signal" type="button" data-act="today" data-id="${i.id}">放到今天</button><button class="mini" type="button" data-act="pick" data-id="${i.id}">挑一天</button></div>
           </li>`; }).join('')}</ul>` : `<p class="grp-none">没有待排的事，引擎会按剩下的量往后摊。</p>`}
@@ -463,6 +463,159 @@ function wrapView(eng: Engine) {
   </div>`;
 }
 
+/* ---------- planning layers: week and global ---------- */
+/** The engine's labels, said without debt or deadlines-in-red. */
+function calm(st?: ProjectStatus | null) {
+  const l = st?.label || '';
+  if (l.startsWith('欠')) return { k: 'tight', label: '有点赶' };
+  if (l === '已过 Deadline') return { k: 'flat', label: '过了截止日' };
+  return { k: PILL[st?.k || 'flat'], label: l };
+}
+const mainSettings = () => (S.data.settings.main || {}) as Record<string, any>;
+/** Changes the hours available on single days (settings.over), with undo. */
+function setDays(days: string[], to: (cap: number) => number, text: string) {
+  const eng = createEngine(view(), T()), main = mainSettings();
+  const prev = { ...(main.over || {}) }, over = { ...prev };
+  for (const d of days) {
+    if (main.off && main.off[d] != null) continue;
+    const v = Math.max(0, Math.min(24, r2(to(eng.capOf(d)))));
+    if (Math.abs(v - (Number(eng.settings.cap[monIdx(d)]) || 0)) < 1e-6) delete over[d]; else over[d] = v;
+  }
+  S.put('settings', 'main', { ...main, over });
+  say(text, () => S.put('settings', 'main', { ...mainSettings(), over: prev }));
+}
+
+function weekView(eng: Engine) {
+  const t = T();
+  const back = Number(eng.settings.weekStart) === 0 ? (monIdx(t) + 1) % 7 : monIdx(t);
+  const start = add(add(t, -back), ui.weekOff * 7);
+  const all = sessionsWithLogs(view());
+  const alloc = eng.allocate(t).byDay;
+  const rows = range(start, add(start, 6)).map(d => {
+    const its = eng.itemsOn(d), tasks = its.filter(i => i.kind === 'task');
+    return {
+      d, its, cap: eng.capOf(d),
+      placed: sum(tasks.map(i => i.done ? i.est : i.hours)),
+      spent: sum(sessionsOn(all, d).map(x => x.mins)) / 60,
+      sug: Object.entries(alloc[d] || {}).filter(([, h]) => h > 0.05).sort((a, b) => b[1] - a[1]),
+    };
+  });
+  const scale = Math.max(1, ...rows.map(r => Math.max(r.cap, r.placed)));
+  const name = ui.weekOff === 0 ? '这周' : ui.weekOff === -1 ? '上周' : ui.weekOff === 1 ? '下周' : `${cnd(start)}那周`;
+  return `<main class="plan">
+    <section class="pad pad-sky wv" aria-label="本周">
+      <div class="pad-hd"><span>week · ${name}</span><span>排了 ${fmtH(sum(rows.map(r => r.placed)))}，能用 ${fmtH(sum(rows.map(r => r.cap)))}</span></div>
+      <nav class="wv-nav" aria-label="换一周">
+        <button class="mini" type="button" data-act="wk" data-step="-1">‹ 上一周</button>
+        <b>${cnd(start)} – ${cnd(add(start, 6))}</b>
+        ${ui.weekOff ? `<button class="mini" type="button" data-act="wk" data-step="0">回到这周</button>` : ''}
+        <button class="mini" type="button" data-act="wk" data-step="1">下一周 ›</button>
+      </nav>
+      <p class="soft tiny wv-tip">把一件事拖到另一天就改了日期，拖到右边项目里就放回去。手机上点名字改日期。</p>
+      ${rows.map(r => {
+        const past = r.d < t, isT = r.d === t, over = r.placed > r.cap + 0.01;
+        const capW = r.cap / scale * 100, fillW = Math.min(r.placed, r.cap) / scale * 100;
+        return `<section class="wv-day${isT ? ' is-today' : ''}${past ? ' past' : ''}" data-drop="${r.d}">
+          <header class="wv-hd"><b>${isT ? '今天' : WD[monIdx(r.d)]}</b><span class="mono">${r.d.slice(5).replace('-', '.')}</span></header>
+          <div class="wv-body">
+            <div class="wv-load">
+              <span class="wv-bar" aria-hidden="true"><i class="cap" style="width:${capW}%"></i><i class="fill" style="width:${fillW}%"></i>${over ? `<i class="over" style="left:${capW}%;width:${(r.placed - r.cap) / scale * 100}%"></i>` : ''}</span>
+              <span class="wv-num mono">${r.cap <= 0 && !r.placed ? '休息日' : `排了 ${fmtH(r.placed)} / 能用 ${fmtH(r.cap)}`}</span>
+              ${past ? '' : `<span class="wv-step"><button class="mini" type="button" data-act="cap-day" data-day="${r.d}" data-by="-1" aria-label="${cnd(r.d)}少 1 小时">−</button><button class="mini" type="button" data-act="cap-day" data-day="${r.d}" data-by="1" aria-label="${cnd(r.d)}多 1 小时">+</button></span>`}
+            </div>
+            ${r.its.length ? `<ul class="wv-items">${r.its.map(i => {
+              const task = i.kind === 'task', h = task ? (i.done ? i.est : i.hours) : 0;
+              return `<li class="wv-chip${i.done ? ' done' : ''}${task ? '' : ' ev'}" style="--c:${esc(colorOf(eng, i.project || ''))}"${task && !i.done ? ` draggable="true" data-drag="${i.id}"` : ''}>
+                <button class="ed" type="button" data-act="edit" data-id="${i.id}">${esc(i.title)}</button>
+                <span class="mono">${i.time ? i.time : h ? fmtH(h) : ''}</span>${i.done ? '<span class="o" aria-label="做完了">O</span>' : ''}
+              </li>`; }).join('')}</ul>` : `<p class="wv-none">${past ? '这天没排事' : '还没排事，可以从右边拖一件过来'}</p>`}
+            <p class="wv-sug">${past
+              ? (r.spent ? `那天做了 ${fmtH(r.spent)}` : '')
+              : r.sug.length ? `照截止日摊到这天：${r.sug.map(([pid, h]) => `<span style="--c:${esc(colorOf(eng, pid))}">${esc(shortName(nameOf(eng, pid)))} ${fmtH(h)}</span>`).join(' · ')}` : ''}</p>
+          </div>
+        </section>`; }).join('')}
+    </section>
+  </main>`;
+}
+
+function globalView(eng: Engine) {
+  const t = T(), dv = eng.derive();
+  const projs = dv.projects.filter(p => p.deadline >= t);
+  const marks = dv.items.filter(i => (i.kind === 'exam' || i.kind === 'deadline') && i.date && i.date >= t && !i.done);
+  let end = [...projs.map(p => p.deadline), ...marks.map(i => i.date!)].sort().pop() || add(t, 27);
+  if (diff(t, end) < 27) end = add(t, 27);
+  if (diff(t, end) > 180) end = add(t, 180);
+  const span = diff(t, end) + 1;
+  const X = (d: string) => Math.max(0, Math.min(100, diff(t, d) / span * 100));
+  const mondays = range(t, end).filter(d => monIdx(d) === 0);
+  const grid = `<span class="gv-grid" aria-hidden="true">${mondays.map(d => `<i style="left:${X(d)}%"></i>`).join('')}</span>`;
+  const loose = marks.filter(i => !projs.some(p => p.deadline === i.date));
+  const lanes = projs.map(p => {
+    const st = eng.projStatus(p), w = calm(st), c = p.color || LOOSE_COLOR;
+    const from = p.start > t ? p.start : t, left = diff(t, p.deadline);
+    const isExam = marks.some(i => i.kind === 'exam' && i.date === p.deadline);
+    const cnt = st.cnt ? `今天 ${st.cnt.tD}/${st.cnt.tT} ${p.count?.unit || ''}` : '';
+    const sub = [`${cnd(p.deadline)}${isExam ? '考试' : '截止'} · 还有 ${left} 天`, cnt || (st.rem > 0.01 ? `还剩 ${fmtH(st.rem)}` : ''), cnt ? '' : (st.short || '')].filter(Boolean).join(' · ');
+    return `<div class="gv-row">
+      <div class="gv-name"><span><i style="background:${esc(c)}"></i><b>${esc(p.name)}</b></span>${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}</div>
+      <div class="gv-track">${grid}<span class="gv-bar" style="left:${X(from)}%;width:${Math.max(0.8, X(p.deadline) - X(from))}%;--c:${esc(c)}"></span><span class="gv-end" style="left:${X(p.deadline)}%;--c:${esc(c)}" title="${esc(cnd(p.deadline))}"></span></div>
+      <p class="gv-sub">${esc(sub)}</p>
+    </div>`;
+  }).join('');
+  const other = loose.length ? `<div class="gv-row">
+      <div class="gv-name"><span><i style="background:${LOOSE_COLOR}"></i><b>其他日子</b></span></div>
+      <div class="gv-track">${grid}${loose.map(i => `<span class="gv-end" style="left:${X(i.date!)}%;--c:${LOOSE_COLOR}" title="${esc(cnd(i.date!) + ' ' + i.title)}"></span>`).join('')}</div>
+      <p class="gv-sub">${loose.map(i => esc(`${cnd(i.date!)} ${i.title}`)).join(' · ')}</p>
+    </div>` : '';
+  const loads = range(t, end).map(d => ({ d, need: eng.dayNeed(d), cap: eng.capOf(d) }));
+  const top = Math.max(1, ...loads.map(l => Math.max(l.need, l.cap)));
+  const crowded: Array<{ from: string; to: string; need: number[]; cap: number[] }> = [];
+  let run: (typeof crowded)[number] | null = null;
+  for (const l of loads) {
+    if (l.cap > 0 && l.need > l.cap + 0.25) { if (!run) crowded.push(run = { from: l.d, to: l.d, need: [], cap: [] }); run.to = l.d; run.need.push(l.need); run.cap.push(l.cap); }
+    else if (l.cap > 0) run = null;
+  }
+  const avg = (a: number[]) => sum(a) / Math.max(1, a.length);
+  return `<main class="plan">
+    <section class="pad pad-sage gv" aria-label="全局">
+      <div class="pad-hd"><span>all projects · 全局</span><span>${cnd(t)} 到 ${cnd(end)}</span></div>
+      <div class="gv-row gv-head"><span></span><div class="gv-axis">${mondays.filter((_, i) => i % Math.max(1, Math.ceil(mondays.length / 6)) === 0 && i > 0 || (i === 0 && X(mondays[0]) > 9)).map(d => `<span style="left:${X(d)}%">${d.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')}</span>`).join('')}<span class="gv-today" style="left:0">今天</span></div></div>
+      ${lanes || `<p class="soft gv-empty">还没有进行中的项目。</p>`}${other}
+    </section>
+    <section class="pad pad-butter gv-load" aria-label="每天的负荷">
+      <div class="pad-hd"><span>load · 每天要做多少</span><button class="mini" type="button" data-act="cap-open">每天能用多少小时</button></div>
+      <div class="gv-row"><div class="gv-name"><span class="soft tiny">柱子是引擎照截止日摊到那天的量，细线是那天能用的时间</span></div>
+        <div class="gv-curve" style="grid-template-columns:repeat(${span},minmax(0,1fr))">${loads.map(l => `<span class="gv-col${l.cap > 0 && l.need > l.cap + 0.25 ? ' tight' : ''}${l.cap <= 0 ? ' off' : ''}" style="--h:${l.need / top * 100}%;--cap:${l.cap / top * 100}%;--in:${l.need > 0 ? Math.min(100, l.cap / l.need * 100) : 100}%" title="${esc(`${cnd(l.d)}：要 ${fmtH(l.need)}，能用 ${fmtH(l.cap)}`)}"></span>`).join('')}</div></div>
+      <div class="gv-outs">
+        ${crowded.length ? crowded.slice(0, 4).map(c => `<div class="gv-out">
+          <p><b>${cnd(c.from)}${c.from !== c.to ? ' – ' + cnd(c.to) : ''}</b> 比较挤：平均每天要 ${fmtH(avg(c.need))}，能用 ${fmtH(avg(c.cap))}。</p>
+          <div class="acts"><button class="mini signal" type="button" data-act="give" data-from="${c.from}" data-to="${c.to}">${c.need.length > 1 ? `这 ${c.need.length} 天每天多给 1 小时` : '这天多给 1 小时'}</button><button class="mini" type="button" data-act="layer" data-layer="week">去本周挪一挪</button></div>
+        </div>`).join('') + `<p class="soft tiny">也可以在右边项目里点开不必做的事，选"不做了"。</p>` : `<p class="soft">接下来每天要做的，都在能用的时间里。</p>`}
+      </div>
+    </section>
+  </main>`;
+}
+
+function capView() {
+  if (ui.sheet !== 'cap') return '';
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="每天能用多少小时">
+    <header><h2>平常每天能用多少小时</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <form class="edit" data-form="cap">
+      <div class="cap-grid">${WD.map((w, i) => `<label class="fld"><span>${w}</span><input id="cap-${i}" name="c${i}" type="number" min="0" max="24" step="0.5" inputmode="decimal" value="${esc(ui.draft['c' + i])}"></label>`).join('')}</div>
+      <p class="soft tiny">这是平常能拿来做事的时间，引擎按它把各个项目摊到每一天。哪天特别，就在"本周"里那天单独加减。</p>
+      <div class="acts"><button class="btn primary" type="submit">保存</button><button class="btn" type="button" data-act="close">取消</button></div>
+    </form>
+  </div>`;
+}
+function saveCap() {
+  const main = mainSettings(), prev = main.cap;
+  const cap = WD.map((_, i) => Math.max(0, Math.min(24, r2(Number(ui.draft['c' + i]) || 0))));
+  S.put('settings', 'main', { ...main, cap });
+  ui.sheet = null;
+  say('每天能用的时间改好了', () => S.put('settings', 'main', { ...mainSettings(), cap: prev }));
+}
+
 function emptyView() {
   return `<main class="empty-app">
     <h1>Runway 还没有数据</h1>
@@ -487,8 +640,9 @@ function render() {
   const y = window.scrollY;
   const dScroll = (root.querySelector('.groups') as HTMLElement | null)?.scrollTop ?? 0;
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
-  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${today(eng)}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${toastView()}`;
+  const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : today(eng);
+  const body = isEmpty() && !ui.started && S.mode === 'live' ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
@@ -567,7 +721,11 @@ root.addEventListener('click', e => {
     case 'assign': ui.picker = null; moveTo(id!, day!, `「${title}」排到${day === T() ? '今天' : dayL(day!)}`); break;
     case 'close': ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } break;
     case 'undo': ui.toast?.undo?.(); ui.toast = null; break;
-    case 'layer': say(`${el.dataset.layer}这一层还没做，下一步加上`); break;
+    case 'layer': ui.layer = el.dataset.layer as typeof ui.layer; ui.sheet = null; window.scrollTo(0, 0); render(); window.scrollTo(0, 0); return;
+    case 'wk': ui.weekOff = Number(el.dataset.step) ? ui.weekOff + Number(el.dataset.step) : 0; break;
+    case 'cap-day': { const by = Number(el.dataset.by); setDays([day!], c => c + by, `${cnd(day!)}能用的时间${by > 0 ? '多了' : '少了'} 1 小时`); break; }
+    case 'give': { const days = range(el.dataset.from!, el.dataset.to!).filter(d => eng.capOf(d) > 0); setDays(days, c => c + 1, `${days.length} 天每天多给了 1 小时`); break; }
+    case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
     case 'color': ui.colorFor = ui.colorFor === pid ? null : pid!; break;
     case 'setcolor': { const p = S.data.projects[pid!]; if (p) S.put('projects', pid!, { ...p, color: el.dataset.color }); ui.colorFor = null; break; }
     case 'cnt': {
@@ -592,8 +750,36 @@ root.addEventListener('change', e => {
   if (t.dataset.act === 'file') readFile(t);
   if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"]') && t.name) ui.draft[t.name] = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
-root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"]') && t.name) ui.draft[t.name] = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } });
+
+/* drag a task to another day, or onto the project drawer to put it back */
+let dragId = '';
+root.addEventListener('dragstart', e => {
+  const el = (e.target as HTMLElement).closest('[data-drag]') as HTMLElement | null; if (!el) return;
+  dragId = el.dataset.drag!;
+  e.dataTransfer?.setData('text/plain', dragId);
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+  el.classList.add('dragging');
+});
+root.addEventListener('dragover', e => {
+  const z = (e.target as HTMLElement).closest('[data-drop]') as HTMLElement | null; if (!z || !dragId) return;
+  e.preventDefault();
+  root.querySelectorAll('.hot').forEach(x => x !== z && x.classList.remove('hot'));
+  z.classList.add('hot');
+});
+root.addEventListener('drop', e => {
+  const z = (e.target as HTMLElement).closest('[data-drop]') as HTMLElement | null;
+  const id = dragId || e.dataTransfer?.getData('text/plain') || ''; dragId = '';
+  if (!z || !id || !raw(id)) return;
+  e.preventDefault();
+  const to = z.dataset.drop === 'pool' ? null : z.dataset.drop!;
+  if ((raw(id).date ?? null) === to) { render(); return; }
+  if (!to && ui.timer?.id === id) plant();
+  moveTo(id, to, to ? `「${raw(id).title}」排到${to === T() ? '今天' : dayL(to)}` : `「${raw(id).title}」放回项目了`);
+  render();
+});
+root.addEventListener('dragend', () => { dragId = ''; root.querySelectorAll('.hot,.dragging').forEach(x => x.classList.remove('hot', 'dragging')); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } render(); } });
 
 /* ---------- start ---------- */
