@@ -1,0 +1,1 @@
+{"version":"0.0.1","configurations":[{"name":"demo","runtimeExecutable":"python3","runtimeArgs":["-m","http.server","8790","--directory","dist/preview"],"port":8790}]}

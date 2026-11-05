@@ -1,39 +1,253 @@
 {
   "settings": {
     "main": {
-      "cap": [8, 8, 8, 8, 8, 6, 6],
-      "over": { "2026-11-08": 4 },
-      "off": { "2026-11-12": true },
+      "cap": [
+        8,
+        8,
+        8,
+        8,
+        8,
+        6,
+        6
+      ],
+      "over": {
+        "2026-11-08": 4
+      },
+      "off": {
+        "2026-11-12": true
+      },
       "balance": true
     }
   },
   "projects": {
-    "p-cfa": { "name": "CFA Level 1", "start": "2026-10-02", "deadline": "2026-11-17", "color": "#6B8FB8", "buffer": 1, "lump": 0, "log": {} },
-    "p-643": { "name": "643 Project", "start": "2026-10-20", "deadline": "2026-11-14", "color": "#C2643F", "buffer": 0, "lump": 12, "log": { "2026-10-30": 2, "2026-11-02": 1.5 } },
-    "p-job": { "name": "求职投递", "start": "2026-10-15", "deadline": "2026-12-31", "color": "#6E9A5B",
-      "count": { "unit": "份", "mins": 15, "plan": [ { "from": "2026-10-15", "n": 3 }, { "from": "2026-11-18", "n": 5 } ],
-        "log": { "2026-10-28": 3, "2026-10-29": 2, "2026-10-30": 4, "2026-11-01": 3, "2026-11-03": 1, "2026-11-04": 2 } } },
-    "p-later": { "name": "还没开始的项目", "start": "2026-12-01", "deadline": "2027-01-20", "lump": 20 },
-    "p-empty": { "name": "空项目", "start": "2026-10-01", "deadline": "2026-12-01" }
+    "p-cfa": {
+      "name": "CFA Level 1",
+      "start": "2026-10-02",
+      "deadline": "2026-11-17",
+      "color": "#6B8FB8",
+      "buffer": 1,
+      "lump": 0,
+      "log": {},
+      "modules": [
+        {
+          "id": "m-ci",
+          "name": "公司发行人"
+        },
+        {
+          "id": "m-pm",
+          "name": "组合管理"
+        },
+        {
+          "id": "m-der",
+          "name": "衍生品"
+        }
+      ]
+    },
+    "p-643": {
+      "name": "643 Project",
+      "start": "2026-10-20",
+      "deadline": "2026-11-14",
+      "color": "#C2643F",
+      "buffer": 0,
+      "lump": 12,
+      "log": {
+        "2026-10-30": 2,
+        "2026-11-02": 1.5
+      }
+    },
+    "p-job": {
+      "name": "求职投递",
+      "start": "2026-10-15",
+      "deadline": "2026-12-31",
+      "color": "#6E9A5B",
+      "count": {
+        "unit": "份",
+        "mins": 15,
+        "plan": [
+          {
+            "from": "2026-10-15",
+            "n": 3
+          },
+          {
+            "from": "2026-11-18",
+            "n": 5
+          }
+        ],
+        "log": {
+          "2026-10-28": 3,
+          "2026-10-29": 2,
+          "2026-10-30": 4,
+          "2026-11-01": 3,
+          "2026-11-03": 1,
+          "2026-11-04": 2
+        }
+      }
+    },
+    "p-later": {
+      "name": "还没开始的项目",
+      "start": "2026-12-01",
+      "deadline": "2027-01-20",
+      "lump": 20
+    },
+    "p-empty": {
+      "name": "空项目",
+      "start": "2026-10-01",
+      "deadline": "2026-12-01"
+    }
   },
   "items": {
-    "t1": { "title": "Corp 一刷", "kind": "task", "project": "p-cfa", "module": "m-ci", "date": "2026-11-04", "hours": 6, "est": 6, "done": false, "order": 1 },
-    "t2": { "title": "PM 一刷", "kind": "task", "project": "p-cfa", "date": "2026-11-05", "hours": 8, "est": 8, "order": 2 },
-    "t3": { "title": "Deriv 一刷", "kind": "task", "project": "p-cfa", "date": "2026-11-06", "hours": 3, "est": 6, "burn": { "2026-11-03": 2, "2026-11-04": 1 }, "order": 3 },
-    "t4": { "title": "Econ 一刷", "kind": "task", "project": "p-cfa", "hours": 7, "est": 7, "order": 4 },
-    "t5": { "title": "Ethics 一刷", "kind": "task", "project": "p-cfa", "hours": 6, "est": 6, "order": 5 },
-    "t6": { "title": "Alt 一刷", "kind": "task", "project": "p-cfa", "hours": 4, "est": 4, "order": 6 },
-    "t7": { "title": "FSA 复习", "kind": "task", "project": "p-cfa", "date": "2026-10-31", "hours": 5, "est": 5, "done": true, "doneOn": "2026-10-31", "actual": 6 },
-    "t8": { "title": "FI 复习", "kind": "task", "project": "p-cfa", "date": "2026-11-02", "hours": 4, "est": 4, "done": true, "doneOn": "2026-11-02" },
-    "t9": { "title": "Equity 复习", "kind": "task", "project": "p-cfa", "date": "2026-11-03", "hours": 4, "est": 4, "done": true, "doneOn": "2026-11-03", "log": { "2026-11-03": 3.5 } },
-    "t10": { "title": "Quant 复习", "kind": "task", "project": "p-cfa", "hours": 0, "est": 3, "done": false },
-    "t11": { "title": "模考 1", "kind": "task", "project": "p-cfa", "date": "2026-11-09", "hours": 4.5, "est": 4.5 },
-    "t12": { "title": "模考 2", "kind": "task", "project": "p-cfa", "date": "2026-11-13", "hours": 4.5, "est": 4.5 },
-    "t13": { "title": "643 回归分析", "kind": "task", "project": "p-643", "hours": 3, "est": 3, "date": "2026-11-05" },
-    "t14": { "title": "643 写报告", "kind": "task", "project": "p-643", "hours": 4, "est": 4 },
-    "e1": { "title": "CFA 考试", "kind": "exam", "date": "2026-11-17" },
-    "e2": { "title": "643 课", "kind": "event", "date": "2026-11-05", "time": "18:00", "end": "20:30" },
-    "d1": { "title": "632 作业 3 截止", "kind": "deadline", "date": "2026-11-07" },
-    "x1": { "title": "没有项目的杂事", "kind": "task", "hours": 0.5, "date": "2026-11-04" }
+    "t1": {
+      "title": "Corp 一刷",
+      "kind": "task",
+      "project": "p-cfa",
+      "module": "m-ci",
+      "date": "2026-11-04",
+      "hours": 6,
+      "est": 6,
+      "done": false,
+      "order": 1
+    },
+    "t2": {
+      "title": "PM 一刷",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-11-05",
+      "hours": 8,
+      "est": 8,
+      "order": 2
+    },
+    "t3": {
+      "title": "Deriv 一刷",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-11-06",
+      "hours": 3,
+      "est": 6,
+      "burn": {
+        "2026-11-03": 2,
+        "2026-11-04": 1
+      },
+      "order": 3
+    },
+    "t4": {
+      "title": "Econ 一刷",
+      "kind": "task",
+      "project": "p-cfa",
+      "hours": 7,
+      "est": 7,
+      "order": 4
+    },
+    "t5": {
+      "title": "Ethics 一刷",
+      "kind": "task",
+      "project": "p-cfa",
+      "hours": 6,
+      "est": 6,
+      "order": 5
+    },
+    "t6": {
+      "title": "Alt 一刷",
+      "kind": "task",
+      "project": "p-cfa",
+      "hours": 4,
+      "est": 4,
+      "order": 6
+    },
+    "t7": {
+      "title": "FSA 复习",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-10-31",
+      "hours": 5,
+      "est": 5,
+      "done": true,
+      "doneOn": "2026-10-31",
+      "actual": 6
+    },
+    "t8": {
+      "title": "FI 复习",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-11-02",
+      "hours": 4,
+      "est": 4,
+      "done": true,
+      "doneOn": "2026-11-02"
+    },
+    "t9": {
+      "title": "Equity 复习",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-11-03",
+      "hours": 4,
+      "est": 4,
+      "done": true,
+      "doneOn": "2026-11-03",
+      "log": {
+        "2026-11-03": 3.5
+      }
+    },
+    "t10": {
+      "title": "Quant 复习",
+      "kind": "task",
+      "project": "p-cfa",
+      "hours": 0,
+      "est": 3,
+      "done": false
+    },
+    "t11": {
+      "title": "模考 1",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-11-09",
+      "hours": 4.5,
+      "est": 4.5
+    },
+    "t12": {
+      "title": "模考 2",
+      "kind": "task",
+      "project": "p-cfa",
+      "date": "2026-11-13",
+      "hours": 4.5,
+      "est": 4.5
+    },
+    "t13": {
+      "title": "643 回归分析",
+      "kind": "task",
+      "project": "p-643",
+      "hours": 3,
+      "est": 3,
+      "date": "2026-11-05"
+    },
+    "t14": {
+      "title": "643 写报告",
+      "kind": "task",
+      "project": "p-643",
+      "hours": 4,
+      "est": 4
+    },
+    "e1": {
+      "title": "CFA 考试",
+      "kind": "exam",
+      "date": "2026-11-17"
+    },
+    "e2": {
+      "title": "643 课",
+      "kind": "event",
+      "date": "2026-11-05",
+      "time": "18:00",
+      "end": "20:30"
+    },
+    "d1": {
+      "title": "632 作业 3 截止",
+      "kind": "deadline",
+      "date": "2026-11-07"
+    },
+    "x1": {
+      "title": "没有项目的杂事",
+      "kind": "task",
+      "hours": 0.5,
+      "date": "2026-11-04"
+    }
   }
 }
