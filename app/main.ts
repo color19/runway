@@ -453,6 +453,7 @@ function editView(eng: Engine) {
         <button class="btn primary" type="submit">保存</button>
         <button class="btn" type="button" data-act="close">取消</button>
         <span class="grow"></span>
+        ${!it.done && !task ? `<button class="btn" type="button" data-act="mark-done" data-id="${esc(ui.editId)}">完成了</button>` : ''}
         ${!it.done ? `<button class="btn quiet" type="button" data-act="drop" data-id="${esc(ui.editId)}">不做了</button>` : ''}
       </div>
     </form>
@@ -613,7 +614,7 @@ function globalView(eng: Engine) {
   const other = loose.length ? `<div class="gv-row">
       <div class="gv-name"><span><i style="background:${LOOSE_COLOR}"></i><b>其他日子</b></span></div>
       <div class="gv-track">${grid}${loose.map(i => `<span class="gv-end" style="left:${X(i.date!)}%;--c:${LOOSE_COLOR}" title="${esc(cnd(i.date!) + ' ' + i.title)}"></span>`).join('')}</div>
-      <p class="gv-sub">${loose.map(i => esc(`${cnd(i.date!)} ${i.title}`)).join(' · ')}</p>
+      <p class="gv-sub">${loose.map(i => `<button class="ed" type="button" data-act="edit" data-id="${esc(i.id)}">${esc(`${cnd(i.date!)} ${i.title}`)}</button>`).join(' · ')}</p>
     </div>` : '';
   const loads = range(t, end).map(d => ({ d, need: eng.dayNeed(d), cap: eng.capOf(d) }));
   const top = Math.max(1, ...loads.map(l => Math.max(l.need, l.cap)));
@@ -795,7 +796,7 @@ function countSheet() {
   if (ui.sheet !== 'count') return '';
   const t = T(), d = ui.draft, ts = countTargets(S.data.items, S.data.projects, t);
   const auto = countTo(S.data.items, S.data.projects, { countTo: '' }, t);
-  const opt = (id: string, title: string, sub: string) => `<label class="cd-opt"><input type="radio" name="countTo" value="${esc(id)}"${d.countTo === id ? ' checked' : ''}><span>${esc(title)}</span><small class="mono">${esc(sub)}</small></label>`;
+  const opt = (id: string, title: string, sub: string) => `<div class="cd-opt"><label><input type="radio" name="countTo" value="${esc(id)}"${d.countTo === id ? ' checked' : ''}><span>${esc(title)}</span><small class="mono">${esc(sub)}</small></label>${id && raw(id) ? `<button class="mini" type="button" data-act="mark-done" data-id="${esc(id)}">完成了</button>` : ''}</div>`;
   const left = (date: string) => diff(t, date) ? `D-${diff(t, date)}` : '今天';
   return `<div class="scrim" data-act="close"></div>
   <div class="sheet top" role="dialog" aria-modal="true" aria-label="改倒计时">
@@ -994,6 +995,8 @@ root.addEventListener('click', e => {
     case 'cap-day': { const by = Number(el.dataset.by); setDays([day!], c => c + by, `${cnd(day!)}能用的时间${by > 0 ? '多了' : '少了'} 1 小时`); break; }
     case 'give': { const days = range(el.dataset.from!, el.dataset.to!).filter(d => eng.capOf(d) > 0); setDays(days, c => c + 1, `${days.length} 天每天多给了 1 小时`); break; }
     case 'count-open': openCount(); break;
+    // an exam or deadline that is over: it leaves the countdown and the lanes, and stays in the data
+    case 'mark-done': { const title = raw(id!)?.title || ''; patch(id!, { done: true, doneOn: T() }); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } if (ui.draft.countTo === id) ui.draft.countTo = ''; say(`「${title}」完成了`, () => patch(id!, { done: false, doneOn: null })); break; }
     case 'proj-new': openProj(''); break;
     case 'proj-edit': openProj(pid!); break;
     case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
