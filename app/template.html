@@ -115,7 +115,18 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .pg-date{display:flex;flex-direction:column;gap:6px}
 .pg-date h1{font:600 46px/0.95 var(--f-display);letter-spacing:-.02em}
 .pg-nums{display:flex;gap:26px}
-.pg-nums div{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.pg-nums div,.pg-cd{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.pg-cd:hover{text-decoration:none}
+.pg-cd:hover .kick{color:var(--signal)}
+.cd-list{display:flex;flex-direction:column;max-height:46vh;overflow:auto;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line)}
+.cd-opt{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
+.cd-opt:first-child{border-top:0}
+.cd-opt span{flex:1;min-width:0;overflow-wrap:anywhere}
+.cd-opt small{font-size:12px;color:var(--muted);white-space:nowrap}
+.cd-opt input{margin:0;accent-color:var(--signal)}
+.cd-opt:has(input:checked){background:var(--signal-soft)}
+.cd-new{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.cd-new legend{font:500 12px/1.2 var(--f-display);color:var(--muted);letter-spacing:.04em;padding:0;margin-bottom:6px}
 .pg-nums b{font-size:42px;line-height:1}
 .pg-comment{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--rule);padding-bottom:10px}
 .pg-comment input{flex:1;min-width:0;border:0;background:transparent;font:500 18px/1.4 var(--f-hand),var(--f-text);color:var(--ink);padding:2px 0}

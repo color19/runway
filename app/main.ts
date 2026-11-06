@@ -5,6 +5,7 @@ import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
 import { blockMin, isA, startBridge } from './bridge';
+import { countTargets, countTo, shortLabel } from './count';
 
 declare const __SHARE__: boolean;
 
@@ -42,7 +43,7 @@ const ui = {
   subText: '',
   focusSub: false,
   weekOff: 0,
-  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj',
+  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj' | 'count',
   editId: '',
   draft: {} as Record<string, string>,
   pending: null as null | ReturnType<typeof parseBackup>,
@@ -192,8 +193,7 @@ function legend(eng: Engine, list: Session[]) {
 }
 
 const hoursUpper = (h: number) => fmtH(h).toUpperCase();
-/** "CFA Level 1" → "CFA", "643 Economics…" → "643", "求职2027NG" → "求职". */
-const shortName = (name: string) => (name.match(/^([A-Za-z]+|\d+|[一-鿿]{1,4})/) || [name.slice(0, 4)])[0];
+const shortName = shortLabel;
 
 /** Today as one page of a Korean study planner: header, comment, now, tasks on the left; the 10-minute timetable on the right. */
 function page(eng: Engine) {
@@ -201,7 +201,7 @@ function page(eng: Engine) {
   const dv = eng.derive(), items = eng.itemsOn(t);
   const sessions = sessionsOn(sessionsWithLogs(view()), t);
   const invested = sum(sessions.map(x => x.mins)) / 60;
-  const exam = dv.items.filter(i => i.kind === 'exam' && i.date && i.date >= t && !i.done).sort((a, b) => a.date!.localeCompare(b.date!))[0];
+  const cd = countTo(S.data.items, S.data.projects, mainSettings(), t);
   const tasks = items.filter(i => i.kind === 'task');
   const placed = sum(tasks.map(i => i.done ? i.est : i.hours)), cap = eng.capOf(t);
   const planned = items.filter(i => !i.done && i.time && (i.kind === 'task' || i.kind === 'event'));
@@ -224,7 +224,8 @@ function page(eng: Engine) {
       <header class="pg-head">
         <div class="pg-date"><span class="kick">${WD[monIdx(t)]} · ${d.getMonth() + 1}月${d.getDate()}日</span><h1>${WD_EN[monIdx(t)].toLowerCase()}</h1></div>
         <div class="pg-nums">
-          ${exam ? `<div><span class="kick">d-day · ${esc(shortName(exam.title))}</span><b class="big">D-${diff(t, exam.date!)}</b></div>` : ''}
+          ${cd ? `<button class="ed pg-cd" type="button" data-act="count-open" title="改倒计时数到哪天"><span class="kick">d-day · ${esc(cd.label)}</span><b class="big">${diff(t, cd.date) ? `D-${diff(t, cd.date)}` : 'D-DAY'}</b></button>`
+            : `<button class="ed pg-cd" type="button" data-act="count-open"><span class="kick">d-day</span><b class="big soft">+</b></button>`}
           <div><span class="kick">total time</span><b class="big signal">${hoursUpper(invested)}</b></div>
         </div>
       </header>
@@ -784,6 +785,56 @@ function emptyView() {
   </main>`;
 }
 
+/* ---------- what the d-day counts down to ---------- */
+function openCount() {
+  const m = mainSettings();
+  ui.sheet = 'count';
+  ui.draft = { countTo: String(m.countTo || ''), countName: String(m.countName || ''), newTitle: '', newDate: '', newKind: 'exam' };
+}
+function countSheet() {
+  if (ui.sheet !== 'count') return '';
+  const t = T(), d = ui.draft, ts = countTargets(S.data.items, S.data.projects, t);
+  const auto = countTo(S.data.items, S.data.projects, { countTo: '' }, t);
+  const opt = (id: string, title: string, sub: string) => `<label class="cd-opt"><input type="radio" name="countTo" value="${esc(id)}"${d.countTo === id ? ' checked' : ''}><span>${esc(title)}</span><small class="mono">${esc(sub)}</small></label>`;
+  const left = (date: string) => diff(t, date) ? `D-${diff(t, date)}` : '今天';
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="改倒计时">
+    <header><h2>倒计时数到哪天</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <form class="edit" data-form="count">
+      <div class="cd-list">
+        ${opt('', '最近的一场考试', auto ? `现在是 ${auto.label} · ${left(auto.date)}` : '还没有考试')}
+        ${ts.map(x => opt(x.id, x.title, `${cnd(x.date)} · ${left(x.date)}`)).join('')}
+      </div>
+      <label class="fld"><span>倒计时旁边显示的名字（可以不填）</span><input id="cd-name" name="countName" type="text" maxlength="12" autocomplete="off" value="${esc(d.countName)}" placeholder="不填就用名字开头，比如 cfa"></label>
+      <fieldset class="cd-new"><legend>或者加一个新的日子</legend>
+        <div class="fld-row">
+          <label class="fld"><span>叫什么</span><input id="cd-new-title" name="newTitle" type="text" maxlength="80" autocomplete="off" value="${esc(d.newTitle)}" placeholder="比如：Akuna 面试"></label>
+          <label class="fld"><span>哪天</span><input id="cd-new-date" name="newDate" type="date" value="${esc(d.newDate)}"></label>
+          <label class="fld"><span>是</span><select id="cd-new-kind" name="newKind"><option value="exam"${d.newKind === 'exam' ? ' selected' : ''}>考试</option><option value="deadline"${d.newKind !== 'exam' ? ' selected' : ''}>截止日</option></select></label>
+        </div>
+        <p class="soft tiny">填了就会加进日程，倒计时直接数到它。</p>
+      </fieldset>
+      <p class="soft tiny">浮窗上的倒计时跟这里一样。选的日子过了，会自动回到最近的考试。</p>
+      <div class="acts"><button class="btn primary" type="submit">保存</button><button class="btn" type="button" data-act="close">取消</button></div>
+    </form>
+  </div>`;
+}
+function saveCount() {
+  const d = ui.draft, prev = mainSettings();
+  let to = d.countTo || '';
+  const title = (d.newTitle || '').trim();
+  if (title && /^\d{4}-\d{2}-\d{2}$/.test(d.newDate || '')) {
+    to = uid('i');
+    const order = Math.max(0, ...Object.values(S.data.items).map(x => Number(x.order) || 0)) + 1;
+    S.put('items', to, { kind: d.newKind === 'deadline' ? 'deadline' : 'exam', title, date: d.newDate, time: '', end: '', done: false, project: '', order });
+  }
+  // a name typed for one date should not stick to another
+  const name = to === String(prev.countTo || '') || (d.countName || '') !== String(prev.countName || '') ? (d.countName || '').trim() : '';
+  S.put('settings', 'main', { ...mainSettings(), countTo: to, countName: name });
+  ui.sheet = null;
+  say('倒计时改好了', () => S.put('settings', 'main', { ...mainSettings(), countTo: prev.countTo || '', countName: prev.countName || '' }));
+}
+
 /* ---------- making and changing a project ---------- */
 /** The exam that sits on a project's deadline: linked by project, or (old data) just on the same day. */
 const examOf = (pid: string) => { const dl = S.data.projects[pid]?.deadline; return Object.entries(S.data.items).find(([, x]) => x.kind === 'exam' && !x.old && (x.project === pid || (!x.project && dl && x.date === dl))); };
@@ -848,7 +899,7 @@ function render() {
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
   const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : ui.layer === 'project' ? projectView(eng) : today(eng);
   const body = isEmpty() && !ui.started && (S.mode === 'live' || S.mode === 'local' || __SHARE__) ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${projSheet()}${toastView()}`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${projSheet()}${countSheet()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
@@ -942,6 +993,7 @@ root.addEventListener('click', e => {
     case 'wk': ui.weekOff = Number(el.dataset.step) ? ui.weekOff + Number(el.dataset.step) : 0; break;
     case 'cap-day': { const by = Number(el.dataset.by); setDays([day!], c => c + by, `${cnd(day!)}能用的时间${by > 0 ? '多了' : '少了'} 1 小时`); break; }
     case 'give': { const days = range(el.dataset.from!, el.dataset.to!).filter(d => eng.capOf(d) > 0); setDays(days, c => c + 1, `${days.length} 天每天多给了 1 小时`); break; }
+    case 'count-open': openCount(); break;
     case 'proj-new': openProj(''); break;
     case 'proj-edit': openProj(pid!); break;
     case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
@@ -970,8 +1022,8 @@ root.addEventListener('change', e => {
   if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; render(); }
   if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"]') && t.name) ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
-root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
 /* drag a task to another day, or onto the project drawer to put it back */
 let dragId = '';

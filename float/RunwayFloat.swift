@@ -22,6 +22,7 @@ struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: St
 struct RSpiral: Decodable, Equatable { var idx: Int; var endsAt: Double?; var left: Int; var bi: Int }
 struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
+struct RCount: Decodable, Equatable { let id: String; let title: String; let short: String; let days: Int }
 struct RState: Decodable, Equatable {
     let today: String
     let nick: String?
@@ -29,6 +30,7 @@ struct RState: Decodable, Equatable {
     let acc: [String]?
     let exam: RExam?
     let targets: [RTarget]?
+    let count: RCount?
     let spiral: RSpiral
     let b: [String]
     let tasks: [RTask]
@@ -178,26 +180,15 @@ struct Pill: ButtonStyle {
 struct RootView: View {
     @EnvironmentObject var m: Model
     @AppStorage("darkGlass") var dark = false
-    @AppStorage("countPick") var pick = ""
-    // a picked countdown lasts for that day only; the next day it is back on the nearest exam
-    @AppStorage("countPickDay") var pickDay = ""
     @State private var draft = ""
     @State private var bDraft = ""
 
     var p: Paper { Paper(dark: dark) }
+    // what the countdown shows is a setting the page keeps, so the page header and the float always agree
     var target: RTarget? {
-        let ts = m.st?.targets ?? []
-        if pickDay == m.st?.today, let t = ts.first(where: { $0.id == pick }) { return t }
-        if let ex = m.st?.exam, let t = ts.first(where: { $0.title == ex.title && $0.days == ex.days }) { return t }
-        if let t = ts.first { return t }
-        if let ex = m.st?.exam, ex.days >= 0 { return RTarget(id: "", title: ex.title, days: ex.days) }
+        if let c = m.st?.count { return RTarget(id: c.id, title: c.short, days: c.days) }
+        if let ex = m.st?.exam, ex.days >= 0 { return RTarget(id: "", title: short(ex.title), days: ex.days) }
         return nil
-    }
-    func cycleTarget() {
-        let ts = m.st?.targets ?? []
-        guard !ts.isEmpty else { return }
-        let i = ts.firstIndex(where: { $0.id == target?.id }) ?? -1
-        pick = ts[(i + 1) % ts.count].id; pickDay = m.st?.today ?? ""
     }
     func short(_ s: String) -> String {
         let latin = s.prefix { $0.isLetter && $0.isASCII }
@@ -253,20 +244,25 @@ struct RootView: View {
                 DragHandle(onDouble: { m.toggleCollapse() })
             }
             if let t = target {
-                Button { cycleTarget() } label: {
+                Menu {
+                    Button((m.st?.count?.id ?? "") == "" ? "✓ 最近的一场考试" : "最近的一场考试") { m.cmd("countTo", ["id": ""]) }
+                    Divider()
+                    ForEach(m.st?.targets ?? []) { x in
+                        Button("\(x.id == m.st?.count?.id ? "✓ " : "")\(x.title) · \(x.days) 天") { m.cmd("countTo", ["id": x.id]) }
+                    }
+                    Divider()
+                    Button("改名字或加一个日子…") { NSWorkspace.shared.open(FULL_URL) }
+                } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(t.days == 0 ? "today" : "D-\(t.days)").font(display(m.collapsed ? 12 : 14)).foregroundColor(p.sig).monospacedDigit()
-                        if !m.collapsed { Text(short(t.title)).font(label(10)).foregroundColor(p.muted).lineLimit(1) }
+                        if !m.collapsed { Text(t.title).font(label(10)).foregroundColor(p.muted).lineLimit(1) }
                     }
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .help("点一下换下一个，右键选全部")
-                .contextMenu {
-                    ForEach(m.st?.targets ?? []) { x in
-                        Button("\(x.title) · \(x.days) 天") { pick = x.id; pickDay = m.st?.today ?? "" }
-                    }
-                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("选倒计时数到哪天")
             }
             Button { m.toggleCollapse() } label: {
                 Image(systemName: m.collapsed ? "chevron.down" : "chevron.up")

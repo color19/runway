@@ -6,6 +6,7 @@
 // What is new: focus time from the float's "do" stretches and block timer becomes sessions, so it lights lamps.
 import { add, diff, r2 } from '../engine/src';
 import type { createStore } from './store';
+import { countTargets, countTo } from './count';
 
 declare const __SHARE__: boolean;
 
@@ -82,10 +83,8 @@ export function startBridge(S: Store, today: () => string) {
         mode: examOn() && !ui.spin ? 'exam' : 'spiral',
         examMode: examOn(),
         exam: ex ? { title: ex.title || '', days: diff(t, ex.date) } : null,
-        targets: [
-          ...all().filter(x => (x.kind === 'exam' || x.kind === 'deadline') && x.date >= t && !x.done).map(x => ({ id: x.id, title: x.title || '', days: diff(t, x.date) })),
-          ...Object.entries(D.projects).filter(([, p]) => p.deadline && p.deadline >= t && !p.archived).map(([id, p]) => ({ id: 'p:' + id, title: (p.name || id) + ' 截止', days: diff(t, p.deadline) })),
-        ].sort((a, b) => a.days - b.days).slice(0, 20),
+        targets: countTargets(D.items, D.projects, t).slice(0, 20).map(x => ({ id: x.id, title: x.title, days: diff(t, x.date) })),
+        count: (() => { const c = countTo(D.items, D.projects, set(), t); return c ? { id: c.id, title: c.title, short: c.label, days: diff(t, c.date) } : null; })(),
         spiral: { idx: s.idx || 0, endsAt: s.endsAt || null, left: s.left ?? blockMin(s.idx || 0) * 60, bi: s.bi || 0 },
         block: (() => { const x: any = currentBlock(); if (!x) return null; const b = blockState(), mine = b && b.id === x.id, total = mine ? b.total : blockSecs(x);
           return { id: x.id, title: x.title || '', time: x.time || '', end: x.end || '', note: (x.note || '').split('\n')[0].slice(0, 60), total, left: mine ? Math.max(-5999, blockLeft(b)) : total, endsAt: mine ? (b.endsAt || null) : null }; })(),
@@ -132,6 +131,7 @@ export function startBridge(S: Store, today: () => string) {
         }
         case 'more10': setSpiral('state', { ...s, acc: isA(s.idx || 0) ? runSecs(s) : 0, runFrom: isA(s.idx || 0) ? Date.now() : null, endsAt: Date.now() + 600000, total: (isA(s.idx || 0) ? runSecs(s) : 0) + 600, item: isA(s.idx || 0) ? activeItem(s) : s.item || null, rang: false }); break;
         case 'swapB': setSpiral('state', { ...s, bi: (s.bi || 0) + 1 }); break;
+        case 'countTo': S.put('settings', 'main', { ...set(), countTo: String(c.id || ''), countName: '' }); break;
         case 'reset': setSpiral('state', { date: t, idx: 0, endsAt: null, left: blockMin(0) * 60, bi: s.bi || 0, acc: 0, runFrom: null, item: null }); break;
         case 'spin': ui.spin = true; break;
         case 'unspin': ui.spin = false; break;
