@@ -11,8 +11,8 @@ declare const __SHARE__: boolean;
 
 type Store = ReturnType<typeof createStore>;
 const A_MIN = [10, 20, 30, 40, 45], B_MIN = [10, 15];
-const blockMin = (i: number) => i % 2 === 0 ? A_MIN[Math.min(i / 2, A_MIN.length - 1)] : B_MIN[Math.min((i - 1) / 2, B_MIN.length - 1)];
-const isA = (i: number) => i % 2 === 0;
+export const blockMin = (i: number) => i % 2 === 0 ? A_MIN[Math.min(i / 2, A_MIN.length - 1)] : B_MIN[Math.min((i - 1) / 2, B_MIN.length - 1)];
+export const isA = (i: number) => i % 2 === 0;
 const pad = (n: number) => String(n).padStart(2, '0');
 const hm2m = (h: string) => +h.slice(0, 2) * 60 + +h.slice(3, 5);
 const nowHM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
@@ -69,6 +69,9 @@ export function startBridge(S: Store, today: () => string) {
     return hit?.id || null;
   };
 
+  /** The task the running stretch is on: the one the page or float started it on while it is still open, else the one by the clock. */
+  const activeItem = (s: any) => { const x = s.item && D.items[s.item]; return x && !x.done && !x.old ? s.item : firstOpen(); };
+
   function post() {
     if (S.mode !== 'live' && S.mode !== 'local' && S.mode !== 'memory') return;
     try {
@@ -87,7 +90,7 @@ export function startBridge(S: Store, today: () => string) {
         block: (() => { const x: any = currentBlock(); if (!x) return null; const b = blockState(), mine = b && b.id === x.id, total = mine ? b.total : blockSecs(x);
           return { id: x.id, title: x.title || '', time: x.time || '', end: x.end || '', note: (x.note || '').split('\n')[0].slice(0, 60), total, left: mine ? Math.max(-5999, blockLeft(b)) : total, endsAt: mine ? (b.endsAt || null) : null }; })(),
         b: Bs(),
-        now: firstOpen(),
+        now: activeItem(s),
         tasks: (examOn() ? todayBlocks() : todayA()).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
       }));
@@ -111,27 +114,25 @@ export function startBridge(S: Store, today: () => string) {
         case 'clearOver': overdue().forEach(x => mv(x.id, null)); break;
         case 'addB': { const v = String(c.title || '').trim(); if (v) setSpiral('b', { list: [...Bs(), v] }); break; }
         case 'delB': { const l = Bs().slice(); l.splice(+c.i, 1); setSpiral('b', { list: l }); break; }
-        case 'start': setSpiral('state', { ...s, endsAt: Date.now() + leftSec(s) * 1000, runFrom: isA(s.idx || 0) ? Date.now() : null, rang: false }); break;
+        case 'start': setSpiral('state', { ...s, endsAt: Date.now() + leftSec(s) * 1000, runFrom: isA(s.idx || 0) ? Date.now() : null, item: isA(s.idx || 0) ? activeItem(s) : s.item || null, total: s.total || blockMin(s.idx || 0) * 60, rang: false }); break;
         case 'pause': setSpiral('state', { ...s, left: Math.max(0, leftSec(s)), endsAt: null, acc: isA(s.idx || 0) ? runSecs(s) : 0, runFrom: null }); break;
         case 'next': {
-          if (isA(s.idx || 0)) logFocus(firstOpen(), runSecs(s), s.runFrom || Date.now());
+          if (isA(s.idx || 0)) logFocus(activeItem(s), runSecs(s), s.runFrom || Date.now());
           const i = (s.idx || 0) + 1;
-          setSpiral('state', { ...s, idx: i, endsAt: Date.now() + blockMin(i) * 60000, left: blockMin(i) * 60, bi: (s.bi || 0) + (isA(s.idx || 0) ? 0 : 1), acc: 0, runFrom: isA(i) ? Date.now() : null, rang: false });
+          setSpiral('state', { ...s, idx: i, endsAt: Date.now() + blockMin(i) * 60000, left: blockMin(i) * 60, bi: (s.bi || 0) + (isA(s.idx || 0) ? 0 : 1), acc: 0, runFrom: isA(i) ? Date.now() : null, item: isA(i) ? activeItem(s) : s.item || null, kind: null, total: blockMin(i) * 60, rang: false });
           break;
         }
         // tick off what is being done now; the stretch so far is its focus time, and the clock keeps going for the next one
         case 'doneNow': {
           const x = D.items[id]; if (!x || x.done) break;
-          if (isA(s.idx || 0)) {
-            logFocus(id, runSecs(s), s.runFrom || Date.now());
-            setSpiral('state', { ...s, acc: 0, runFrom: s.endsAt ? Date.now() : null });
-          }
+          if (isA(s.idx || 0)) logFocus(id, runSecs(s), s.runFrom || Date.now());
           putItem(id, { done: true, doneOn: t });
+          if (isA(s.idx || 0)) setSpiral('state', { ...s, acc: 0, runFrom: s.endsAt ? Date.now() : null, item: firstOpen() });
           break;
         }
-        case 'more10': setSpiral('state', { ...s, acc: isA(s.idx || 0) ? runSecs(s) : 0, runFrom: isA(s.idx || 0) ? Date.now() : null, endsAt: Date.now() + 600000, rang: false }); break;
+        case 'more10': setSpiral('state', { ...s, acc: isA(s.idx || 0) ? runSecs(s) : 0, runFrom: isA(s.idx || 0) ? Date.now() : null, endsAt: Date.now() + 600000, total: (isA(s.idx || 0) ? runSecs(s) : 0) + 600, item: isA(s.idx || 0) ? activeItem(s) : s.item || null, rang: false }); break;
         case 'swapB': setSpiral('state', { ...s, bi: (s.bi || 0) + 1 }); break;
-        case 'reset': setSpiral('state', { date: t, idx: 0, endsAt: null, left: blockMin(0) * 60, bi: s.bi || 0, acc: 0, runFrom: null }); break;
+        case 'reset': setSpiral('state', { date: t, idx: 0, endsAt: null, left: blockMin(0) * 60, bi: s.bi || 0, acc: 0, runFrom: null, item: null }); break;
         case 'spin': ui.spin = true; break;
         case 'unspin': ui.spin = false; break;
         case 'bStart': {

@@ -179,13 +179,15 @@ struct RootView: View {
     @EnvironmentObject var m: Model
     @AppStorage("darkGlass") var dark = false
     @AppStorage("countPick") var pick = ""
+    // a picked countdown lasts for that day only; the next day it is back on the nearest exam
+    @AppStorage("countPickDay") var pickDay = ""
     @State private var draft = ""
     @State private var bDraft = ""
 
     var p: Paper { Paper(dark: dark) }
     var target: RTarget? {
         let ts = m.st?.targets ?? []
-        if let t = ts.first(where: { $0.id == pick }) { return t }
+        if pickDay == m.st?.today, let t = ts.first(where: { $0.id == pick }) { return t }
         if let ex = m.st?.exam, let t = ts.first(where: { $0.title == ex.title && $0.days == ex.days }) { return t }
         if let t = ts.first { return t }
         if let ex = m.st?.exam, ex.days >= 0 { return RTarget(id: "", title: ex.title, days: ex.days) }
@@ -195,7 +197,7 @@ struct RootView: View {
         let ts = m.st?.targets ?? []
         guard !ts.isEmpty else { return }
         let i = ts.firstIndex(where: { $0.id == target?.id }) ?? -1
-        pick = ts[(i + 1) % ts.count].id
+        pick = ts[(i + 1) % ts.count].id; pickDay = m.st?.today ?? ""
     }
     func short(_ s: String) -> String {
         let latin = s.prefix { $0.isLetter && $0.isASCII }
@@ -262,7 +264,7 @@ struct RootView: View {
                 .help("点一下换下一个，右键选全部")
                 .contextMenu {
                     ForEach(m.st?.targets ?? []) { x in
-                        Button("\(x.title) · \(x.days) 天") { pick = x.id }
+                        Button("\(x.title) · \(x.days) 天") { pick = x.id; pickDay = m.st?.today ?? "" }
                     }
                 }
             }

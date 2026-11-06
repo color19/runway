@@ -4,7 +4,7 @@ import type { Engine, Item, ProjectStatus, Session, Store, TreeNode } from '../e
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
-import { startBridge } from './bridge';
+import { blockMin, isA, startBridge } from './bridge';
 
 declare const __SHARE__: boolean;
 
@@ -48,7 +48,8 @@ const ui = {
   pending: null as null | ReturnType<typeof parseBackup>,
   busy: '',
   started: false,
-  timer: null as null | { id: string; kind: 'ten' | 'block'; startAt: number; endsAt: number; total: number; rang: boolean },
+  /** The running clock lives in the database (spiral/state), shared with the Mac float. */
+  get timer() { return liveTimer(); },
   justPlanted: '',
   quick: '',
   toast: null as null | { text: string; undo?: () => void; at: number },
@@ -104,10 +105,18 @@ function toggleDone(id: string) {
 }
 
 /** Ends the running timer and puts the time spent on today's runway. Half a minute or more counts. */
+const spiralNow = () => { const s = S.data.spiral.state; return s && s.date === T() ? s : null; };
+/** A "do" stretch that is running on an open task, whether the page or the float started it. */
+function liveTimer() {
+  const s = spiralNow();
+  if (!s || !isA(s.idx || 0) || !s.endsAt || !s.item || !raw(s.item) || raw(s.item).done || raw(s.item).old) return null;
+  const total = Number(s.total) || blockMin(s.idx || 0) * 60;
+  return { id: s.item as string, kind: (s.kind === 'block' ? 'block' : 'ten') as 'ten' | 'block', startAt: (s.runFrom || Date.now()) - (Number(s.acc) || 0) * 1000, endsAt: Number(s.endsAt), total };
+}
 function plant() {
   const t = ui.timer; if (!t) return;
-  ui.timer = null;
-  const secs = Math.min(t.total, Math.round((Date.now() - t.startAt) / 1000));
+  S.put('spiral', 'state', { ...spiralNow(), endsAt: null, left: blockMin(spiralNow()!.idx || 0) * 60, acc: 0, runFrom: null, item: null, kind: null, total: null, rang: false });
+  const secs = Math.min(t.total, Math.round((Math.min(Date.now(), t.endsAt) - t.startAt) / 1000));
   if (secs < 30 || !raw(t.id)) return;
   const it = raw(t.id), start = new Date(t.startAt), d = T();
   const mins = Math.max(1, Math.round(secs / 60));
@@ -118,7 +127,10 @@ function plant() {
   ui.justPlanted = id;
   say(`跑道上多了 ${fmtH(mins / 60)}${mins < 10 ? '，几分钟也算' : ''}`);
 }
-const startTimer = (id: string, kind: 'ten' | 'block', secs: number) => { ui.timer = { id, kind, startAt: Date.now(), endsAt: Date.now() + secs * 1000, total: secs, rang: false }; };
+const startTimer = (id: string, kind: 'ten' | 'block', secs: number) => {
+  const s = spiralNow() || { date: T(), idx: 0, bi: 0 }, i = Number(s.idx) || 0, idx = isA(i) ? i : i + 1;
+  S.put('spiral', 'state', { ...s, date: T(), idx, endsAt: Date.now() + secs * 1000, left: secs, runFrom: Date.now(), acc: 0, item: id, kind, total: secs, rang: false });
+};
 
 function parseQuick(text: string, eng: Engine) {
   let title = text.trim(), hours = 0, project = '';
@@ -847,13 +859,14 @@ function render() {
 }
 
 /* ---------- timer ---------- */
+let rangFor = 0;
 function tick() {
   const t = ui.timer; if (!t) return;
   const left = Math.round((t.endsAt - Date.now()) / 1000);
   const clock = document.getElementById('clock'), track = document.getElementById('track');
   if (clock) clock.textContent = left > 0 ? `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '到点了';
   if (track) track.style.width = `${Math.min(100, (1 - Math.max(0, left) / t.total) * 100)}%`;
-  if (left <= 0 && !t.rang) { t.rang = true; chime(); }
+  if (left <= 0 && rangFor !== t.endsAt) { rangFor = t.endsAt; if (Date.now() - t.endsAt < 5000) chime(); }
 }
 let lastMinute = new Date().getMinutes();
 setInterval(() => {
