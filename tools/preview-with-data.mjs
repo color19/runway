@@ -18,7 +18,7 @@ for (const col of ['items', 'projects', 'settings', 'notes']) {
   for (const f of readdirSync(d)) if (f.endsWith('.json')) data[col][f.slice(0, -5)] = JSON.parse(readFileSync(path.join(d, f), 'utf8'));
 }
 const out = await build({
-  entryPoints: [root + 'app/main.ts'], bundle: true, format: 'iife', target: 'es2020', write: false,
+  entryPoints: [root + 'app/main.ts'], bundle: true, format: 'iife', target: 'es2020', write: false, define: { __SHARE__: 'false' },
   plugins: [{ name: 'real-data', setup(b) {
     b.onResolve({ filter: /^\.\/seed$/ }, () => ({ path: 'seed', namespace: 'real' }));
     b.onLoad({ filter: /.*/, namespace: 'real' }, () => ({ contents: `export const seed = () => structuredClone(${JSON.stringify(data)});`, loader: 'js' }));

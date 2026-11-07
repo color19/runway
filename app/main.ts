@@ -1,6 +1,6 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { MAX_DEPTH, add, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
-import type { Engine, Item, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
+import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
@@ -43,7 +43,7 @@ const ui = {
   subText: '',
   focusSub: false,
   weekOff: 0,
-  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj' | 'count',
+  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj' | 'count' | 'cal',
   editId: '',
   draft: {} as Record<string, string>,
   pending: null as null | ReturnType<typeof parseBackup>,
@@ -741,6 +741,7 @@ function projectView(eng: Engine) {
       <div class="pj-top">
         <div class="pj-sum">${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}<span class="soft">${total ? `${open} 件没做，共 ${total} 件` : '还没有事'}${st.rem > 0.01 && !st.cnt ? ` · 还剩 ${fmtH(st.rem)}` : ''}${spent > 0.01 ? ` · 已投入 ${fmtH(spent)}` : ''}</span></div>
         ${st.cnt ? '' : projectRunway(spent, st.rem, c)}
+        ${st.cnt ? '' : calLine(p)}
         <label class="pj-toggle"><input type="checkbox" data-act="show-done"${ui.showDone ? ' checked' : ''}> 显示做完的</label>
       </div>
       ${groups.map(g => {
@@ -755,6 +756,55 @@ function projectView(eng: Engine) {
     </section>
   </main>`;
 }
+/* ---------- how far off estimates usually are ---------- */
+const fx = (f: number) => String(Math.round(f * 100) / 100);
+/** Open tasks in a project that carry their own hours and have not been re-estimated yet. */
+function rescalable(pid: string) {
+  const holders = parentIds();
+  return Object.entries(S.data.items).filter(([id, x]) => !x.old && !x.done && (x.kind || 'task') === 'task' && x.project === pid && !holders.has(id) && Number(x.hours) > 0 && x.scaled == null).map(([id]) => id);
+}
+/** Under 15% either way counts as "about right": not worth moving the plan for. */
+const offBy = (c: Calibration) => c.factor != null && Math.abs(c.factor - 1) >= 0.15;
+function calLine(p: Project) {
+  const c = calibrationFor(view(), T(), p.id);
+  const look = `<button class="mini ghost" type="button" data-act="cal" data-pid="${p.id}">看明细</button>`;
+  if (c.factor == null) return c.samples.length ? `<p class="cal soft">估时：最近 ${CAL_DAYS} 天计过时的事还不到 ${CAL_MIN} 件，再做几件就看得出估得准不准。${look}</p>` : '';
+  const f = c.factor, scope = c.own ? '这个项目' : '所有项目';
+  const ids = rescalable(p.id), h = sum(ids.map(id => Number(raw(id).hours) || 0));
+  let text: string;
+  if (!offBy(c)) text = `估得挺准：最近 ${CAL_DAYS} 天${scope}做完的 ${c.n} 件，实际用时大约是预计的 ${fx(f)} 倍。`;
+  else text = `最近 ${CAL_DAYS} 天${scope}做完的 ${c.n} 件，实际用时一般是预计的 ${fx(f)} 倍${f < 1 ? '，比估的快' : ''}。${ids.length ? `剩下 ${ids.length} 件要是也这样，${fmtH(h)} 其实${f < 1 ? '只' : ''}要 ${fmtH(h * f)}。` : ''}`;
+  const apply = offBy(c) && ids.length ? `<button class="mini signal" type="button" data-act="cal-apply" data-pid="${p.id}">按 ${fx(f)} 倍重估这 ${ids.length} 件</button>` : '';
+  return `<div class="cal"><p class="soft">${text}</p><div class="acts">${apply}${look}</div></div>`;
+}
+function calApply(pid: string) {
+  const c = calibrationFor(view(), T(), pid); if (!offBy(c)) return;
+  const f = c.factor!, ids = rescalable(pid);
+  const prev = ids.map(id => ({ id, it: { ...raw(id) } }));
+  const before = sum(prev.map(x => Number(x.it.hours) || 0));
+  for (const { id, it } of prev) patch(id, { hours: r2(Number(it.hours) * f), scaled: f });
+  say(`重估了 ${ids.length} 件：${fmtH(before)} 改成 ${fmtH(sum(ids.map(id => Number(raw(id).hours) || 0)))}`, () => { for (const { id, it } of prev) S.put('items', id, it); });
+}
+function calSheet() {
+  if (ui.sheet !== 'cal') return '';
+  const p = createEngine(view(), T()).derive().projMap.get(ui.pid);
+  const c = calibrationFor(view(), T(), ui.pid);
+  const scope = c.own && p ? p.name : '所有项目';
+  const samples = c.own ? c.samples.filter(s => s.project === ui.pid) : c.samples;
+  const ok = samples.filter(s => !s.odd), odd = samples.filter(s => s.odd);
+  const row = (s: typeof samples[number]) => `<li><span class="wt">${esc(s.title)}<small class="mono"> ${cnd(s.doneOn)}</small></span><small class="mono">预计 ${fmtH(s.est)} · 实际 ${fmtH(s.real)} · ${fx(s.ratio)} 倍</small></li>`;
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="估时回看">
+    <header><h2>估时回看 · ${esc(scope)}</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <p>${c.factor != null ? `实际用时一般是预计的 <b>${fx(c.factor)} 倍</b>，算了 ${c.n} 件。` : `计过时的事还不到 ${CAL_MIN} 件，先不下结论。`}</p>
+    <p class="soft">只看最近 ${CAL_DAYS} 天做完、又计过时的事。取的是中间那件的倍数，不是平均，一两件特别长或特别快的事带不偏它；件数少的时候会往 1 倍靠。${!c.own && p ? `${esc(p.name)}自己的样本还不够，先用所有项目的。` : ''}</p>
+    ${ok.length ? `<ul class="wrap-list">${ok.map(row).join('')}</ul>` : ''}
+    ${odd.length ? `<h3 class="kick">没算进去的 ${odd.length} 件</h3><p class="soft">偏差超过 6 倍，多半是忘了停表，或者只计了一部分时间。</p><ul class="wrap-list cal-odd">${odd.map(row).join('')}</ul>` : ''}
+    <p class="soft">重估只改还没做完的事的"还要多少小时"，原来的预计留着，下次回看还是拿原来的预计来比。</p>
+    <div class="acts"><button class="btn primary" type="button" data-act="close">好了</button></div>
+  </div>`;
+}
+
 /** Tasks this one can sit under: same project, not itself or its own steps, and not already at the deepest level. */
 function parentField(eng: Engine, id: string, project: string, current: string) {
   const p = project ? eng.derive().projMap.get(project) : null;
@@ -900,7 +950,7 @@ function render() {
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
   const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : ui.layer === 'project' ? projectView(eng) : today(eng);
   const body = isEmpty() && !ui.started && (S.mode === 'live' || S.mode === 'local' || __SHARE__) ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${projSheet()}${countSheet()}${toastView()}`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${projSheet()}${countSheet()}${calSheet()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
@@ -999,6 +1049,8 @@ root.addEventListener('click', e => {
     case 'mark-done': { const title = raw(id!)?.title || ''; patch(id!, { done: true, doneOn: T() }); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } if (ui.draft.countTo === id) ui.draft.countTo = ''; say(`「${title}」完成了`, () => patch(id!, { done: false, doneOn: null })); break; }
     case 'proj-new': openProj(''); break;
     case 'proj-edit': openProj(pid!); break;
+    case 'cal': ui.pid = pid!; ui.sheet = 'cal'; break;
+    case 'cal-apply': calApply(pid!); break;
     case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
     case 'color': ui.colorFor = ui.colorFor === pid ? null : pid!; break;
     case 'setcolor': { const p = S.data.projects[pid!]; if (p) S.put('projects', pid!, { ...p, color: el.dataset.color }); ui.colorFor = null; break; }
