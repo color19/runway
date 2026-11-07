@@ -106,6 +106,21 @@ function setNote(d: string, field: string, v: string) {
   if (String(old[field] || '') === v) return;
   S.put('notes', d, Object.keys(next).length ? next : null);
 }
+/** Today's open tasks in the order "now" offers them: tomorrow's first pick from last night's wrap-up goes in front. */
+function nowOrder(eng: Engine) {
+  const order = pickOrder(eng, nowMin()), first = mainSettings().first;
+  if (first && first.date === T()) { const k = order.findIndex(i => i.id === first.id); if (k > 0) order.unshift(...order.splice(k, 1)); }
+  return order;
+}
+/** Switch to this task and give it ten minutes right away. Time already running on another task stays on the runway. */
+function goNow(id: string) {
+  const it = raw(id); if (!it || it.done) return;
+  const was = ui.timer?.id; plant();
+  if (it.date !== T()) patch(id, { date: T(), time: '', end: '' });
+  ui.resume = ''; ui.sheet = null; ui.editId = ''; ui.layer = 'today';
+  startTimer(id, 'ten', 600);
+  say(was && was !== id ? `「${raw(was)?.title || ''}」的时间记下了，换成「${it.title}」先做 10 分钟` : `「${it.title}」先做 10 分钟`);
+}
 function toggleDone(id: string) {
   const now = !raw(id).done;
   if (now && ui.timer?.id === id) plant();
@@ -227,9 +242,7 @@ function page(eng: Engine) {
   const ax = axisFor(sessions, planned, [now, ...(tm ? [startMin] : [])]);
   const live = tm && raw(tm.id) ? { startMin, nowMin: now, color: colorOf(eng, raw(tm.id).project || ''), title: raw(tm.id).title } : null;
   const note = String(S.data.notes[t]?.text || '').split('\n')[0];
-  const order = pickOrder(eng, now);
-  const first = mainSettings().first;
-  if (first && first.date === t) { const k = order.findIndex(i => i.id === first.id); if (k > 0) order.unshift(...order.splice(k, 1)); }
+  const order = nowOrder(eng);
   const cur = order.length ? (ui.timer ? order.find(i => i.id === ui.timer!.id) || order[0] : order[ui.skip % order.length]) : null;
   const next = order.filter(i => i !== cur).slice(0, 2);
   const low = lowNow();
@@ -328,7 +341,8 @@ function nowCard(eng: Engine, order: Item[], low = false, extra = '') {
       ${running
         ? `<button class="btn primary" type="button" data-act="done" data-id="${sid || it.id}">${step ? '这一步做完了' : '做完了'}</button>
            <button class="btn" type="button" data-act="ten" data-id="${it.id}">再来 10 分钟</button>
-           <button class="btn quiet" type="button" data-act="stop">停下</button>`
+           <button class="btn quiet" type="button" data-act="stop">停下</button>
+           ${order.length > 1 ? `<button class="btn quiet" type="button" data-act="swap-run">换一件</button>` : ''}`
         : `<button class="btn primary" type="button" data-act="ten" data-id="${it.id}">先做 10 分钟</button>
            <button class="btn" type="button" data-act="block" data-id="${it.id}">开始整块</button>
            ${step ? `<button class="btn" type="button" data-act="done" data-id="${sid}">这一步做完了</button>` : ''}
@@ -344,7 +358,7 @@ function row(eng: Engine, it: Item, opts: { check?: boolean; back?: boolean } = 
     ${opts.check && it.kind === 'task' ? `<input class="check" type="checkbox" id="c-${it.id}" data-act="done" data-id="${it.id}" ${it.done ? 'checked' : ''} aria-label="做完了：${esc(it.title)}">` : `<span class="dotslot"></span>`}
     <div class="row-t"><span><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></span>${lin ? `<small>${esc(lin)}</small>` : ''}</div>
     <span class="row-m mono">${when}</span>
-    ${opts.back && it.kind === 'task' && !it.done ? `<button class="mini" type="button" data-act="back" data-id="${it.id}">放回项目</button>` : '<span></span>'}
+    ${opts.back && it.kind === 'task' && !it.done ? `<span class="row-a"><button class="mini signal" type="button" data-act="go" data-id="${it.id}">先做这件</button><button class="mini" type="button" data-act="back" data-id="${it.id}">放回项目</button></span>` : '<span></span>'}
   </li>`;
 }
 
@@ -485,6 +499,7 @@ function editView(eng: Engine) {
         <button class="btn primary" type="submit">保存</button>
         <button class="btn" type="button" data-act="close">取消</button>
         <span class="grow"></span>
+        ${!it.done && task && ui.timer?.id !== ui.editId ? `<button class="btn" type="button" data-act="go" data-id="${esc(ui.editId)}">先做这件</button>` : ''}
         ${!it.done && !task ? `<button class="btn" type="button" data-act="mark-done" data-id="${esc(ui.editId)}">完成了</button>` : ''}
         ${!it.done ? `<button class="btn quiet" type="button" data-act="drop" data-id="${esc(ui.editId)}">不做了</button>` : ''}
       </div>
@@ -1180,6 +1195,8 @@ root.addEventListener('click', e => {
     case 'block': plant(); ui.resume = ''; startTimer(id!, 'block', Math.round((raw(id!).hours || raw(id!).est || 1) * 3600)); break;
     case 'stop': { const was = ui.timer?.id; plant(); if (was) ui.resume = was; break; }
     case 'swap': ui.skip++; ui.resume = ''; break;
+    case 'swap-run': { const was = ui.timer?.id, order = nowOrder(eng); plant(); ui.resume = ''; const k = order.findIndex(i => i.id === was); ui.skip = k >= 0 ? k + 1 : ui.skip + 1; break; }
+    case 'go': goNow(id!); window.scrollTo(0, 0); break;
     case 'done': toggleDone(id!); break;
     case 'all': ui.showAll = !ui.showAll; break;
     case 'drawer': ui.drawerOpen = !ui.drawerOpen; break;
