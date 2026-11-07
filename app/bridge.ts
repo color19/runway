@@ -65,6 +65,8 @@ export function startBridge(S: Store, today: () => string) {
   /** What to do now: the task whose slot is running, else the next one by the clock, else one without a time, else the first. */
   const firstOpen = () => {
     const open = todayA().filter(x => !x.done), now = tkey(nowHM());
+    // picked last night in the wrap-up as the first thing today
+    const f = set().first; if (f && f.date === today() && open.some(x => x.id === f.id)) return f.id;
     const hit = open.find(x => x.time && x.end && tkey(x.time) <= now && now < tkey(x.end))
       || open.find(x => x.time && tkey(x.time) >= now) || open.find(x => !x.time) || open[0];
     return hit?.id || null;
@@ -77,6 +79,10 @@ export function startBridge(S: Store, today: () => string) {
     if (S.mode !== 'live' && S.mode !== 'local' && S.mode !== 'memory') return;
     try {
       const t = today(), s = spiralState(), ex = nextExam();
+      // a bad day on the page: the float shows only the one small thing, or that today is a rest day
+      const lw = set().low && set().low.date === t ? set().low : null;
+      const lowKeep = (x: any) => !lw || x.done || (lw.kind === 'small' && x.id === lw.id);
+      const lowNow = lw ? (lw.kind === 'small' && D.items[lw.id] && !D.items[lw.id].done ? lw.id : null) : undefined;
       NB.postMessage(JSON.stringify({
         today: t, nick: set().nick || (__SHARE__ ? '' : 'Yan'), local: S.mode !== 'live',
         acc: ({ blue: ['#1F3BE0', '#7B8CFF'], orange: ['#E2541C', '#FF7A45'], green: ['#11704F', '#4FD19A'], rose: ['#C42A5A', '#FF7AA3'] } as Record<string, string[]>)[set().mzAcc || 'blue'] || ['#1F3BE0', '#7B8CFF'],
@@ -89,8 +95,9 @@ export function startBridge(S: Store, today: () => string) {
         block: (() => { const x: any = currentBlock(); if (!x) return null; const b = blockState(), mine = b && b.id === x.id, total = mine ? b.total : blockSecs(x);
           return { id: x.id, title: x.title || '', time: x.time || '', end: x.end || '', note: (x.note || '').split('\n')[0].slice(0, 60), total, left: mine ? Math.max(-5999, blockLeft(b)) : total, endsAt: mine ? (b.endsAt || null) : null }; })(),
         b: Bs(),
-        now: activeItem(s),
-        tasks: (examOn() ? todayBlocks() : todayA()).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
+        now: lowNow !== undefined ? lowNow : activeItem(s),
+        low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事收工时再说' : '状态差 · 只做这一件，别的先收起来' } : null,
+        tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
       }));
     } catch { /* the float simply keeps its last state */ }

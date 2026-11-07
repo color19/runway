@@ -23,6 +23,7 @@ struct RSpiral: Decodable, Equatable { var idx: Int; var endsAt: Double?; var le
 struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
 struct RCount: Decodable, Equatable { let id: String; let title: String; let short: String; let days: Int }
+struct RLow: Decodable, Equatable { let kind: String; let text: String }
 struct RState: Decodable, Equatable {
     let today: String
     let nick: String?
@@ -36,6 +37,7 @@ struct RState: Decodable, Equatable {
     let tasks: [RTask]
     let overdue: [RTask]
     let now: String?
+    let low: RLow?
 }
 
 final class Model: ObservableObject {
@@ -95,11 +97,13 @@ final class Model: ObservableObject {
         return String(format: "%02d.%02d ", c.month ?? 0, c.day ?? 0) + wd
     }
     var whatTitle: String {
+        if isA(idx), st?.low?.kind == "rest", current == nil { return "今天歇着" }
         if isA(idx) { return current?.title ?? "先在下面加一件今天的事" }
         let b = st?.b ?? []
         return b.isEmpty ? "离开屏幕，喝口水" : b[(st?.spiral.bi ?? 0) % b.count]
     }
     var whatSub: String {
+        if isA(idx), st?.low?.kind == "rest", current == nil { return "去睡觉、发呆、吃点好的" }
         if isA(idx) { return open.isEmpty ? "A 段做的是今天清单里的第一件" : (idx == 0 ? "这 10 分钟只要打开它就算赢" : "接着刚才的往下做") }
         return "玩完回来接着做"
     }
@@ -413,7 +417,9 @@ struct RootView: View {
                     .font(.system(size: 11))
                 }
             }
-            if open.isEmpty && done.isEmpty {
+            if let l = m.st?.low {
+                Text(l.text).font(.system(size: 12)).foregroundColor(p.muted)
+            } else if open.isEmpty && done.isEmpty {
                 Text("还没排事，在下面加一件。").font(.system(size: 12)).foregroundColor(p.muted)
             }
             ForEach(open) { it in row(it) }

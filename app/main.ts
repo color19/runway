@@ -1,5 +1,5 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, hm, icsOf, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
@@ -54,6 +54,8 @@ const ui = {
   justPlanted: '',
   quick: '',
   park: '',
+  /** The task just stopped, asking where to pick it up next time. */
+  resume: '',
   toast: null as null | { text: string; undo?: () => void; at: number },
 };
 
@@ -91,11 +93,25 @@ function moveTo(id: string, date: string | null, text: string) {
   patch(id, { date, time: '', end: '' });
   say(text, () => patch(id, prev));
 }
+/** The first open step under a task, depth first, in the project's order; null when it has none. */
+function nextStep(id: string, depth = 0): string | null {
+  const ks = kidsOf(id).filter(k => !raw(k).done).sort((a, b) => (Number(raw(a).order) || 0) - (Number(raw(b).order) || 0) || String(raw(a).title).localeCompare(String(raw(b).title)));
+  if (!ks.length || depth >= MAX_DEPTH) return depth ? id : null;
+  return nextStep(ks[0], depth + 1);
+}
+/** One field of today's note; the note goes away when nothing is left in it. */
+function setNote(d: string, field: string, v: string) {
+  const old = S.data.notes[d] || {}, next: Record<string, any> = { ...old };
+  if (v) next[field] = v; else delete next[field];
+  if (String(old[field] || '') === v) return;
+  S.put('notes', d, Object.keys(next).length ? next : null);
+}
 function toggleDone(id: string) {
   const now = !raw(id).done;
   if (now && ui.timer?.id === id) plant();
   patch(id, { done: now, doneOn: now ? T() : null });
-  if (now) { chime(); ui.skip = 0; }
+  // finishing a step keeps the same task in front, now showing its next step
+  if (now) { chime(); if (!parentOf(id)) ui.skip = 0; }
   if (now) for (const k of descendants(id, Object.keys(S.data.items).map(x => ({ id: x })), parentOf)) if (!raw(k).old && !raw(k).done) patch(k, { done: true, doneOn: T() });
   // a task with steps is done exactly when all its steps are
   for (let c = id, up = parentOf(c), n = 0; up && raw(up) && n < MAX_DEPTH + 1; c = up, up = parentOf(c), n++) {
@@ -212,6 +228,8 @@ function page(eng: Engine) {
   const live = tm && raw(tm.id) ? { startMin, nowMin: now, color: colorOf(eng, raw(tm.id).project || ''), title: raw(tm.id).title } : null;
   const note = String(S.data.notes[t]?.text || '').split('\n')[0];
   const order = pickOrder(eng, now);
+  const first = mainSettings().first;
+  if (first && first.date === t) { const k = order.findIndex(i => i.id === first.id); if (k > 0) order.unshift(...order.splice(k, 1)); }
   const cur = order.length ? (ui.timer ? order.find(i => i.id === ui.timer!.id) || order[0] : order[ui.skip % order.length]) : null;
   const next = order.filter(i => i !== cur).slice(0, 2);
   const low = lowNow();
@@ -291,21 +309,29 @@ function nowCard(eng: Engine, order: Item[], low = false, extra = '') {
   const it = ui.timer ? (order.find(i => i.id === ui.timer!.id) || order[0]) : order[ui.skip % order.length];
   const running = ui.timer && ui.timer.id === it.id;
   const time = it.time ? `${it.time}${it.end ? '–' + it.end : ''}` : '';
+  const sid = nextStep(it.id), step = sid ? raw(sid) : null;
+  const asking = ui.resume === it.id && !running;
+  const nextAt = String(raw(it.id)?.next || '');
   return `<article class="now${running ? ' running' : ''}">
     <div class="now-label">${running ? (ui.timer!.kind === 'ten' ? '先做 10 分钟' : '整块进行中') : low ? '状态差 · 只做这一件' : '现在做'}</div>
-    <h2><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></h2>
+    ${step ? `<h2><button class="ed" type="button" data-act="edit" data-id="${sid}">${esc(step.title)}</button></h2>
+      <p class="lin">「<button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button>」的下一小步</p>`
+      : `<h2><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></h2>`}
     ${trail(eng, it) ? `<p class="lin">${esc(trail(eng, it))}</p>` : ''}
+    ${nextAt && !asking ? `<p class="resume">上次停在：${esc(nextAt)}</p>` : ''}
     ${it.note ? `<p class="lin note">${esc(it.note.split('\n')[0].slice(0, 120))}</p>` : ''}
-    <p class="est mono">${time ? time + ' · ' : ''}预计 ${fmtH(it.hours || it.est)}</p>
+    <p class="est mono">${time ? time + ' · ' : ''}预计 ${fmtH(step ? (step.hours || step.est || 0) : (it.hours || it.est))}</p>
     ${running ? `<div class="clock mono" id="clock">--:--</div><div class="track" aria-hidden="true"><i id="track"></i></div>` : ''}
+    ${asking ? `<label class="resume-ask"><span>下次从哪开始？写一句，下次一打开就看到</span><input id="resume-input" data-id="${it.id}" type="text" autocomplete="off" maxlength="120" placeholder="比如：第 12 题，先看错因" value="${esc(nextAt)}"></label>` : ''}
     ${extra}
     <div class="acts">
       ${running
-        ? `<button class="btn primary" type="button" data-act="done" data-id="${it.id}">做完了</button>
+        ? `<button class="btn primary" type="button" data-act="done" data-id="${sid || it.id}">${step ? '这一步做完了' : '做完了'}</button>
            <button class="btn" type="button" data-act="ten" data-id="${it.id}">再来 10 分钟</button>
            <button class="btn quiet" type="button" data-act="stop">停下</button>`
         : `<button class="btn primary" type="button" data-act="ten" data-id="${it.id}">先做 10 分钟</button>
            <button class="btn" type="button" data-act="block" data-id="${it.id}">开始整块</button>
+           ${step ? `<button class="btn" type="button" data-act="done" data-id="${sid}">这一步做完了</button>` : ''}
            ${order.length > 1 ? `<button class="btn quiet" type="button" data-act="swap">换一件</button>` : ''}`}
     </div>
   </article>`;
@@ -419,7 +445,9 @@ function dataSheet() {
     <div class="acts col">
       <label class="btn filebtn">${__SHARE__ ? '从备份导入…' : '从旧版备份导入…'}<input id="file-import" type="file" accept=".json,application/json" data-act="file"></label>
       <button class="btn" type="button" data-act="export">导出备份</button>
+      <button class="btn" type="button" data-act="ics">导出到手机日历（接下来两周）</button>
     </div>
+    <p class="soft">日历文件是一份快照：排了时间的事按时间放，没排时间的每天合成一条全天提醒。计划变了再导出一次，同一件事会更新而不是重复。</p>
     <p class="soft">导出的文件就是旧版 Runway 的备份格式，旧版"导出与备份"里可以直接恢复，随时能退回去。</p>
   </div>`;
 }
@@ -511,6 +539,8 @@ function wrapView(eng: Engine) {
         <button class="mini" type="button" data-act="back" data-id="${i.id}">放回项目</button>
         <button class="mini ghost" type="button" data-act="drop" data-id="${i.id}">不做了</button>
       </li>`).join('')}</ul>` : `<p class="soft">今天排的都安排好了。</p>`}
+    ${firstPick(eng)}
+    ${studyFields(eng)}
     <label class="fld"><span>comment</span><input id="wrap-comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
     <div class="acts"><button class="btn primary" type="button" data-act="close">好了</button></div>
   </div>`;
@@ -610,6 +640,28 @@ function lowSheet(eng: Engine) {
       : `<p class="soft">今天没排事。想做的话从项目里放一件小的进来，不想就歇着。</p>`}
     </section>
   </div>`;
+}
+
+/** Choose tomorrow's first thing tonight, so tomorrow starts without deciding. */
+function firstPick(eng: Engine) {
+  const tm = add(T(), 1), f = mainSettings().first, cur = f && f.date === tm ? f.id : '';
+  const cands = eng.itemsOn(tm).filter(i => i.kind === 'task' && !i.done);
+  if (!cands.length) return '';
+  return `<h3 class="kick">明天先做哪一件</h3>
+    <div class="first-pick">${cands.map(i => `<button class="mini${cur === i.id ? ' signal on' : ''}" type="button" data-act="first" data-id="${i.id}" aria-pressed="${cur === i.id}">${esc(i.title)}</button>`).join('')}</div>
+    <p class="soft">${cur ? '明天打开，"现在做"就是它。' : '挑一件，明天打开就从它开始。'}</p>`;
+}
+/** While an exam is ahead: today's accuracy and the three things least understood, the start of a mistakes log. */
+function studyFields(eng: Engine) {
+  const t = T();
+  if (!eng.derive().items.some(x => x.kind === 'exam' && !x.done && x.date && x.date >= t)) return '';
+  const n = S.data.notes[t] || {};
+  const back = range(add(t, -7), add(t, -1)).reverse().filter(d => S.data.notes[d]?.weak).slice(0, 3);
+  return `<div class="fld-row">
+      <label class="fld"><span>今天正确率</span><input id="wrap-acc" type="text" autocomplete="off" maxlength="12" placeholder="比如 72%" value="${esc(n.acc || '')}"></label>
+      <label class="fld grow"><span>最不会的三个点</span><input id="wrap-weak" type="text" autocomplete="off" maxlength="120" placeholder="比如：久期、IFRS 减值、期权回报图" value="${esc(n.weak || '')}"></label>
+    </div>
+    ${back.length ? `<p class="soft">前几天写下的：${back.map(d => `${cnd(d)} ${esc(S.data.notes[d].weak)}${S.data.notes[d].acc ? `（${esc(S.data.notes[d].acc)}）` : ''}`).join('；')}</p>` : ''}`;
 }
 
 /* ---------- planning layers: week and global ---------- */
@@ -1089,6 +1141,15 @@ async function exportBackup() {
   catch (e: any) { say(e?.code === 'declined' ? '没有导出' : `导出没成功（${e?.code || '未知'}）`); }
   render();
 }
+async function exportIcs() {
+  const text = icsOf(createEngine(view(), T()), Date.now());
+  let dl: any = null;
+  try { dl = (window as any).claude?.use ? await (window as any).claude.use('downloads') : null; } catch { dl = null; }
+  if (!dl) { say('这里不能直接下载文件。在 claude.ai 里打开这个页面再导出。'); render(); return; }
+  try { await dl.save({ filename: `Runway-${T()}.ics`, data: text }); say('日历文件已导出，用手机打开它就能加进日历'); }
+  catch (e: any) { say(e?.code === 'declined' ? '没有导出' : `导出没成功（${e?.code || '未知'}）`); }
+  render();
+}
 function readFile(input: HTMLInputElement) {
   const f = input.files?.[0]; if (!f) return;
   const fr = new FileReader();
@@ -1115,10 +1176,10 @@ root.addEventListener('click', e => {
   const eng = createEngine(view(), T());
   const title = id && raw(id) ? raw(id).title : '';
   switch (act) {
-    case 'ten': plant(); startTimer(id!, 'ten', 600); break;
-    case 'block': plant(); startTimer(id!, 'block', Math.round((raw(id!).hours || raw(id!).est || 1) * 3600)); break;
-    case 'stop': plant(); break;
-    case 'swap': ui.skip++; break;
+    case 'ten': plant(); ui.resume = ''; startTimer(id!, 'ten', 600); break;
+    case 'block': plant(); ui.resume = ''; startTimer(id!, 'block', Math.round((raw(id!).hours || raw(id!).est || 1) * 3600)); break;
+    case 'stop': { const was = ui.timer?.id; plant(); if (was) ui.resume = was; break; }
+    case 'swap': ui.skip++; ui.resume = ''; break;
     case 'done': toggleDone(id!); break;
     case 'all': ui.showAll = !ui.showAll; break;
     case 'drawer': ui.drawerOpen = !ui.drawerOpen; break;
@@ -1126,6 +1187,8 @@ root.addEventListener('click', e => {
     case 'edit': ui.picker = null; openEdit(id!); break;
     case 'wrap': ui.sheet = 'wrap'; break;
     case 'low': ui.sheet = 'low'; break;
+    case 'first': { const m = mainSettings(), tm = add(T(), 1), on = m.first && m.first.date === tm && m.first.id === id; S.put('settings', 'main', { ...m, first: on ? null : { date: tm, id } }); break; }
+    case 'ics': exportIcs(); return;
     case 'low-rest': if (ui.timer) plant(); setLow('rest'); ui.sheet = null; break;
     case 'low-small': setLow('small', id!); ui.sheet = null; break;
     case 'low-off': lowOff(); break;
@@ -1179,7 +1242,10 @@ root.addEventListener('change', e => {
   const t = e.target as HTMLInputElement;
   if (t.dataset.act === 'file') readFile(t);
   if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; render(); }
-  if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
+  if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) setNote(d, 'text', v); }
+  if (t.id === 'wrap-acc') setNote(T(), 'acc', t.value.trim());
+  if (t.id === 'wrap-weak') setNote(T(), 'weak', t.value.trim());
+  if (t.id === 'resume-input' && t.dataset.id && raw(t.dataset.id)) { const v = t.value.trim(); if (v !== (raw(t.dataset.id).next || '')) { patch(t.dataset.id, { next: v }); if (v) say('记下了，下次从这里开始'); } }
 });
 root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
 root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'park') { addQuick(createEngine(view(), T()), false, 'park'); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
