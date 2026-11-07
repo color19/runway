@@ -45,3 +45,32 @@ export function icsOf(eng: Engine, nowMs: number, days = 14) {
     `SUMMARY:${tx(e.title)}`, ...(e.notes ? [`DESCRIPTION:${tx(e.notes)}`] : []), 'END:VEVENT'].join('\r\n'));
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Runway//CN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Runway', ...ev, 'END:VCALENDAR'].join('\r\n') + '\r\n';
 }
+
+export interface CalTask {
+  /** The item id, so a task that moves to another day stays the same reminder. */
+  uid: string;
+  date: Day;
+  /** Minutes after midnight, or null when the task has no time. */
+  start: number | null;
+  title: string;
+  notes: string;
+  done: boolean;
+}
+
+/**
+ * What the Mac float keeps in Apple Calendar and Reminders for the next `days` days:
+ * exams, deadlines and fixed events as calendar events; every task as a reminder that can be ticked off on the phone.
+ */
+export function calSync(eng: Engine, days = 14): { events: CalEvent[]; tasks: CalTask[] } {
+  const t = eng.today, dv = eng.derive(), events: CalEvent[] = [], tasks: CalTask[] = [];
+  for (const d of range(t, add(t, days - 1))) {
+    for (const i of eng.itemsOn(d)) {
+      const st = hm(i.time), en = hm(i.end), pn = dv.projMap.get(i.project)?.name || '';
+      if (i.kind === 'task') { tasks.push({ uid: i.id, date: d, start: st, title: i.title, notes: pn, done: i.done }); continue; }
+      if (i.done) continue;
+      if (i.kind === 'exam' || i.kind === 'deadline') events.push({ uid: i.id, date: d, start: null, end: null, title: (i.kind === 'exam' ? '考试：' : '截止：') + i.title, notes: '' });
+      else events.push({ uid: `${i.id}-${d.replace(/-/g, '')}`, date: d, start: st, end: st == null ? null : Math.min(en != null && en > st ? en : st + Math.max(15, Math.round((i.hours || 0.5) * 60)), 1439), title: i.title, notes: pn });
+    }
+  }
+  return { events, tasks };
+}

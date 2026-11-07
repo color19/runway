@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { calEvents, createEngine, icsOf } from '../src';
+import { calEvents, calSync, createEngine, icsOf } from '../src';
 
 const base = JSON.parse(readFileSync(fileURLToPath(new URL('./fixtures/synthetic.json', import.meta.url)), 'utf8'));
 const D = '2026-11-04';
@@ -30,4 +30,13 @@ test('日程清单：每件都有稳定的 uid，排时间的有开始和结束'
   expect(new Set(evs.map(e => e.uid)).size).toBe(evs.length);
   for (const e of evs) if (e.start != null) expect(e.end!).toBeGreaterThan(e.start);
   expect(calEvents(createEngine(base, D)).map(e => e.uid)).toEqual(evs.map(e => e.uid));
+});
+
+test('同步：任务进提醒事项，考试和截止日进日历', () => {
+  const { events, tasks } = calSync(createEngine(base, D));
+  expect(tasks.length).toBeGreaterThan(0);
+  expect(new Set(tasks.map(x => x.uid)).size).toBe(tasks.length);
+  expect(events.some(e => e.title.startsWith('考试：'))).toBe(true);
+  expect(events.every(e => !e.title.startsWith('Runway：'))).toBe(true);
+  for (const x of tasks) expect(createEngine(base, D).derive().items.find(i => i.id === x.uid)?.kind).toBe('task');
 });

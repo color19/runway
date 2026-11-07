@@ -25,6 +25,7 @@ struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
 struct RCount: Decodable, Equatable { let id: String; let title: String; let short: String; let days: Int }
 struct RLow: Decodable, Equatable { let kind: String; let text: String }
+struct RTodo: Decodable, Equatable { let uid: String; let date: String; let start: Int?; let title: String; let notes: String; let done: Bool }
 struct RCal: Decodable, Equatable { let uid: String; let date: String; let start: Int?; let end: Int?; let title: String; let notes: String }
 struct RState: Decodable, Equatable {
     let today: String
@@ -41,6 +42,7 @@ struct RState: Decodable, Equatable {
     let now: String?
     let low: RLow?
     let cal: [RCal]?
+    let todo: [RTodo]?
 }
 
 final class Model: ObservableObject {
@@ -569,7 +571,6 @@ final class CalSync {
             for e in mine.values where e.startDate >= d0 { try store.remove(e, span: .thisEvent, commit: false); changed += 1 }
             if changed > 0 { try store.commit() }
             last = evs
-            onStatus?("已同步 \(evs.count) 条")
         } catch {
             store.reset()
             onStatus?("同步没成功")
@@ -590,7 +591,102 @@ final class CalSync {
         }
         return nil
     }
-    func forget() { last = nil }
+    func forget() { last = nil; lastTodo = nil }
+
+    // MARK: tasks as reminders in a list named "Runway"; ticking one off on the phone ticks it off in Runway
+    private var lastTodo: [RTodo]? = nil
+    private var busy = false
+    private var askingRem = false
+    var send: (([String: Any]) -> Void)?
+    /// Runway's done state as last written to each reminder, so a change made in Reminders can be told from one made in Runway.
+    private var sent: [String: Bool] = (UserDefaults.standard.dictionary(forKey: "remSent") as? [String: Bool]) ?? [:]
+    private var remGranted: Bool {
+        let st = EKEventStore.authorizationStatus(for: .reminder)
+        if #available(macOS 14.0, *) { return st == .fullAccess }
+        return st == .authorized
+    }
+    /// Something changed in Calendar or Reminders (the phone, or this app): look again on the next state from the page.
+    func storeChanged() { lastTodo = nil }
+
+    func syncTodo(_ todo: [RTodo]) {
+        guard enabled, !busy, todo != lastTodo else { return }
+        if !remGranted {
+            guard EKEventStore.authorizationStatus(for: .reminder) == .notDetermined, !askingRem else { return }
+            askingRem = true
+            let done: (Bool, Error?) -> Void = { [weak self] ok, _ in
+                DispatchQueue.main.async { guard let self = self else { return }; self.askingRem = false; if ok { self.store.reset(); self.syncTodo(todo) } else { self.onStatus?("提醒事项没有授权") } }
+            }
+            if #available(macOS 14.0, *) { store.requestFullAccessToReminders(completion: done) } else { store.requestAccess(to: .reminder, completion: done) }
+            return
+        }
+        guard let list = reminderList() else { onStatus?("建不了 Runway 提醒列表"); return }
+        busy = true
+        store.fetchReminders(matching: store.predicateForReminders(in: [list])) { [weak self] found in
+            DispatchQueue.main.async { self?.applyTodo(todo, found ?? [], list) }
+        }
+    }
+    private func applyTodo(_ todo: [RTodo], _ found: [EKReminder], _ list: EKCalendar) {
+        defer { busy = false }
+        var mine: [String: EKReminder] = [:]
+        for r in found { if let u = r.url?.absoluteString, u.hasPrefix("runway://") { mine[String(u.dropFirst(9))] = r } }
+        let g = Calendar(identifier: .gregorian)
+        var changed = 0, fromPhone = 0
+        var keep: [String: Bool] = [:]
+        do {
+            for x in todo {
+                guard let key = x.uid.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_"))) else { continue }
+                let p = x.date.split(separator: "-").compactMap { Int($0) }
+                guard p.count == 3 else { continue }
+                var due = DateComponents(calendar: g, year: p[0], month: p[1], day: p[2])
+                if let m = x.start { due.hour = m / 60; due.minute = m % 60 }
+                if let r = mine.removeValue(forKey: key) {
+                    if let prev = sent[key], prev == x.done, r.isCompleted != x.done {
+                        // ticked or unticked in Reminders since the last sync: tell the page
+                        send?(["op": "setDone", "id": x.uid, "done": r.isCompleted])
+                        keep[key] = r.isCompleted; fromPhone += 1
+                        continue
+                    }
+                    let d0 = r.dueDateComponents
+                    let same = r.title == x.title && (r.notes ?? "") == x.notes && r.isCompleted == x.done
+                        && d0?.year == due.year && d0?.month == due.month && d0?.day == due.day && d0?.hour == due.hour && d0?.minute == due.minute
+                    if !same {
+                        r.title = x.title; r.notes = x.notes.isEmpty ? nil : x.notes; r.dueDateComponents = due; r.isCompleted = x.done
+                        try store.save(r, commit: false); changed += 1
+                    }
+                } else {
+                    let r = EKReminder(eventStore: store)
+                    r.calendar = list; r.title = x.title; r.notes = x.notes.isEmpty ? nil : x.notes; r.dueDateComponents = due
+                    r.url = URL(string: "runway://" + key); r.isCompleted = x.done
+                    try store.save(r, commit: false); changed += 1
+                }
+                keep[key] = x.done
+            }
+            // tasks no longer on any of the next days drop out quietly; ones already ticked off stay as a record
+            for r in mine.values where !r.isCompleted { try store.remove(r, commit: false); changed += 1 }
+            if changed > 0 { try store.commit() }
+            sent = keep
+            UserDefaults.standard.set(sent, forKey: "remSent")
+            lastTodo = fromPhone > 0 ? nil : todo
+            onStatus?("已同步 \(todo.count) 件任务")
+        } catch {
+            store.reset()
+            onStatus?("提醒事项同步没成功")
+        }
+    }
+    private func reminderList() -> EKCalendar? {
+        let d = UserDefaults.standard
+        if let id = d.string(forKey: "remID"), let c = store.calendar(withIdentifier: id) { return c }
+        if let c = store.calendars(for: .reminder).first(where: { $0.title == "Runway" && $0.allowsContentModifications }) { d.set(c.calendarIdentifier, forKey: "remID"); return c }
+        let c = EKCalendar(for: .reminder, eventStore: store)
+        c.title = "Runway"
+        c.color = NSColor(red: 0.12, green: 0.23, blue: 0.88, alpha: 1)
+        let sources = [store.sources.first { $0.sourceType == .calDAV && $0.title == "iCloud" }, store.defaultCalendarForNewReminders()?.source, store.sources.first { $0.sourceType == .local }].compactMap { $0 }
+        for src in sources {
+            c.source = src
+            if (try? store.saveCalendar(c, commit: true)) != nil { d.set(c.calendarIdentifier, forKey: "remID"); return c }
+        }
+        return nil
+    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
@@ -689,7 +785,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
               let s = try? JSONDecoder().decode(RState.self, from: data) else { return }
         frame = message.frameInfo
         model.apply(s)
-        if !(s.local ?? true), let evs = s.cal { cal.sync(evs, today: s.today) }
+        if !(s.local ?? true) {
+            if let evs = s.cal { cal.sync(evs, today: s.today) }
+            if let todo = s.todo { cal.syncTodo(todo) }
+        }
         if webShown && !(s.local ?? false) { hideWeb() }
     }
 
@@ -830,9 +929,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         sizeItem.submenu = sizes
         menu.addItem(sizeItem)
-        calItem = item("同步到苹果日历", #selector(toggleCal))
+        calItem = item("同步到日历和提醒事项", #selector(toggleCal))
         calItem.state = cal.enabled ? .on : .off
-        cal.onStatus = { [weak self] text in self?.calItem.title = "同步到苹果日历（\(text)）" }
+        cal.send = { [weak self] d in self?.send(d) }
+        NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: cal.store, queue: .main) { [weak self] _ in self?.cal.storeChanged() }
+        cal.onStatus = { [weak self] text in self?.calItem.title = "同步到日历和提醒事项（\(text)）" }
         menu.addItem(.separator())
         _ = item("登录 claude.ai", #selector(signIn))
         _ = item("重新连接", #selector(reconnect))
@@ -850,7 +951,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     @objc func toggleCal() {
         defaults.set(cal.enabled, forKey: "calOff")
         calItem.state = cal.enabled ? .on : .off
-        if cal.enabled { cal.forget() } else { calItem.title = "同步到苹果日历" }
+        if cal.enabled { cal.forget() } else { calItem.title = "同步到日历和提醒事项" }
     }
     @objc func togglePin() { setPinned(panel.level != .floating) }
     @objc func toggleShow() { if panel.isVisible { panel.orderOut(nil) } else { panel.orderFrontRegardless() } }

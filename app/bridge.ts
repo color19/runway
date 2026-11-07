@@ -4,7 +4,7 @@
 //   page → app: a JSON state every few seconds (today's list, earlier leftovers, spiral timer, next exam)
 //   app → page: window.runwayCmd({op, ...}) for ticks, adds, moves and the timers.
 // What is new: focus time from the float's "do" stretches and block timer becomes sessions, so it lights lamps.
-import { add, calEvents, createEngine, diff, r2 } from '../engine/src';
+import { add, calSync, createEngine, diff, r2 } from '../engine/src';
 import type { createStore } from './store';
 import { countTargets, countTo } from './count';
 
@@ -30,6 +30,8 @@ export function startBridge(S: Store, today: () => string) {
   const hrs = (x: any) => +x.est || +x.hours || 0;
   const isTask = (x: any) => (x.kind || 'task') === 'task' && !x.old && !(x.note || '').startsWith('砍掉');
   const set = () => D.settings.main || {};
+  /** The data without items hidden away as old, the way the page plans with it. */
+  const live = () => ({ ...D, items: Object.fromEntries(Object.entries(D.items).filter(([, x]) => !x.old)) });
   const examOn = () => !!set().examMode;
   // times before 05:00 belong to the night of the same day, so they sort after the evening
   const tkey = (h: string) => !h ? '9' : h < '05:00' ? '2' + h : '1' + h;
@@ -97,7 +99,7 @@ export function startBridge(S: Store, today: () => string) {
         b: Bs(),
         now: lowNow !== undefined ? lowNow : activeItem(s),
         // the next two weeks for the float to write into Apple Calendar
-        cal: S.mode === 'live' ? calEvents(createEngine(D, t), 14) : null,
+        ...(S.mode === 'live' ? (() => { const c = calSync(createEngine(live(), t), 14); return { cal: c.events, todo: c.tasks }; })() : { cal: null, todo: null }),
         low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事收工时再说' : '状态差 · 只做这一件，别的先收起来' } : null,
         tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
@@ -114,6 +116,8 @@ export function startBridge(S: Store, today: () => string) {
     try {
       const t = today(), s = spiralState(), id = c.id;
       switch (c.op) {
+        // ticked or unticked in Apple Reminders
+        case 'setDone': { const x = D.items[id]; if (x && !x.old && !!x.done !== !!c.done) putItem(id, { done: !!c.done, doneOn: c.done ? (x.date && x.date <= t ? x.date : t) : null }); break; }
         case 'toggle': { const x = D.items[id]; if (x) { const now = !x.done; putItem(id, { done: now, doneOn: now ? t : null }); } break; }
         case 'add': { const v = String(c.title || '').trim(); if (v) S.put('items', uid('i'), newTask(v)); break; }
         case 'tmr': mv(id, add(t, 1)); break;
