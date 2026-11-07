@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createEngine, dayLoads, drawer, hm, lineage, pickOrder } from '../src';
+import { createEngine, dayLoads, drawer, hm, ifToday, lineage, pickOrder } from '../src';
 
 const base = JSON.parse(readFileSync(fileURLToPath(new URL('./fixtures/synthetic.json', import.meta.url)), 'utf8'));
 const D = '2026-11-04';
@@ -73,4 +73,27 @@ describe('来龙去脉', () => {
   test('带项目、模块和离考试几天', () => expect(lineage(eng, item('t1'))).toBe('CFA Level 1 › 公司发行人 · 离考试 13 天'));
   test('没有考试的项目说离截止', () => expect(lineage(eng, item('t13'))).toBe('643 Project · 离截止 10 天'));
   test('没有项目的事返回空', () => expect(lineage(eng, item('x1'))).toBe(''));
+});
+
+describe('今天只做一点，还来不来得及', () => {
+  test('今天照常用满，判断不变', () => {
+    const cap = createEngine(base, D).capOf(D);
+    for (const r of ifToday(base, D, cap)) expect(r.after.label).toBe(r.before.label);
+  });
+  test('今天歇着，截止前的负荷只会更高', () => {
+    const rs = ifToday(base, D, 0);
+    expect(rs.length).toBeGreaterThan(0);
+    for (const r of rs) if (r.before.press != null) expect(r.after.press!).toBeGreaterThanOrEqual(r.before.press - 1e-9);
+    expect(rs.find(r => r.project.id === 'p-cfa')!.after.press!).toBeGreaterThan(rs.find(r => r.project.id === 'p-cfa')!.before.press!);
+  });
+  test('只是问一问，不改原来的数据', () => {
+    const s = fresh(), before = JSON.stringify(s);
+    ifToday(s, D, 0);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+  test('还没开始和没有工作量的项目不列出来', () => {
+    const ids = ifToday(base, D, 0).map(r => r.project.id);
+    expect(ids).not.toContain('p-later');
+    expect(ids).not.toContain('p-empty');
+  });
 });

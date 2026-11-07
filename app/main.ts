@@ -1,5 +1,5 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
@@ -43,7 +43,7 @@ const ui = {
   subText: '',
   focusSub: false,
   weekOff: 0,
-  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj' | 'count' | 'cal',
+  sheet: null as null | 'data' | 'import' | 'edit' | 'wrap' | 'cap' | 'proj' | 'count' | 'cal' | 'low',
   editId: '',
   draft: {} as Record<string, string>,
   pending: null as null | ReturnType<typeof parseBackup>,
@@ -53,6 +53,7 @@ const ui = {
   get timer() { return liveTimer(); },
   justPlanted: '',
   quick: '',
+  park: '',
   toast: null as null | { text: string; undo?: () => void; at: number },
 };
 
@@ -145,14 +146,14 @@ function parseQuick(text: string, eng: Engine) {
   }
   return { title, hours: r2(hours), project };
 }
-function addQuick(eng: Engine, toToday: boolean) {
-  const q = parseQuick(ui.quick, eng);
+function addQuick(eng: Engine, toToday: boolean, field: 'quick' | 'park' = 'quick') {
+  const q = parseQuick(ui[field], eng);
   if (!q.title) return;
   const order = Math.max(0, ...Object.values(S.data.items).map(x => Number(x.order) || 0)) + 1;
   const id = uid('i');
   S.put('items', id, { kind: 'task', title: q.title, date: toToday ? T() : null, time: '', end: '', hours: q.hours, est: q.hours, done: false, doneOn: null, project: q.project, module: '', tags: [], note: '', order, log: {}, actual: null });
-  ui.quick = '';
-  say(`记下了「${q.title}」${toToday ? '，放在今天' : '，在项目抽屉里'}`);
+  ui[field] = '';
+  say(`记下了「${q.title}」${toToday ? '，放在今天' : field === 'park' ? '，等会儿再说' : '，在项目抽屉里'}`);
 }
 
 /* ---------- small pleasures ---------- */
@@ -213,6 +214,7 @@ function page(eng: Engine) {
   const order = pickOrder(eng, now);
   const cur = order.length ? (ui.timer ? order.find(i => i.id === ui.timer!.id) || order[0] : order[ui.skip % order.length]) : null;
   const next = order.filter(i => i !== cur).slice(0, 2);
+  const low = lowNow();
   // tasks grouped by subject, as in a paper planner
   const groups = new Map<string, Item[]>();
   for (const it of [...tasks].sort((a, b) => Number(a.done) - Number(b.done))) { const k = it.project || ''; if (!groups.has(k)) groups.set(k, []); groups.get(k)!.push(it); }
@@ -232,13 +234,14 @@ function page(eng: Engine) {
       <label class="pg-comment"><span class="kick">comment</span><input id="comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
       </div>
       <div class="pad pad-butter">
-        <div class="pad-hd"><span>focus on</span><span>${order.length ? `还有 ${order.length} 件` : '都做完了'}</span></div>
-        ${nowCard(eng, order)}
-        ${next.length ? `<section class="block next"><h3 class="kick">next</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
+        <div class="pad-hd"><span>focus on</span>${low ? `<button class="hd-btn" type="button" data-act="low-off">回到平常</button>` : `<span>${order.length ? `还有 ${order.length} 件` : '都做完了'}</span>`}</div>
+        ${low ? lowCard(eng, low, order) : nowCard(eng, order)}
+        ${low ? '' : `<p class="low-link"><button class="btn quiet" type="button" data-act="low">今天状态差？</button></p>`}
+        ${!low && next.length ? `<section class="block next"><h3 class="kick">next</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
       </div>
       <section class="pad pad-sage tasks">
-        <div class="pad-hd"><span>tasks</span><span>排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}</span></div>
-        ${groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
+        <div class="pad-hd"><span>tasks</span><span>${low ? '' : `排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}`}</span></div>
+        ${low && !ui.showAll ? `<p class="soft low-fold">今天其余的事先收起来了。<button class="btn quiet" type="button" data-act="all">看一眼</button></p>` : groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
           <span class="tg-sub" style="--c:${esc(colorOf(eng, pid))}">${esc(pid ? shortName(nameOf(eng, pid)) : '生活')}</span>
           <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}"${it.done ? '' : ` draggable="true" data-drag="${it.id}"`}>
             <span class="tl-t"><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></span>
@@ -279,7 +282,7 @@ function weekRuns(eng: Engine) {
   </section>`;
 }
 
-function nowCard(eng: Engine, order: Item[]) {
+function nowCard(eng: Engine, order: Item[], low = false, extra = '') {
   if (!order.length) return `<article class="now empty">
     <div class="now-label">现在做</div>
     <h2>今天排的都做完了</h2>
@@ -289,12 +292,13 @@ function nowCard(eng: Engine, order: Item[]) {
   const running = ui.timer && ui.timer.id === it.id;
   const time = it.time ? `${it.time}${it.end ? '–' + it.end : ''}` : '';
   return `<article class="now${running ? ' running' : ''}">
-    <div class="now-label">${running ? (ui.timer!.kind === 'ten' ? '先做 10 分钟' : '整块进行中') : '现在做'}</div>
+    <div class="now-label">${running ? (ui.timer!.kind === 'ten' ? '先做 10 分钟' : '整块进行中') : low ? '状态差 · 只做这一件' : '现在做'}</div>
     <h2><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></h2>
     ${trail(eng, it) ? `<p class="lin">${esc(trail(eng, it))}</p>` : ''}
     ${it.note ? `<p class="lin note">${esc(it.note.split('\n')[0].slice(0, 120))}</p>` : ''}
     <p class="est mono">${time ? time + ' · ' : ''}预计 ${fmtH(it.hours || it.est)}</p>
     ${running ? `<div class="clock mono" id="clock">--:--</div><div class="track" aria-hidden="true"><i id="track"></i></div>` : ''}
+    ${extra}
     <div class="acts">
       ${running
         ? `<button class="btn primary" type="button" data-act="done" data-id="${it.id}">做完了</button>
@@ -509,6 +513,102 @@ function wrapView(eng: Engine) {
       </li>`).join('')}</ul>` : `<p class="soft">今天排的都安排好了。</p>`}
     <label class="fld"><span>comment</span><input id="wrap-comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
     <div class="acts"><button class="btn primary" type="button" data-act="close">好了</button></div>
+  </div>`;
+}
+
+
+/* ---------- a bad day: tired → rest; restless → the smallest thing, ten minutes ---------- */
+type Low = { date: string; kind: 'rest' | 'small'; id?: string; prev?: number | null; msg?: string };
+const lowNow = (): Low | null => { const l = mainSettings().low; return l && l.date === T() ? l as Low : null; };
+const spentToday = () => sum(sessionsOn(sessionsWithLogs(view()), T()).map(x => x.mins)) / 60;
+const sizeOf = (it: Item) => it.hours || it.est || 1 / 6;
+/** Today's smallest open task, the easiest one to begin. A task split into steps gives way to its steps. */
+function smallest(eng: Engine, skip = '') {
+  const parents = parentIds();
+  const open = pickOrder(eng, nowMin()).filter(i => !parents.has(i.id) && i.id !== skip);
+  return open.slice().sort((a, b) => (a.hours || a.est || 9) - (b.hours || b.est || 9))[0] || null;
+}
+/** What doing only `hours` today does to each project, said in one line. */
+function ifLine(hours: number) {
+  const rs = ifToday(view(), T(), hours);
+  if (!rs.length) return '';
+  const name = (p: Project) => shortName(p.name), pc = (x?: number) => `${Math.round((x || 0) * 100)}%`;
+  const parts: string[] = [];
+  for (const r of rs) {
+    const b = calm(r.before).label, a = calm(r.after).label, up = (r.after.press || 0) - (r.before.press || 0);
+    if (a !== b) parts.push(`${name(r.project)}会从${b}变成${a}`);
+    else if (up >= 0.03) parts.push(`${name(r.project)}本来就${b}，负荷从 ${pc(r.before.press)} 到 ${pc(r.after.press)}`);
+  }
+  if (!parts.length) return '各个项目的判断都不变。';
+  const short = rs.some(r => r.before.k === 'bad');
+  return parts.join('；') + (parts.length < rs.length ? '；其他的不变' : '') + '。' + (short ? '本来就排不下的，少做一天也改变不了，取舍等状态好了再说。' : '之后哪几天多给点时间，可以在本周里调。');
+}
+function setLow(kind: 'rest' | 'small', id = '') {
+  const t = T(), m = mainSettings(), cur = lowNow();
+  const prev = cur ? (cur.prev ?? null) : (m.over && m.over[t] != null ? Number(m.over[t]) : null);
+  const spent = spentToday(), it = id ? raw(id) : null;
+  const msg = kind === 'rest' ? ifLine(spent) : it ? ifLine(spent + sizeOf(it as Item)) : '';
+  const over = { ...(m.over || {}) };
+  if (kind === 'rest' && !(m.off && m.off[t] != null)) over[t] = r2(spent); else if (prev == null) delete over[t]; else over[t] = prev;
+  S.put('settings', 'main', { ...m, over, low: { date: t, kind, id, prev, msg } });
+  say(kind === 'rest' ? '今天歇着，没做的事收工时再说' : `今天只做「${it?.title || ''}」`, () => S.put('settings', 'main', m));
+}
+function lowOff() {
+  const l = lowNow(); if (!l) return;
+  const m = mainSettings(), over = { ...(m.over || {}) };
+  if (l.kind === 'rest') { if (l.prev == null) delete over[T()]; else over[T()] = l.prev; }
+  const { low: _, ...rest } = m;
+  S.put('settings', 'main', { ...rest, over });
+  ui.showAll = false;
+  say('回到平常了', () => S.put('settings', 'main', m));
+}
+function lowCard(eng: Engine, low: Low, order: Item[]) {
+  const why = low.msg ? `<p class="low-if">${esc(low.msg)}</p>` : '';
+  if (low.kind === 'rest') return `<article class="now low">
+    <div class="now-label">今天歇着</div>
+    <h2>今天就到这里</h2>
+    <p class="lin">去睡觉、发呆、吃点好的。没做的事不用现在想，收工时一件件决定放哪。</p>
+    ${why}
+    <div class="acts"><button class="btn" type="button" data-act="low">其实还想做一点</button></div>
+  </article>`;
+  const it = order.find(i => i.id === low.id);
+  if (it) return nowCard(eng, [it], true, why) + `<form class="park" data-form="park">
+      <input id="park-input" type="text" autocomplete="off" maxlength="200" placeholder="冒出别的事？先记在这里，不去做" value="${esc(ui.park)}" aria-label="先记下冒出来的事">
+      <button class="mini" type="submit">记下</button>
+    </form>`;
+  const finished = !!raw(low.id || '')?.done, more = smallest(eng, low.id);
+  return `<article class="now low">
+    <div class="now-label">${finished ? '做完了' : '先放下了'}</div>
+    <h2>${finished ? '做完了一件，今天这样就够了' : '这件先放下了'}</h2>
+    <p class="lin">想再来一件小的也行，不想就去歇着。</p>
+    <div class="acts">
+      ${more ? `<button class="btn primary" type="button" data-act="low-small" data-id="${more.id}">再来一件小的：${esc(more.title)}</button>` : ''}
+      <button class="btn" type="button" data-act="low-rest">去歇着</button>
+    </div>
+  </article>`;
+}
+function lowSheet(eng: Engine) {
+  if (ui.sheet !== 'low') return '';
+  const spent = spentToday(), s = smallest(eng);
+  const rest = ifLine(spent), small = s ? ifLine(spent + sizeOf(s)) : '';
+  return `<div class="scrim" data-act="close"></div>
+  <div class="sheet top" role="dialog" aria-modal="true" aria-label="今天状态差">
+    <header><h2>今天状态差</h2><button class="x" type="button" data-act="close" aria-label="关闭">×</button></header>
+    <p>先分一下：是累了，还是坐不住？两种的办法不一样。</p>
+    <section class="low-opt">
+      <h3>累了</h3>
+      <p class="soft">身体或心情撑不住，看字就烦。那就别硬学，去睡觉、发呆、吃点好的。</p>
+      ${rest ? `<p class="low-if">今天歇着的话：${esc(rest)}</p>` : ''}
+      <div class="acts"><button class="btn" type="button" data-act="low-rest">今天歇着</button></div>
+    </section>
+    <section class="low-opt">
+      <h3>坐不住</h3>
+      ${s ? `<p class="soft">人还行，就是走神。先做今天最小的一件，10 分钟就好，借着惯性把注意力拉回来。</p>
+      <p class="low-pick">${esc(s.title)} <span class="mono">${fmtH(sizeOf(s))}</span></p>
+      ${small ? `<p class="low-if">今天只做这一件的话：${esc(small)}</p>` : ''}
+      <div class="acts"><button class="btn primary" type="button" data-act="low-small" data-id="${s.id}">只做这一件</button></div>`
+      : `<p class="soft">今天没排事。想做的话从项目里放一件小的进来，不想就歇着。</p>`}
+    </section>
   </div>`;
 }
 
@@ -950,7 +1050,7 @@ function render() {
   if (S.mode === 'loading') { root.innerHTML = `<p class="loading">正在读取你的数据…</p>`; return; }
   const main = ui.layer === 'week' ? weekView(eng) : ui.layer === 'global' ? globalView(eng) : ui.layer === 'project' ? projectView(eng) : today(eng);
   const body = isEmpty() && !ui.started && (S.mode === 'live' || S.mode === 'local' || __SHARE__) ? emptyView() : `<div class="cols">${main}${drawerView(eng)}</div>`;
-  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${capView()}${projSheet()}${countSheet()}${calSheet()}${toastView()}`;
+  root.innerHTML = `${header()}${body}${pickerView(eng)}${dataSheet()}${editView(eng)}${wrapView(eng)}${lowSheet(eng)}${capView()}${projSheet()}${countSheet()}${calSheet()}${toastView()}`;
   window.scrollTo(0, y);
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
@@ -1025,6 +1125,10 @@ root.addEventListener('click', e => {
     case 'today': moveTo(id!, T(), `「${title}」放到今天了`); break;
     case 'edit': ui.picker = null; openEdit(id!); break;
     case 'wrap': ui.sheet = 'wrap'; break;
+    case 'low': ui.sheet = 'low'; break;
+    case 'low-rest': if (ui.timer) plant(); setLow('rest'); ui.sheet = null; break;
+    case 'low-small': setLow('small', id!); ui.sheet = null; break;
+    case 'low-off': lowOff(); break;
     case 'drop': drop(id!); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } break;
     case 'tmrw': moveTo(id!, add(T(), 1), `「${title}」挪到明天了`); break;
     case 'back': ui.picker = null; if (ui.timer?.id === id) plant(); moveTo(id!, null, `「${title}」放回项目了`); break;
@@ -1077,8 +1181,8 @@ root.addEventListener('change', e => {
   if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; render(); }
   if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) S.put('notes', d, v ? { ...(old || {}), text: v } : null); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
-root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'park') { addQuick(createEngine(view(), T()), false, 'park'); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
 /* drag a task to another day, or onto the project drawer to put it back */
 let dragId = '';

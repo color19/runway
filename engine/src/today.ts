@@ -2,8 +2,8 @@
 import type { Day } from './dates';
 import { add, diff, range, sum } from './dates';
 import type { Engine, ProjectStatus } from './engine';
-import { sortItems } from './engine';
-import type { Item, Project } from './model';
+import { createEngine, sortItems } from './engine';
+import type { Item, Project, Store } from './model';
 
 /** 'HH:MM' → minutes after midnight, or null when empty. */
 export const hm = (s: string): number | null => /^\d{1,2}:\d{2}$/.test(s) ? Number(s.split(':')[0]) * 60 + Number(s.split(':')[1]) : null;
@@ -86,4 +86,23 @@ export function lineage(eng: Engine, it: Item): string {
   const left = diff(eng.today, p.deadline);
   const when = left > 0 ? ` · 离${isExam ? '考试' : '截止'} ${left} 天` : left === 0 ? ` · ${isExam ? '今天考试' : '今天截止'}` : '';
   return `${p.name}${mod ? ' › ' + mod.name : ''}${when}`;
+}
+
+export interface IfToday { project: Project; before: ProjectStatus; after: ProjectStatus }
+
+/**
+ * How each running project would stand if today got only `hours` in all (time already spent today included).
+ * Only asks the question; the plan changes when the user says so.
+ */
+export function ifToday(store: Store, today: Day, hours: number): IfToday[] {
+  const a = createEngine(store, today);
+  const main = (store.settings.main || {}) as Record<string, any>;
+  const b = createEngine({ ...store, settings: { ...store.settings, main: { ...main, over: { ...(main.over || {}), [today]: Math.max(0, hours) } } } }, today);
+  const out: IfToday[] = [];
+  for (const p of a.derive().projects) {
+    const before = a.projStatus(p);
+    if (before.k === 'flat' || before.label === '全部完成' || before.label === '已过 Deadline') continue;
+    out.push({ project: p, before, after: b.projStatus(b.derive().projMap.get(p.id)!) });
+  }
+  return out;
 }
