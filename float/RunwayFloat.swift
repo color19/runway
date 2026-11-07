@@ -4,6 +4,7 @@
 import SwiftUI
 import AppKit
 import WebKit
+import EventKit
 
 let MINI_URL = URL(string: "https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG#mini")!
 let FULL_URL = URL(string: "https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG")!
@@ -24,6 +25,7 @@ struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
 struct RCount: Decodable, Equatable { let id: String; let title: String; let short: String; let days: Int }
 struct RLow: Decodable, Equatable { let kind: String; let text: String }
+struct RCal: Decodable, Equatable { let uid: String; let date: String; let start: Int?; let end: Int?; let title: String; let notes: String }
 struct RState: Decodable, Equatable {
     let today: String
     let nick: String?
@@ -38,6 +40,7 @@ struct RState: Decodable, Equatable {
     let overdue: [RTask]
     let now: String?
     let low: RLow?
+    let cal: [RCal]?
 }
 
 final class Model: ObservableObject {
@@ -518,6 +521,78 @@ final class Bridge: NSObject, WKScriptMessageHandler {
     }
 }
 
+// MARK: - Apple Calendar: the next two weeks go into a calendar of their own named "Runway"
+/// Only touches events it wrote itself (marked with a runway:// URL) inside that calendar; past days are left as they were.
+final class CalSync {
+    let store = EKEventStore()
+    private var last: [RCal]? = nil
+    private var asking = false
+    var enabled: Bool { !UserDefaults.standard.bool(forKey: "calOff") }
+    var onStatus: ((String) -> Void)?
+
+    private var granted: Bool {
+        let st = EKEventStore.authorizationStatus(for: .event)
+        if #available(macOS 14.0, *) { return st == .fullAccess }
+        return st == .authorized
+    }
+    func sync(_ evs: [RCal], today: String) {
+        guard enabled, evs != last else { return }
+        if !granted {
+            guard EKEventStore.authorizationStatus(for: .event) == .notDetermined, !asking else { onStatus?("日历没有授权"); return }
+            asking = true
+            let done: (Bool, Error?) -> Void = { [weak self] ok, _ in
+                DispatchQueue.main.async { guard let self = self else { return }; self.asking = false; if ok { self.store.reset(); self.sync(evs, today: today) } else { self.onStatus?("日历没有授权") } }
+            }
+            if #available(macOS 14.0, *) { store.requestFullAccessToEvents(completion: done) } else { store.requestAccess(to: .event, completion: done) }
+            return
+        }
+        guard let cal = calendar() else { onStatus?("建不了 Runway 日历"); return }
+        let f = DateFormatter(); f.calendar = Calendar(identifier: .gregorian); f.timeZone = .current; f.dateFormat = "yyyy-MM-dd"
+        guard let d0 = f.date(from: today), let d1 = Calendar.current.date(byAdding: .day, value: 15, to: d0) else { return }
+        var mine: [String: EKEvent] = [:]
+        for e in store.events(matching: store.predicateForEvents(withStart: d0, end: d1, calendars: [cal])) {
+            if let u = e.url?.absoluteString, u.hasPrefix("runway://") { mine[String(u.dropFirst(9))] = e }
+        }
+        var changed = 0
+        do {
+            for ev in evs {
+                guard let day = f.date(from: ev.date), let key = ev.uid.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-_"))) else { continue }
+                let allDay = ev.start == nil
+                let start = allDay ? day : day.addingTimeInterval(TimeInterval((ev.start ?? 0) * 60))
+                let end = allDay ? (Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day) : day.addingTimeInterval(TimeInterval((ev.end ?? 0) * 60))
+                let e = mine.removeValue(forKey: key) ?? EKEvent(eventStore: store)
+                if e.calendar?.calendarIdentifier == cal.calendarIdentifier, e.title == ev.title, (e.notes ?? "") == ev.notes, e.isAllDay == allDay, e.startDate == start, e.endDate == end { continue }
+                e.calendar = cal; e.title = ev.title; e.notes = ev.notes.isEmpty ? nil : ev.notes
+                e.isAllDay = allDay; e.startDate = start; e.endDate = end; e.url = URL(string: "runway://" + key)
+                try store.save(e, span: .thisEvent, commit: false); changed += 1
+            }
+            for e in mine.values where e.startDate >= d0 { try store.remove(e, span: .thisEvent, commit: false); changed += 1 }
+            if changed > 0 { try store.commit() }
+            last = evs
+            onStatus?("已同步 \(evs.count) 条")
+        } catch {
+            store.reset()
+            onStatus?("同步没成功")
+        }
+    }
+    /// The "Runway" calendar: iCloud when there is one (so the phone sees it), else wherever new events usually go.
+    private func calendar() -> EKCalendar? {
+        let d = UserDefaults.standard
+        if let id = d.string(forKey: "calID"), let c = store.calendar(withIdentifier: id) { return c }
+        if let c = store.calendars(for: .event).first(where: { $0.title == "Runway" && $0.allowsContentModifications }) { d.set(c.calendarIdentifier, forKey: "calID"); return c }
+        let c = EKCalendar(for: .event, eventStore: store)
+        c.title = "Runway"
+        c.color = NSColor(red: 0.12, green: 0.23, blue: 0.88, alpha: 1)
+        let sources = [store.sources.first { $0.sourceType == .calDAV && $0.title == "iCloud" }, store.defaultCalendarForNewEvents?.source, store.sources.first { $0.sourceType == .local }].compactMap { $0 }
+        for src in sources {
+            c.source = src
+            if (try? store.saveCalendar(c, commit: true)) != nil { d.set(c.calendarIdentifier, forKey: "calID"); return c }
+        }
+        return nil
+    }
+    func forget() { last = nil }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
     var panel: FloatPanel!
     var container: NSView!
@@ -533,6 +608,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     let bridge = Bridge()
     let model = Model()
     let defaults = UserDefaults.standard
+    let cal = CalSync()
+    var calItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -612,6 +689,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
               let s = try? JSONDecoder().decode(RState.self, from: data) else { return }
         frame = message.frameInfo
         model.apply(s)
+        if !(s.local ?? true), let evs = s.cal { cal.sync(evs, today: s.today) }
         if webShown && !(s.local ?? false) { hideWeb() }
     }
 
@@ -752,6 +830,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         sizeItem.submenu = sizes
         menu.addItem(sizeItem)
+        calItem = item("同步到苹果日历", #selector(toggleCal))
+        calItem.state = cal.enabled ? .on : .off
+        cal.onStatus = { [weak self] text in self?.calItem.title = "同步到苹果日历（\(text)）" }
         menu.addItem(.separator())
         _ = item("登录 claude.ai", #selector(signIn))
         _ = item("重新连接", #selector(reconnect))
@@ -765,6 +846,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         panel.level = on ? .floating : .normal
         defaults.set(on, forKey: "pinned")
         pinItem?.state = on ? .on : .off
+    }
+    @objc func toggleCal() {
+        defaults.set(cal.enabled, forKey: "calOff")
+        calItem.state = cal.enabled ? .on : .off
+        if cal.enabled { cal.forget() } else { calItem.title = "同步到苹果日历" }
     }
     @objc func togglePin() { setPinned(panel.level != .floating) }
     @objc func toggleShow() { if panel.isVisible { panel.orderOut(nil) } else { panel.orderFrontRegardless() } }

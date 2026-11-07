@@ -4,7 +4,7 @@
 //   page → app: a JSON state every few seconds (today's list, earlier leftovers, spiral timer, next exam)
 //   app → page: window.runwayCmd({op, ...}) for ticks, adds, moves and the timers.
 // What is new: focus time from the float's "do" stretches and block timer becomes sessions, so it lights lamps.
-import { add, diff, r2 } from '../engine/src';
+import { add, calEvents, createEngine, diff, r2 } from '../engine/src';
 import type { createStore } from './store';
 import { countTargets, countTo } from './count';
 
@@ -96,6 +96,8 @@ export function startBridge(S: Store, today: () => string) {
           return { id: x.id, title: x.title || '', time: x.time || '', end: x.end || '', note: (x.note || '').split('\n')[0].slice(0, 60), total, left: mine ? Math.max(-5999, blockLeft(b)) : total, endsAt: mine ? (b.endsAt || null) : null }; })(),
         b: Bs(),
         now: lowNow !== undefined ? lowNow : activeItem(s),
+        // the next two weeks for the float to write into Apple Calendar
+        cal: S.mode === 'live' ? calEvents(createEngine(D, t), 14) : null,
         low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事收工时再说' : '状态差 · 只做这一件，别的先收起来' } : null,
         tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),

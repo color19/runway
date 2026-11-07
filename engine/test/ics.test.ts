@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createEngine, icsOf } from '../src';
+import { calEvents, createEngine, icsOf } from '../src';
 
 const base = JSON.parse(readFileSync(fileURLToPath(new URL('./fixtures/synthetic.json', import.meta.url)), 'utf8'));
 const D = '2026-11-04';
@@ -23,4 +23,11 @@ test('考试是全天事件', () => expect(ics).toMatch(/DTSTART;VALUE=DATE:2026
 test('逗号和分号要转义', () => {
   const s = structuredClone(base); s.items.tx = { kind: 'task', title: 'a, b; c', date: D, time: '09:00', end: '10:00', hours: 1 };
   expect(icsOf(createEngine(s, D), 0)).toContain('SUMMARY:a\\, b\\; c');
+});
+
+test('日程清单：每件都有稳定的 uid，排时间的有开始和结束', () => {
+  const evs = calEvents(createEngine(base, D));
+  expect(new Set(evs.map(e => e.uid)).size).toBe(evs.length);
+  for (const e of evs) if (e.start != null) expect(e.end!).toBeGreaterThan(e.start);
+  expect(calEvents(createEngine(base, D)).map(e => e.uid)).toEqual(evs.map(e => e.uid));
 });
