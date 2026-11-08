@@ -24,8 +24,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key><string>local.color.runwayfloat</string>
   <key>CFBundleExecutable</key><string>RunwayFloat</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleVersion</key><string>5</string>
-  <key>CFBundleShortVersionString</key><string>5.0</string>
+  <key>CFBundleVersion</key><string>6</string>
+  <key>CFBundleShortVersionString</key><string>5.1</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
@@ -35,6 +35,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>NSCalendarsFullAccessUsageDescription</key><string>把 Runway 接下来两周的安排写进一个叫 Runway 的日历，手机上也能看到。</string>
 </dict></plist>
 PLIST
+
+rm -rf "$APP/Contents/Resources/sounds" && mkdir -p "$APP/Contents/Resources/sounds"
+cp ../app/sounds/*.mp3 "$APP/Contents/Resources/sounds/"
 
 codesign --force --sign - "$APP" >/dev/null 2>&1 || true
 echo "好了：$APP"

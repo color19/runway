@@ -69,7 +69,18 @@ final class Model: ObservableObject {
             NSSound(named: "Glass")?.play()
         }
     }
+    // same sound files as the page (app/sounds), copied in by build.sh
+    private lazy var doneSound: NSSound? = Bundle.main.url(forResource: "done", withExtension: "mp3", subdirectory: "sounds").flatMap { NSSound(contentsOf: $0, byReference: true) }
+    /// once for a task, twice for the last open one of today
+    private func play(times: Int) {
+        guard let s = doneSound else { return }
+        s.stop(); s.play()
+        if times > 1 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.13) { s.stop(); s.play() } }
+    }
     func cmd(_ op: String, _ extra: [String: Any] = [:]) {
+        if op == "doneNow" || op == "toggle", let id = extra["id"] as? String, open.contains(where: { $0.id == id }) {
+            play(times: open.count == 1 ? 2 : 1)
+        }
         var d = extra
         d["op"] = op
         send?(d)

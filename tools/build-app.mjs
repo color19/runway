@@ -11,7 +11,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const template = readFileSync(root + 'app/template.html', 'utf8');
 
 for (const [share, name, preview] of [[false, 'runway.html', 'preview'], [true, 'runway-share.html', 'preview-share']]) {
-  const out = await build({ entryPoints: [root + 'app/main.ts'], bundle: true, format: 'iife', target: 'es2020', minify: true, write: false, define: { __SHARE__: String(share) } });
+  const out = await build({ entryPoints: [root + 'app/main.ts'], bundle: true, loader: { '.mp3': 'dataurl' }, format: 'iife', target: 'es2020', minify: true, write: false, define: { __SHARE__: String(share) } });
   const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const page = template.replace('/*BUNDLE*/', () => js);
   mkdirSync(root + 'dist/' + preview, { recursive: true });

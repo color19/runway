@@ -6,6 +6,7 @@ import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './rib
 import { backupOf, createStore, parseBackup } from './store';
 import { blockMin, isA, startBridge } from './bridge';
 import { countTargets, countTo, shortLabel } from './count';
+import doneUrl from './sounds/done.mp3';
 
 declare const __SHARE__: boolean;
 
@@ -126,7 +127,7 @@ function toggleDone(id: string) {
   if (now && ui.timer?.id === id) plant();
   patch(id, { done: now, doneOn: now ? T() : null });
   // finishing a step keeps the same task in front, now showing its next step
-  if (now) { chime(); if (!parentOf(id)) ui.skip = 0; }
+  if (now && !parentOf(id)) ui.skip = 0;
   if (now) for (const k of descendants(id, Object.keys(S.data.items).map(x => ({ id: x })), parentOf)) if (!raw(k).old && !raw(k).done) patch(k, { done: true, doneOn: T() });
   // a task with steps is done exactly when all its steps are
   for (let c = id, up = parentOf(c), n = 0; up && raw(up) && n < MAX_DEPTH + 1; c = up, up = parentOf(c), n++) {
@@ -134,6 +135,11 @@ function toggleDone(id: string) {
     if (all && !raw(up).done) patch(up, { done: true, doneOn: T() });
     else if (!all && raw(up).done) patch(up, { done: false, doneOn: null });
     else break;
+  }
+  if (now) {
+    let top = id; for (let n = 0, up = parentOf(top); up && raw(up) && n < MAX_DEPTH + 1; n++, up = parentOf(top)) top = up;
+    const left = createEngine(view(), T()).itemsOn(T()).some(i => i.kind === 'task' && !i.done);
+    playSound(top !== id && !raw(top).done ? 'step' : raw(top).date === T() && !left ? 'day' : 'done');
   }
 }
 
@@ -199,6 +205,22 @@ function chime() {
       g.gain.setValueAtTime(0.0001, t + i * 0.09); g.gain.exponentialRampToValueAtTime(0.12, t + i * 0.09 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.09 + 0.35);
       o.connect(g).connect(ac!.destination); o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.4);
     });
+  } catch { /* sound is optional */ }
+}
+/** The "done" tick (app/sounds, see CREDITS.md): soft for a step, normal for a task, twice for the last open task of today. The float plays the same file. */
+let tickBuf: Promise<AudioBuffer> | null = null;
+async function playSound(name: 'step' | 'done' | 'day') {
+  try {
+    ac = ac || new AudioContext();
+    if (ac.state === 'suspended') ac.resume();
+    // decoded from the inlined data: URL directly, since the artifact page may not allow fetch() on data: URLs
+    tickBuf = tickBuf || ac.decodeAudioData(Uint8Array.from(atob(doneUrl.slice(doneUrl.indexOf(',') + 1)), c => c.charCodeAt(0)).buffer);
+    const buf = await tickBuf, t0 = ac.currentTime;
+    for (const at of name === 'day' ? [0, 0.13] : [0]) {
+      const src = ac.createBufferSource(), g = ac.createGain();
+      src.buffer = buf; g.gain.value = name === 'step' ? 0.5 : 1;
+      src.connect(g).connect(ac.destination); src.start(t0 + at);
+    }
   } catch { /* sound is optional */ }
 }
 
@@ -1230,7 +1252,7 @@ root.addEventListener('click', e => {
     case 'give': { const days = range(el.dataset.from!, el.dataset.to!).filter(d => eng.capOf(d) > 0); setDays(days, c => c + 1, `${days.length} 天每天多给了 1 小时`); break; }
     case 'count-open': openCount(); break;
     // an exam or deadline that is over: it leaves the countdown and the lanes, and stays in the data
-    case 'mark-done': { const title = raw(id!)?.title || ''; patch(id!, { done: true, doneOn: T() }); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } if (ui.draft.countTo === id) ui.draft.countTo = ''; say(`「${title}」完成了`, () => patch(id!, { done: false, doneOn: null })); break; }
+    case 'mark-done': { const title = raw(id!)?.title || ''; patch(id!, { done: true, doneOn: T() }); playSound('done'); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } if (ui.draft.countTo === id) ui.draft.countTo = ''; say(`「${title}」完成了`, () => patch(id!, { done: false, doneOn: null })); break; }
     case 'proj-new': openProj(''); break;
     case 'proj-edit': openProj(pid!); break;
     case 'cal': ui.pid = pid!; ui.sheet = 'cal'; break;
