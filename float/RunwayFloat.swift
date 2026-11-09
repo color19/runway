@@ -5,6 +5,7 @@ import SwiftUI
 import AppKit
 import WebKit
 import EventKit
+import Network
 
 let MINI_URL = URL(string: "https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG#mini")!
 let FULL_URL = URL(string: "https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG")!
@@ -53,6 +54,7 @@ final class Model: ObservableObject {
     var onCollapse: ((Bool) -> Void)?
     func toggleCollapse() { collapsed.toggle(); onCollapse?(collapsed) }
     var send: (([String: Any]) -> Void)?
+    var linked: (() -> Bool)?
     var showWeb: (() -> Void)?
     private var lastEnds: Double? = nil
     private var rang = false
@@ -78,7 +80,7 @@ final class Model: ObservableObject {
         if times > 1 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.13) { s.stop(); s.play() } }
     }
     func cmd(_ op: String, _ extra: [String: Any] = [:]) {
-        if op == "doneNow" || op == "toggle", let id = extra["id"] as? String, open.contains(where: { $0.id == id }) {
+        if linked?() ?? true, op == "doneNow" || op == "toggle", let id = extra["id"] as? String, open.contains(where: { $0.id == id }) {
             play(times: open.count == 1 ? 2 : 1)
         }
         var d = extra
@@ -717,6 +719,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     let defaults = UserDefaults.standard
     let cal = CalSync()
     var calItem: NSMenuItem!
+    // the hidden page loses its data connection after sleep or a network change and never says so, so reload it
+    var lastHeard = Date()
+    var lastLoad = Date()
+    var misses = 0
+    let net = NWPathMonitor()
+    var lastPath: String?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -773,6 +781,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
         model.send = { [weak self] d in self?.send(d) }
         model.showWeb = { [weak self] in self?.showWeb() }
+        model.linked = { [weak self] in self?.frame != nil }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.frame = nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { self?.refresh("woke from sleep") }
+        }
+        net.pathUpdateHandler = { [weak self] path in
+            let key = path.status == .satisfied ? path.availableInterfaces.map(\.name).joined(separator: ",") : "down"
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                defer { self.lastPath = key }
+                guard let was = self.lastPath, was != key, key != "down" else { return }
+                self.frame = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.refresh("network changed") }
+            }
+        }
+        net.start(queue: .global(qos: .utility))
         model.onCollapse = { [weak self] c in self?.applyCollapsed(c, animate: true) }
         if defaults.bool(forKey: "collapsed") { model.collapsed = true; applyCollapsed(true, animate: false) }
 
@@ -794,7 +818,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     func received(_ message: WKScriptMessage) {
         guard let text = message.body as? String, let data = text.data(using: .utf8),
               let s = try? JSONDecoder().decode(RState.self, from: data) else { return }
+        if frame == nil { NSLog("Runway Float: page is back") }
         frame = message.frameInfo
+        lastHeard = Date()
+        misses = 0
         model.apply(s)
         if !(s.local ?? true) {
             if let evs = s.cal { cal.sync(evs, today: s.today) }
@@ -813,6 +840,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
     @objc func onTick() {
         model.tick()
+        // the page posts every 4 s while its data is live; silence means it is stuck. Back off if it stays stuck (signed out, offline).
+        let quiet = Date().timeIntervalSince(lastHeard), since = Date().timeIntervalSince(lastLoad)
+        if model.st != nil, quiet > 20, since > min(600, 30 * pow(2, Double(misses))), panel.occlusionState.contains(.visible) {
+            misses += 1
+            refresh("page silent \(Int(quiet)) s")
+        } else if since > 7200, !model.running, quiet < 20 {
+            refresh("every 2 hours")
+        }
         status.button?.title = model.running ? "✈︎ " + fmt(model.leftSec) : "✈︎"
     }
 
@@ -979,7 +1014,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         panel.setFrame(f, display: true, animate: true)
         saveFrame()
     }
-    @objc func reconnect() { hideWeb(); web.load(URLRequest(url: MINI_URL)) }
+    @objc func reconnect() { hideWeb(); refresh("menu") }
+    /// Reload the hidden page. Until it posts fresh state, taps are not sent, so old state never overwrites the page's.
+    func refresh(_ why: String) {
+        guard !webShown else { return }
+        NSLog("Runway Float: reloading the page (%@)", why)
+        frame = nil
+        lastLoad = Date()
+        web.load(URLRequest(url: MINI_URL))
+    }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { refresh("page process ended") }
     @objc func openFull() { NSWorkspace.shared.open(FULL_URL) }
 
     func windowDidMove(_ notification: Notification) { saveFrame() }
