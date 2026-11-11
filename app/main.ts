@@ -1,10 +1,10 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, diff, drawer, fmtH, hm, icsOf, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, dayShares, diff, drawer, fmtH, hm, icsOf, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
 import { backupOf, createStore, parseBackup } from './store';
-import { blockMin, isA, startBridge } from './bridge';
+import { OVER_MAX_MS, blockMin, isA, startBridge } from './bridge';
 import { countTargets, countTo, shortLabel } from './count';
 import doneUrl from './sounds/done.mp3';
 
@@ -155,7 +155,7 @@ function liveTimer() {
 function plant() {
   const t = ui.timer; if (!t) return;
   S.put('spiral', 'state', { ...spiralNow(), endsAt: null, left: blockMin(spiralNow()!.idx || 0) * 60, acc: 0, runFrom: null, item: null, kind: null, total: null, rang: false });
-  const secs = Math.min(t.total, Math.round((Math.min(Date.now(), t.endsAt) - t.startAt) / 1000));
+  const secs = Math.round((Math.min(Date.now(), t.endsAt + OVER_MAX_MS) - t.startAt) / 1000), over = Math.max(0, secs - t.total), capped = Date.now() > t.endsAt + OVER_MAX_MS;
   if (secs < 30 || !raw(t.id)) return;
   const it = raw(t.id), start = new Date(t.startAt), d = T();
   const mins = Math.max(1, Math.round(secs / 60));
@@ -164,7 +164,7 @@ function plant() {
   // also log it the old way, so a backup read by the old Runway keeps the time
   patch(t.id, { log: { ...(it.log || {}), [d]: r2((Number(it.log?.[d]) || 0) + mins / 60) } });
   ui.justPlanted = id;
-  say(`跑道上多了 ${fmtH(mins / 60)}${mins < 10 ? '，几分钟也算' : ''}`);
+  say(`跑道上多了 ${fmtH(mins / 60)}${over >= 60 ? `，其中超时多做了 ${fmtH(Math.round(over / 60) / 60)}${capped ? '（超时太久，只多算了 1 小时）' : ''}` : mins < 10 ? '，几分钟也算' : ''}`);
 }
 const startTimer = (id: string, kind: 'ten' | 'block', secs: number) => {
   const s = spiralNow() || { date: T(), idx: 0, bi: 0 }, i = Number(s.idx) || 0, idx = isA(i) ? i : i + 1;
@@ -423,6 +423,7 @@ function drawerView(eng: Engine) {
         <header>${p ? `<button class="swatch" type="button" data-act="color" data-pid="${p.id}" style="background:${esc(color)}" aria-label="换 ${esc(p.name)} 的颜色" aria-expanded="${ui.colorFor === p.id}"></button>` : `<span class="swatch" style="background:${LOOSE_COLOR}"></span>`}${p ? `<button class="ed grp-name" type="button" data-act="proj" data-pid="${p.id}"><b>${esc(p.name)}</b></button>` : '<b>生活和杂事</b>'}${pill}</header>
         ${p && ui.colorFor === p.id ? `<div class="palette" role="group" aria-label="选颜色">${PALETTE.map(([n, c]) => `<button type="button" data-act="setcolor" data-pid="${p.id}" data-color="${c}" style="background:${c}" aria-label="${n}" aria-pressed="${c.toLowerCase() === color.toLowerCase()}" title="${n}"></button>`).join('')}</div>` : ''}
         <p class="grp-sub">${sub}</p>
+        ${p && g.fullToday ? `<p class="grp-sub">照截止日今天还该多做一些，今天放不下。<button class="mini ghost" type="button" data-act="layer" data-layer="global">去全局看怎么办</button></p>` : ''}
         ${p && st && !st.cnt ? projectRunway(spent, st.rem, color) : ''}
         ${g.items.length ? `<ul class="items">${g.items.map(i => {
           const mod = p?.modules.find(m => m.id === i.module)?.name;
@@ -728,14 +729,13 @@ function weekView(eng: Engine) {
   const back = Number(eng.settings.weekStart) === 0 ? (monIdx(t) + 1) % 7 : monIdx(t);
   const start = add(add(t, -back), ui.weekOff * 7);
   const all = sessionsWithLogs(view());
-  const alloc = eng.allocate(t).byDay;
   const rows = range(start, add(start, 6)).map(d => {
     const its = eng.itemsOn(d), tasks = its.filter(i => i.kind === 'task');
     return {
       d, its, cap: eng.capOf(d),
       placed: sum(tasks.map(i => i.done ? i.est : i.hours)),
       spent: sum(sessionsOn(all, d).map(x => x.mins)) / 60,
-      sug: Object.entries(alloc[d] || {}).filter(([, h]) => h > 0.05).sort((a, b) => b[1] - a[1]),
+      sug: dayShares(eng, d),
     };
   });
   const scale = Math.max(1, ...rows.map(r => Math.max(r.cap, r.placed)));
@@ -769,7 +769,7 @@ function weekView(eng: Engine) {
               </li>`; }).join('')}</ul>` : `<p class="wv-none">${past ? '这天没排事' : '还没排事，可以从右边拖一件过来'}</p>`}
             <p class="wv-sug">${past
               ? (r.spent ? `那天做了 ${fmtH(r.spent)}` : '')
-              : r.sug.length ? `照截止日摊到这天：${r.sug.map(([pid, h]) => `<span style="--c:${esc(colorOf(eng, pid))}">${esc(shortName(nameOf(eng, pid)))} ${fmtH(h)}</span>`).join(' · ')}` : ''}</p>
+              : r.sug.list.length ? `照截止日摊到这天：${r.sug.list.filter(([, h]) => h > 0.05).map(([pid, h]) => `<span style="--c:${esc(colorOf(eng, pid))}">${esc(shortName(nameOf(eng, pid)))} ${fmtH(h)}</span>`).join(' · ')}${r.sug.full ? '。这天能用的时间都排上了' : ''}` : ''}</p>
           </div>
         </section>`; }).join('')}
     </section>
@@ -1155,7 +1155,10 @@ function tick() {
   const t = ui.timer; if (!t) return;
   const left = Math.round((t.endsAt - Date.now()) / 1000);
   const clock = document.getElementById('clock'), track = document.getElementById('track');
-  if (clock) clock.textContent = left > 0 ? `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}` : '到点了';
+  if (clock) {
+    if (left > 0) { clock.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; delete clock.dataset.over; }
+    else { clock.textContent = `+${String(Math.floor(-left / 60)).padStart(2, '0')}:${String(-left % 60).padStart(2, '0')}`; clock.dataset.over = -left > 3600 ? 'cap' : '1'; }
+  }
   if (track) track.style.width = `${Math.min(100, (1 - Math.max(0, left) / t.total) * 100)}%`;
   if (left <= 0 && rangFor !== t.endsAt) { rangFor = t.endsAt; if (Date.now() - t.endsAt < 5000) chime(); }
 }

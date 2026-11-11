@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createEngine, dayLoads, drawer, hm, ifToday, lineage, pickOrder } from '../src';
+import { createEngine, dayLoads, dayShares, drawer, hm, ifToday, lineage, pickOrder } from '../src';
 
 const base = JSON.parse(readFileSync(fileURLToPath(new URL('./fixtures/synthetic.json', import.meta.url)), 'utf8'));
 const D = '2026-11-04';
@@ -43,16 +43,61 @@ describe('现在做哪一件', () => {
   const eng = createEngine(s, D);
   const order = (h: string) => pickOrder(eng, hm(h)!).map(i => i.title);
 
+  // 2026-11-10 改过顺序：原来只要还没到点就排最前，下午 4 点打开会先给出晚上 7 点的事，
+  // 眼前能做的反而排在后面。现在只有半小时内要开始的才抢在前面，离得远的排到最后。
   test('正在进行的时段排第一', () => expect(order('10:00')[0]).toBe('上午整块'));
-  test('没有进行中的，排最近要开始的', () => expect(order('12:00')[0]).toBe('下午整块'));
-  test('过了开始时间的有时段任务排到最后', () => {
+  test('半小时内要开始的，排在随时能做的前面', () => expect(order('13:40')[0]).toBe('下午整块'));
+  test('离开始还早的不抢在前面，排到最后', () => {
     const o = order('12:00');
-    expect(o[o.length - 1]).toBe('上午整块');
+    expect(['Corp 一刷', '没有项目的杂事']).toContain(o[0]);
+    expect(o[o.length - 1]).toBe('下午整块');
+  });
+  test('过了开始时间的，排在没钟点的后面、还没到点的前面', () => {
+    const o = order('12:00'), at = (t: string) => o.indexOf(t);
+    expect(at('上午整块')).toBeGreaterThan(at('Corp 一刷'));
+    expect(at('上午整块')).toBeGreaterThan(at('没有项目的杂事'));
+    expect(at('上午整块')).toBeLessThan(at('下午整块'));
+  });
+  test('一天从 5 点算起时，凌晨的时段算当天夜里', () => {
+    const n = fresh();
+    n.settings.main.dayStart = 5;
+    n.items.c = { title: '夜里整块', kind: 'task', date: D, time: '01:00', end: '02:00', hours: 1 };
+    const e = createEngine(n, D), first = (h: string) => pickOrder(e, hm(h)!)[0].title;
+    expect(first('01:30')).toBe('夜里整块');
+    expect(first('15:00')).not.toBe('夜里整块');
   });
   test('不包含日程和做完的事', () => {
     const o = order('08:00');
     expect(o).not.toContain('643 课');
     expect(o.every(t => !['FSA 复习'].includes(t))).toBe(true);
+  });
+});
+
+describe('每天的目标不超过那天能用的时间', () => {
+  const total = (e: ReturnType<typeof createEngine>, d: string) => dayShares(e, d).list.reduce((a, [, h]) => a + h, 0);
+  // every day has one hour: far less than the projects need, so each day is over full
+  const tight = () => { const s = fresh(); s.settings.main.cap = [1, 1, 1, 1, 1, 1, 1]; s.settings.main.over = {}; return s; };
+  test('接下来两周，每天分到的加起来都不超过能用的', () => {
+    const eng = createEngine(base, D);
+    for (const l of dayLoads(eng, D, 14)) expect(total(eng, l.date)).toBeLessThanOrEqual(l.cap + 1e-6);
+  });
+  test('排得下的日子，和引擎摊的一样', () => {
+    const s = fresh(); s.settings.main.over[D] = 24;
+    const eng = createEngine(s, D), sh = dayShares(eng, D);
+    expect(sh.full).toBe(false);
+    expect(total(eng, D)).toBeCloseTo(eng.dayNeed(D), 6);
+  });
+  test('排不下的日子，按数量算的目标先留够，其余按截止日先后给', () => {
+    const eng = createEngine(tight(), D), sh = dayShares(eng, D), want = eng.allocate(D).byDay[D];
+    expect(eng.dayNeed(D)).toBeGreaterThan(1);
+    expect(sh.full).toBe(true);
+    expect(total(eng, D)).toBeCloseTo(1, 6);
+    expect(new Map(sh.list).get('p-job')).toBeCloseTo(Math.min(1, want['p-job']), 6);
+  });
+  test('抽屉里的今天目标跟着封顶，并标出排不下', () => {
+    const gs = drawer(createEngine(tight(), D));
+    expect(gs.reduce((a, g) => a + g.quotaToday, 0)).toBeLessThanOrEqual(1 + 1e-6);
+    expect(gs.some(g => g.fullToday)).toBe(true);
   });
 });
 

@@ -4,7 +4,7 @@
 //   page → app: a JSON state every few seconds (today's list, earlier leftovers, spiral timer, next exam)
 //   app → page: window.runwayCmd({op, ...}) for ticks, adds, moves and the timers.
 // What is new: focus time from the float's "do" stretches and block timer becomes sessions, so it lights lamps.
-import { add, calSync, createEngine, diff, r2 } from '../engine/src';
+import { add, calSync, createEngine, diff, pickOrder, r2 } from '../engine/src';
 import type { createStore } from './store';
 import { countTargets, countTo } from './count';
 
@@ -14,9 +14,10 @@ type Store = ReturnType<typeof createStore>;
 const A_MIN = [10, 20, 30, 40, 45], B_MIN = [10, 15];
 export const blockMin = (i: number) => i % 2 === 0 ? A_MIN[Math.min(i / 2, A_MIN.length - 1)] : B_MIN[Math.min((i - 1) / 2, B_MIN.length - 1)];
 export const isA = (i: number) => i % 2 === 0;
+/** Time worked past the bell counts, up to this much: a timer left running while away adds at most an hour. */
+export const OVER_MAX_MS = 3600e3;
 const pad = (n: number) => String(n).padStart(2, '0');
 const hm2m = (h: string) => +h.slice(0, 2) * 60 + +h.slice(3, 5);
-const nowHM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
 const uid = (p: string) => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
 export function startBridge(S: Store, today: () => string) {
@@ -45,11 +46,15 @@ export function startBridge(S: Store, today: () => string) {
   function blockState() { const b = D.spiral.block; return b && b.date === today() && b.id ? b : null; }
   function blockSecs(x: any) { if (x.time && x.end) { const d = hm2m(x.end) - hm2m(x.time); if (d > 0) return d * 60; } return Math.round((hrs(x) || 1) * 3600); }
   const blockLeft = (b: any) => b.endsAt ? Math.round((b.endsAt - Date.now()) / 1000) : b.left;
+  /** Today's open tasks in the order the page's "now" card offers them, so the float and the page agree. */
+  const byNow = (): any[] => {
+    const d = new Date(), ok = new Set(todayA().filter(x => !x.done).map(x => x.id));
+    return pickOrder(createEngine(live(), today()), d.getHours() * 60 + d.getMinutes()).filter(i => ok.has(i.id)).map(i => ({ id: i.id, ...D.items[i.id] }));
+  };
   function currentBlock() {
-    const b = blockState(), open = todayBlocks().filter(x => !x.done);
+    const b = blockState();
     if (b && D.items[b.id] && !D.items[b.id].done && !D.items[b.id].old) return { id: b.id, ...D.items[b.id] };
-    const t = nowHM();
-    return open.find(x => x.time && x.end && x.time <= t && t < x.end) || open.find(x => !x.time || x.time >= t) || open[0] || null;
+    return byNow()[0] || null;
   }
   // the page header counts down to the nearest exam, so the float starts there too
   function nextExam() { const t = today(); return all().filter(x => x.kind === 'exam' && x.date >= t && !x.done && !x.old).sort((a, b) => a.date.localeCompare(b.date))[0]; }
@@ -63,15 +68,12 @@ export function startBridge(S: Store, today: () => string) {
     if (it) S.put('items', itemId!, { ...it, log: { ...(it.log || {}), [t]: r2((Number(it.log?.[t]) || 0) + mins / 60) } });
   }
   /** Seconds the current "do" stretch has run so far, including earlier runs before a pause. */
-  const runSecs = (s: any) => (s.acc || 0) + (s.runFrom ? Math.max(0, Math.round((Math.min(Date.now(), s.endsAt || Date.now()) - s.runFrom) / 1000)) : 0);
-  /** What to do now: the task whose slot is running, else the next one by the clock, else one without a time, else the first. */
+  const runSecs = (s: any) => (s.acc || 0) + (s.runFrom ? Math.max(0, Math.round((Math.min(Date.now(), s.endsAt ? s.endsAt + OVER_MAX_MS : Date.now()) - s.runFrom) / 1000)) : 0);
+  /** What to do now: last night's pick for today if there is one, else the first in the page's order (engine pickOrder). */
   const firstOpen = () => {
-    const open = todayA().filter(x => !x.done), now = tkey(nowHM());
-    // picked last night in the wrap-up as the first thing today
+    const open = byNow();
     const f = set().first; if (f && f.date === today() && open.some(x => x.id === f.id)) return f.id;
-    const hit = open.find(x => x.time && x.end && tkey(x.time) <= now && now < tkey(x.end))
-      || open.find(x => x.time && tkey(x.time) >= now) || open.find(x => !x.time) || open[0];
-    return hit?.id || null;
+    return open[0]?.id || null;
   };
 
   /** The task the running stretch is on: the one the page or float started it on while it is still open, else the one by the clock. */
