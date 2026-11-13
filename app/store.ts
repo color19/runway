@@ -119,6 +119,17 @@ export function createStore(onChange: () => void) {
     return queue('sessions/' + s.date, () => colRef('sessions').doc(s.date).set(day));
   }
 
+  /** Change how long one focus session counts for. */
+  function setSessionMins(id: string, mins: number) {
+    const s = data.sessions[id]; if (!s) return Promise.resolve();
+    data.sessions[id] = { ...s, mins };
+    const day = days[s.date] = { list: (days[s.date]?.list || []).map((x: any) => x.id === id ? { ...x, mins } : x) };
+    onChange();
+    if (mode === 'local') saveLocal();
+    if (!db) return Promise.resolve();
+    return queue('sessions/' + s.date, () => colRef('sessions').doc(s.date).set(day));
+  }
+
   /** Replace everything with a backup (old Runway format, optionally with sessions). */
   async function replaceAll(b: { items?: Docs; projects?: Docs; settings?: Docs; notes?: Docs; sessions?: Docs; spiral?: Docs }, progress: (done: number, total: number) => void) {
     const target: Record<Col, Docs> = {
@@ -151,7 +162,7 @@ export function createStore(onChange: () => void) {
   }
 
   return {
-    data, connect, put, addSession, replaceAll,
+    data, connect, put, addSession, setSessionMins, replaceAll,
     get mode() { return mode; },
     get problem() { return problem; },
     clearProblem() { problem = ''; },

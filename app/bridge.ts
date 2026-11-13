@@ -14,7 +14,7 @@ type Store = ReturnType<typeof createStore>;
 const A_MIN = [10, 20, 30, 40, 45], B_MIN = [10, 15];
 export const blockMin = (i: number) => i % 2 === 0 ? A_MIN[Math.min(i / 2, A_MIN.length - 1)] : B_MIN[Math.min((i - 1) / 2, B_MIN.length - 1)];
 export const isA = (i: number) => i % 2 === 0;
-/** Time worked past the bell counts, up to this much: a timer left running while away adds at most an hour. */
+/** Time worked past the bell all counts. A stretch that ran longer past it than this gets an offer to count only this much. */
 export const OVER_MAX_MS = 3600e3;
 const pad = (n: number) => String(n).padStart(2, '0');
 const hm2m = (h: string) => +h.slice(0, 2) * 60 + +h.slice(3, 5);
@@ -68,7 +68,7 @@ export function startBridge(S: Store, today: () => string) {
     if (it) S.put('items', itemId!, { ...it, log: { ...(it.log || {}), [t]: r2((Number(it.log?.[t]) || 0) + mins / 60) } });
   }
   /** Seconds the current "do" stretch has run so far, including earlier runs before a pause. */
-  const runSecs = (s: any) => (s.acc || 0) + (s.runFrom ? Math.max(0, Math.round((Math.min(Date.now(), s.endsAt ? s.endsAt + OVER_MAX_MS : Date.now()) - s.runFrom) / 1000)) : 0);
+  const runSecs = (s: any) => (s.acc || 0) + (s.runFrom ? Math.max(0, Math.round((Date.now() - s.runFrom) / 1000)) : 0);
   /** What to do now: last night's pick for today if there is one, else the first in the page's order (engine pickOrder). */
   const firstOpen = () => {
     const open = byNow();
@@ -162,7 +162,7 @@ export function startBridge(S: Store, today: () => string) {
           const b = blockState(), x = D.items[id]; if (!x) break;
           const patch: Record<string, any> = { done: true, doneOn: t };
           if (b && b.id === id) {
-            const secs = runSecs({ ...b, endsAt: null });
+            const secs = runSecs(b);
             if (secs >= 30) logFocus(id, secs, b.runFrom || Date.now()); else patch.actual = Math.round((b.total - Math.max(0, blockLeft(b))) / 360) / 10 || null;
           }
           putItem(id, patch);

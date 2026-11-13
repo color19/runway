@@ -60,13 +60,30 @@ export function projectTree(project: Project, items: Item[], parentOf: (id: stri
   };
   const roots = (kids.get('') || []).sort(order).map(i => build(i, 1));
   const groups: ModuleGroup[] = project.modules.map(m => ({ id: m.id, name: m.name, due: String(m.due || ''), nodes: [], total: 0, open: 0, hours: 0 }));
-  const loose: ModuleGroup = { id: '', name: '没分模块', due: '', nodes: [], total: 0, open: 0, hours: 0 };
+  const loose: ModuleGroup = { id: '', name: '还没分块', due: '', nodes: [], total: 0, open: 0, hours: 0 };
   for (const n of roots) (groups.find(g => g.id === n.item.module) || loose).nodes.push(n);
   for (const g of [...groups, loose]) { g.total = sum(g.nodes.map(n => n.total)); g.open = sum(g.nodes.map(n => n.open)); g.hours = sum(g.nodes.map(n => n.hours)); }
   return loose.nodes.length ? [...groups, loose] : groups;
 }
 
 /** Every task under `id`, at any depth. */
+/**
+ * New `order` values that put `moving` right before `before` (last when null) among `sibs`.
+ * Usually only the moved one changes; when its two new neighbours share an order, the whole row is renumbered.
+ */
+export function orderPatch(sibs: Array<{ id: string; order: number; title: string }>, moving: string, before: string | null): Record<string, number> {
+  const rest = sibs.filter(s => s.id !== moving).sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+  const k = before ? rest.findIndex(s => s.id === before) : -1, at = k < 0 ? rest.length : k;
+  if (!rest.length) return {};
+  if (at === rest.length) return { [moving]: rest[at - 1].order + 1 };
+  if (at === 0) return { [moving]: rest[0].order - 1 };
+  const lo = rest[at - 1].order, hi = rest[at].order;
+  if (hi - lo > 1e-6) return { [moving]: (lo + hi) / 2 };
+  const out: Record<string, number> = {};
+  [...rest.slice(0, at).map(s => s.id), moving, ...rest.slice(at).map(s => s.id)].forEach((id, i) => { out[id] = rest[0].order + i; });
+  return out;
+}
+
 export function descendants(id: string, items: Array<{ id: string }>, parentOf: (id: string) => string | undefined): string[] {
   const out: string[] = [];
   const walk = (p: string) => { for (const i of items) if (parentOf(i.id) === p && !out.includes(i.id) && i.id !== id) { out.push(i.id); walk(i.id); } };

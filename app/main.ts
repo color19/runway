@@ -1,5 +1,5 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
-import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, projectTree, range, dayLoads, dayShares, diff, drawer, fmtH, hm, icsOf, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
+import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, orderPatch, projectTree, range, dayLoads, dayShares, diff, drawer, fmtH, hm, icsOf, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
@@ -57,7 +57,8 @@ const ui = {
   park: '',
   /** The task just stopped, asking where to pick it up next time. */
   resume: '',
-  toast: null as null | { text: string; undo?: () => void; at: number },
+  /** `label` names the button when it is not a plain undo; such a toast stays up longer. */
+  toast: null as null | { text: string; undo?: () => void; label?: string; at: number },
 };
 
 /* ---------- reading the data ---------- */
@@ -86,7 +87,8 @@ function trail(eng: Engine, it: Item) {
 const isEmpty = () => !Object.keys(S.data.items).length && !Object.keys(S.data.projects).length;
 
 /* ---------- changing the data ---------- */
-function say(text: string, undo?: () => void) { ui.toast = { text, undo, at: Date.now() }; }
+function say(text: string, undo?: () => void, label?: string) { ui.toast = { text, undo, label, at: Date.now() }; }
+const toastLife = (t: { label?: string }) => t.label ? 20000 : 5000;
 function patch(id: string, p: Record<string, any>) { S.put('items', id, { ...raw(id), ...p }); }
 
 function moveTo(id: string, date: string | null, text: string) {
@@ -116,11 +118,12 @@ function nowOrder(eng: Engine) {
 /** Switch to this task and give it ten minutes right away. Time already running on another task stays on the runway. */
 function goNow(id: string) {
   const it = raw(id); if (!it || it.done) return;
-  const was = ui.timer?.id; plant();
+  const was = ui.timer?.id, before = ui.toast; plant();
+  const trim = ui.toast !== before && ui.toast?.label ? ui.toast : null;
   if (it.date !== T()) patch(id, { date: T(), time: '', end: '' });
   ui.resume = ''; ui.sheet = null; ui.editId = ''; ui.layer = 'today';
   startTimer(id, 'ten', 600);
-  say(was && was !== id ? `「${raw(was)?.title || ''}」的时间记下了，换成「${it.title}」先做 10 分钟` : `「${it.title}」先做 10 分钟`);
+  say(was && was !== id ? `「${raw(was)?.title || ''}」的时间记下了，换成「${it.title}」先做 10 分钟` : `「${it.title}」先做 10 分钟`, trim?.undo, trim?.label);
 }
 function toggleDone(id: string) {
   const now = !raw(id).done;
@@ -155,7 +158,7 @@ function liveTimer() {
 function plant() {
   const t = ui.timer; if (!t) return;
   S.put('spiral', 'state', { ...spiralNow(), endsAt: null, left: blockMin(spiralNow()!.idx || 0) * 60, acc: 0, runFrom: null, item: null, kind: null, total: null, rang: false });
-  const secs = Math.round((Math.min(Date.now(), t.endsAt + OVER_MAX_MS) - t.startAt) / 1000), over = Math.max(0, secs - t.total), capped = Date.now() > t.endsAt + OVER_MAX_MS;
+  const secs = Math.round((Date.now() - t.startAt) / 1000), over = Math.max(0, secs - t.total);
   if (secs < 30 || !raw(t.id)) return;
   const it = raw(t.id), start = new Date(t.startAt), d = T();
   const mins = Math.max(1, Math.round(secs / 60));
@@ -164,7 +167,13 @@ function plant() {
   // also log it the old way, so a backup read by the old Runway keeps the time
   patch(t.id, { log: { ...(it.log || {}), [d]: r2((Number(it.log?.[d]) || 0) + mins / 60) } });
   ui.justPlanted = id;
-  say(`跑道上多了 ${fmtH(mins / 60)}${over >= 60 ? `，其中超时多做了 ${fmtH(Math.round(over / 60) / 60)}${capped ? '（超时太久，只多算了 1 小时）' : ''}` : mins < 10 ? '，几分钟也算' : ''}`);
+  // the whole stretch counts; only when it ran far past the bell is there an offer to count less, for a clock left on while away
+  const keep = Math.round((t.total + OVER_MAX_MS / 1000) / 60);
+  const trim = mins > keep ? () => {
+    S.setSessionMins(id, keep);
+    const x = raw(t.id); if (x) patch(t.id, { log: { ...(x.log || {}), [d]: r2(Math.max(0, (Number(x.log?.[d]) || 0) - (mins - keep) / 60)) } });
+  } : undefined;
+  say(`跑道上多了 ${fmtH(mins / 60)}${over >= 60 ? `，其中超时多做了 ${fmtH(Math.round(over / 60) / 60)}` : mins < 10 ? '，几分钟也算' : ''}`, trim, trim && `中间离开过？只算 ${fmtH(keep / 60)}`);
 }
 const startTimer = (id: string, kind: 'ten' | 'block', secs: number) => {
   const s = spiralNow() || { date: T(), idx: 0, bi: 0 }, i = Number(s.idx) || 0, idx = isA(i) ? i : i + 1;
@@ -493,7 +502,7 @@ function dataSheet() {
 function openEdit(id: string) {
   const it = raw(id); if (!it) return;
   ui.sheet = 'edit'; ui.editId = id;
-  ui.draft = { title: it.title || '', date: it.date || '', time: it.time || '', end: it.end || '', hours: String(r2(Number(it.hours) || 0)), project: it.project || '', parent: it.parent || '', note: it.note || '' };
+  ui.draft = { title: it.title || '', date: it.date || '', time: it.time || '', end: it.end || '', hours: String(r2(Number(it.hours) || 0)), project: it.project || '', module: it.module || '', parent: it.parent || '', note: it.note || '' };
 }
 function editView(eng: Engine) {
   if (ui.sheet !== 'edit') return '';
@@ -515,6 +524,7 @@ function editView(eng: Engine) {
           ${projects.map(p => `<option value="${esc(p.id)}"${p.id === d.project ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}
         </select></label>
       </div>
+      ${task ? moduleField(d.project, d.parent, d.module) : ''}
       ${task ? parentField(eng, ui.editId, d.project, d.parent) : ''}
       <label class="fld"><span>备注</span><textarea id="ed-note" name="note" rows="3">${esc(d.note)}</textarea></label>
       <p class="soft tiny">日期空着，就是放在项目里，还没排进哪天。</p>
@@ -543,10 +553,14 @@ function saveEdit() {
     const up = d.parent && raw(d.parent) && !raw(d.parent).old && (raw(d.parent).project || '') === d.project && d.parent !== id ? d.parent : '';
     next.parent = up;
     if (up) { next.module = raw(up).module || ''; if (up !== (it.parent || '')) undoHolder = becomeHolder(up); }
+    else next.module = (S.data.projects[d.project]?.modules || []).some((m: any) => m.id === d.module) ? d.module : '';
   }
   S.put('items', id, next);
+  // its steps sit in the same block as it does
+  const moved = (next.module || '') === (it.module || '') ? [] : stepsUnder(id).filter(k => (raw(k).module || '') !== (next.module || '')).map(k => [k, raw(k).module || ''] as const);
+  for (const [k] of moved) patch(k, { module: next.module || '' });
   ui.sheet = null; ui.editId = '';
-  say('改好了', () => { S.put('items', id, prev); undoHolder(); });
+  say('改好了', () => { S.put('items', id, prev); for (const [k, m] of moved) patch(k, { module: m }); undoHolder(); });
 }
 /** Soft "not doing it": the task leaves every list but stays in the data and the backup. */
 function drop(id: string) {
@@ -897,7 +911,7 @@ function nodeView(n: TreeNode, t: string): string {
   const meta = [holder ? `${stepsDone}/${steps} 步` : '', !it.done && (holder ? n.hours : it.hours) > 0.001 ? (holder ? `还剩 ${fmtH(n.hours)}` : fmtH(it.hours)) : '', when].filter(Boolean).join(' · ');
   const later = !it.done && (!it.date || it.date < t);
   return `<li class="pj-node d${n.depth}${it.done ? ' done' : ''}">
-    <div class="pj-row"${!it.done && !holder ? ` draggable="true" data-drag="${it.id}"` : ''}>
+    <div class="pj-row" data-before="${it.id}"${it.done ? '' : ` draggable="true" data-drag="${it.id}"`}>
       ${holder ? foldBtn(it.id, open, it.title) : '<span class="pj-gap"></span>'}
       <button class="mark${it.done ? ' o' : ''}" type="button" data-act="done" data-id="${it.id}" aria-label="${it.done ? '标成没做完' : '标成做完'}：${esc(it.title)}">${it.done ? 'O' : ''}</button>
       <div class="pj-t"><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button>${meta ? `<small class="mono">${esc(meta)}</small>` : ''}</div>
@@ -932,12 +946,13 @@ function projectView(eng: Engine) {
         ${st.cnt ? '' : projectRunway(spent, st.rem, c)}
         ${st.cnt ? '' : calLine(p)}
         <label class="pj-toggle"><input type="checkbox" data-act="show-done"${ui.showDone ? ' checked' : ''}> 显示做完的</label>
+        ${total > 1 ? `<p class="soft tiny pj-hint">任务可以拖：拖到另一件事上，就排到它前面${groups.length > 1 ? '；拖到一块的标题上，就挪进那一块' : ''}。</p>` : ''}
       </div>
       ${groups.map(g => {
         const key = 'm:' + g.id, isOpen = !folded(key, g.open === 0 && !ui.showDone) || ui.addUnder === key;
         const nodes = g.nodes.filter(n => ui.showDone || n.open > 0);
         const info = g.open ? `${g.open} 件没做${g.hours > 0.01 ? ` · 还剩 ${fmtH(g.hours)}` : ''}` : g.total ? '都做完了' : '还没有事';
-        return `<section class="pj-mod${g.open ? '' : ' quiet'}">
+        return `<section class="pj-mod${g.open ? '' : ' quiet'}" data-mod="${esc(g.id)}">
           <header class="pj-mhd">${foldBtn(key, isOpen, g.name)}<b>${esc(g.name)}</b><span class="soft tiny">${info}${g.due ? ` · ${cnd(g.due)}前` : ''}</span><button class="mini" type="button" data-act="sub" data-id="${esc(key)}">+ 任务</button></header>
           ${ui.addUnder === key ? addForm('', g.id, false) : ''}
           ${isOpen ? (nodes.length ? `<ul class="pj-tree">${nodes.map(n => nodeView(n, t)).join('')}</ul>` : g.total ? `<p class="pj-none">都做完了。想看就打开"显示做完的"。</p>` : `<p class="pj-none">还没有事，点"+ 任务"加一件。</p>`) : ''}
@@ -995,6 +1010,16 @@ function calSheet() {
 }
 
 /** Tasks this one can sit under: same project, not itself or its own steps, and not already at the deepest level. */
+const stepsUnder = (id: string) => descendants(id, Object.keys(S.data.items).map(k => ({ id: k })), parentOf).filter(k => !raw(k).old);
+/** Which block of the project a task sits in. A step has no say: it is in its task's block. */
+function moduleField(project: string, parent: string, current: string) {
+  const mods: Array<{ id: string; name: string }> = (project && S.data.projects[project]?.modules) || [];
+  if (!mods.length || parent) return '';
+  return `<label class="fld"><span>放在哪一块</span><select id="ed-module" name="module">
+    ${mods.map(m => `<option value="${esc(m.id)}"${m.id === current ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}
+    <option value=""${mods.some(m => m.id === current) ? '' : ' selected'}>不分块</option>
+  </select></label>`;
+}
 function parentField(eng: Engine, id: string, project: string, current: string) {
   const p = project ? eng.derive().projMap.get(project) : null;
   if (!p) return '';
@@ -1110,7 +1135,9 @@ function saveProj() {
   const pid = ui.editId || uid('p'), prev = S.data.projects[pid];
   const start = /^\d{4}-\d{2}-\d{2}$/.test(d.start || '') && d.start <= d.deadline ? d.start : (d.deadline < T() ? d.deadline : T());
   const old = prev?.modules || [];
-  const modules = (d.modules || '').split('\n').map(x => x.trim()).filter(Boolean).map(n => old.find((m: any) => m.name === n) || { id: uid('m'), name: n });
+  // a line whose name is new, sitting where a block whose name is gone used to be, is that block renamed: its tasks stay in it
+  const names = [...new Set((d.modules || '').split('\n').map(x => x.trim()).filter(Boolean))];
+  const modules = names.map((n, i) => old.find((m: any) => m.name === n) || (old[i] && !names.includes(old[i].name) ? { ...old[i], name: n } : { id: uid('m'), name: n }));
   const used = new Set(Object.values(S.data.projects).map(x => String(x.color || '').toLowerCase()));
   const color = prev?.color || (PALETTE.find(([, c]) => !used.has(c.toLowerCase())) || PALETTE[Object.keys(S.data.projects).length % PALETTE.length])[1];
   S.put('projects', pid, { buffer: 0, ...prev, name, start, deadline: d.deadline, color, modules });
@@ -1124,8 +1151,8 @@ function saveProj() {
 
 function toastView() {
   const t = ui.toast;
-  if (!t || Date.now() - t.at > 5000) return '';
-  return `<div class="toast" role="status"><span>${esc(t.text)}</span>${t.undo ? `<button type="button" data-act="undo">撤销</button>` : ''}</div>`;
+  if (!t || Date.now() - t.at > toastLife(t)) return '';
+  return `<div class="toast" role="status"><span>${esc(t.text)}</span>${t.undo ? `<button type="button" data-act="undo">${esc(t.label || '撤销')}</button>` : ''}</div>`;
 }
 
 function render() {
@@ -1157,7 +1184,7 @@ function tick() {
   const clock = document.getElementById('clock'), track = document.getElementById('track');
   if (clock) {
     if (left > 0) { clock.textContent = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`; delete clock.dataset.over; }
-    else { clock.textContent = `+${String(Math.floor(-left / 60)).padStart(2, '0')}:${String(-left % 60).padStart(2, '0')}`; clock.dataset.over = -left > 3600 ? 'cap' : '1'; }
+    else { const o = -left, mm = String(Math.floor(o / 60) % 60).padStart(2, '0'), ss = String(o % 60).padStart(2, '0'); clock.textContent = o >= 3600 ? `+${Math.floor(o / 3600)}:${mm}:${ss}` : `+${mm}:${ss}`; clock.dataset.over = '1'; }
   }
   if (track) track.style.width = `${Math.min(100, (1 - Math.max(0, left) / t.total) * 100)}%`;
   if (left <= 0 && rangFor !== t.endsAt) { rangFor = t.endsAt; if (Date.now() - t.endsAt < 5000) chime(); }
@@ -1165,7 +1192,7 @@ function tick() {
 let lastMinute = new Date().getMinutes();
 setInterval(() => {
   tick();
-  if (ui.toast && Date.now() - ui.toast.at > 5000 && root.querySelector('.toast')) { ui.toast = null; render(); return; }
+  if (ui.toast && Date.now() - ui.toast.at > toastLife(ui.toast) && root.querySelector('.toast')) { ui.toast = null; render(); return; }
   // once a minute: the now line moves and a running timer's segment grows
   const m = new Date().getMinutes();
   if (m !== lastMinute) { lastMinute = m; if (!(document.activeElement as HTMLElement | null)?.closest('input')) render(); }
@@ -1283,7 +1310,8 @@ root.addEventListener('click', e => {
 root.addEventListener('change', e => {
   const t = e.target as HTMLInputElement;
   if (t.dataset.act === 'file') readFile(t);
-  if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; render(); }
+  if (t.id === 'ed-project' && ui.sheet === 'edit') { ui.draft.project = t.value; ui.draft.parent = ''; ui.draft.module = ''; render(); }
+  if (t.id === 'ed-parent' && ui.sheet === 'edit') { ui.draft.parent = t.value; render(); }
   if (t.id === 'comment' || t.id === 'wrap-comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) setNote(d, 'text', v); }
   if (t.id === 'wrap-acc') setNote(T(), 'acc', t.value.trim());
   if (t.id === 'wrap-weak') setNote(T(), 'weak', t.value.trim());
@@ -1292,7 +1320,41 @@ root.addEventListener('change', e => {
 root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
 root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), false); render(); } if (f === 'park') { addQuick(createEngine(view(), T()), false, 'park'); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
-/* drag a task to another day, or onto the project drawer to put it back */
+/** Move a task within its project: under `parent`, or on its own in block `module`; right before `before`, or last. Its steps come along. */
+function place(id: string, parent: string, module: string, before: string | null, text: string) {
+  const it = raw(id), p = createEngine(view(), T()).derive();
+  const proj = p.projMap.get(it.project || ''); if (!proj) return;
+  const groups = projectTree(proj, p.items, parentOf);
+  const mod = parent ? raw(parent).module || '' : module;
+  const find = (ns: TreeNode[], k: string): TreeNode | null => { for (const n of ns) { if (n.item.id === k) return n; const f = find(n.children, k); if (f) return f; } return null; };
+  const row = parent ? find(groups.flatMap(g => g.nodes), parent)?.children || [] : groups.find(g => g.id === mod)?.nodes || [];
+  const orders = orderPatch(row.map(n => ({ id: n.item.id, order: Number(raw(n.item.id).order) || 0, title: String(n.item.title || '') })), id, before);
+  const under = stepsUnder(id), touched = [...new Set([id, ...under, ...Object.keys(orders)])], prev = touched.map(k => [k, { ...raw(k) }] as const);
+  const undoHolder = parent && parent !== (it.parent || '') ? becomeHolder(parent) : () => {};
+  for (const k of touched) {
+    const next = { ...raw(k), module: k === id || under.includes(k) ? mod : raw(k).module, ...(k in orders ? { order: orders[k] } : {}), ...(k === id ? { parent } : {}) };
+    if (JSON.stringify(next) !== JSON.stringify(raw(k))) S.put('items', k, next);
+  }
+  say(text, () => { for (const [k, x] of prev) S.put('items', k, x); undoHolder(); });
+}
+/** What dropping the dragged task here would do, or null when it cannot go here. */
+function dropPlan(z: HTMLElement, id: string): null | { day: string | null } | { parent: string; module: string; before: string | null; text: string } {
+  const it = raw(id); if (!it) return null;
+  if (z.dataset.drop != null) return kidsOf(id).length ? null : { day: z.dataset.drop === 'pool' ? null : z.dataset.drop };
+  const proj = S.data.projects[it.project || '']; if (!proj || it.project !== ui.pid || it.done) return null;
+  if (z.dataset.mod != null) { const m = (proj.modules || []).find((x: any) => x.id === z.dataset.mod); return { parent: '', module: m ? m.id : '', before: null, text: m ? `「${it.title}」挪进「${m.name}」了` : `「${it.title}」排到最后了` }; }
+  const to = z.dataset.before!, tgt = raw(to), under = stepsUnder(id);
+  if (!tgt || to === id || under.includes(to) || tgt.project !== it.project) return null;
+  const up = tgt.parent && raw(tgt.parent) && !raw(tgt.parent).old && raw(tgt.parent).project === it.project ? tgt.parent as string : '';
+  // it may not end up deeper than the tree goes
+  const depth = (k: string): number => { const u = parentOf(k); return u && raw(u) && !raw(u).old ? depth(u) + 1 : 1; };
+  const tall = Math.max(0, ...under.map(k => depth(k) - depth(id)));
+  if (depth(to) + tall > MAX_DEPTH) return null;
+  return { parent: up, module: tgt.module || '', before: to, text: `「${it.title}」排到「${tgt.title}」前面了` };
+}
+const DROP = '[data-before],[data-mod],[data-drop]';
+
+/* drag a task to another day, onto the project drawer to put it back, or within its project to reorder it or change its block */
 let dragId = '';
 root.addEventListener('dragstart', e => {
   const el = (e.target as HTMLElement).closest('[data-drag]') as HTMLElement | null; if (!el) return;
@@ -1302,17 +1364,20 @@ root.addEventListener('dragstart', e => {
   el.classList.add('dragging');
 });
 root.addEventListener('dragover', e => {
-  const z = (e.target as HTMLElement).closest('[data-drop]') as HTMLElement | null; if (!z || !dragId) return;
+  const z = (e.target as HTMLElement).closest(DROP) as HTMLElement | null; if (!z || !dragId) return;
+  if (!dropPlan(z, dragId)) { root.querySelectorAll('.hot').forEach(x => x.classList.remove('hot')); return; }
   e.preventDefault();
   root.querySelectorAll('.hot').forEach(x => x !== z && x.classList.remove('hot'));
   z.classList.add('hot');
 });
 root.addEventListener('drop', e => {
-  const z = (e.target as HTMLElement).closest('[data-drop]') as HTMLElement | null;
+  const z = (e.target as HTMLElement).closest(DROP) as HTMLElement | null;
   const id = dragId || e.dataTransfer?.getData('text/plain') || ''; dragId = '';
-  if (!z || !id || !raw(id)) return;
+  const plan = z && id ? dropPlan(z, id) : null;
+  if (!z || !plan) return;
   e.preventDefault();
-  const to = z.dataset.drop === 'pool' ? null : z.dataset.drop!;
+  if ('before' in plan) { place(id, plan.parent, plan.module, plan.before, plan.text); render(); return; }
+  const to = plan.day;
   if ((raw(id).date ?? null) === to) { render(); return; }
   if (!to && ui.timer?.id === id) plant();
   moveTo(id, to, to ? `「${raw(id).title}」排到${to === T() ? '今天' : dayL(to)}` : `「${raw(id).title}」放回项目了`);
