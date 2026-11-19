@@ -100,6 +100,8 @@ export function startBridge(S: Store, today: () => string) {
         ...(S.mode === 'live' ? (() => { const c = calSync(createEngine(live(), t), 14); return { cal: c.events, todo: c.tasks }; })() : { cal: null, todo: null }),
         low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事明天再说' : '状态差 · 只做这一件，别的先收起来' } : null,
         tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '', group: D.projects[x.project]?.name || '', color: D.projects[x.project]?.color || '' })),
+        // what the float's add field can file a new task under
+        projects: Object.entries(D.projects).filter(([, p]: any) => p.deadline >= t).sort(([, a]: any, [, b]: any) => String(a.deadline).localeCompare(String(b.deadline))).map(([id, p]: any) => ({ id, name: p.name || '', color: p.color || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
       }));
     } catch { /* the float simply keeps its last state */ }
@@ -108,7 +110,7 @@ export function startBridge(S: Store, today: () => string) {
   const putItem = (id: string, patch: Record<string, any>) => { if (D.items[id]) S.put('items', id, { ...D.items[id], ...patch }); };
   const mv = (id: string, date: string | null) => putItem(id, { date, time: '', end: '' });
   const setSpiral = (id: string, body: Record<string, any>) => S.put('spiral', id, body);
-  const newTask = (title: string) => ({ kind: 'task', title, date: today(), done: false, doneOn: null, project: '', module: '', note: '', tags: [], time: '', end: '', est: 0, hours: 0, order: Math.max(0, ...all().map(x => x.order || 0)) + 1, log: {}, actual: null });
+  const newTask = (title: string, project = '') => ({ kind: 'task', title, date: today(), done: false, doneOn: null, project: D.projects[project] ? project : '', module: '', note: '', tags: [], time: '', end: '', est: 0, hours: 0, order: Math.max(0, ...all().map(x => x.order || 0)) + 1, log: {}, actual: null });
 
   (window as any).runwayCmd = (c: any) => {
     try {
@@ -117,7 +119,7 @@ export function startBridge(S: Store, today: () => string) {
         // ticked or unticked in Apple Reminders
         case 'setDone': { const x = D.items[id]; if (x && !x.old && !!x.done !== !!c.done) putItem(id, { done: !!c.done, doneOn: c.done ? (x.date && x.date <= t ? x.date : t) : null }); break; }
         case 'toggle': { const x = D.items[id]; if (x) { const now = !x.done; putItem(id, { done: now, doneOn: now ? t : null }); } break; }
-        case 'add': { const v = String(c.title || '').trim(); if (v) S.put('items', uid('i'), newTask(v)); break; }
+        case 'add': { const v = String(c.title || '').trim(); if (v) S.put('items', uid('i'), newTask(v, String(c.project || ''))); break; }
         case 'tmr': mv(id, add(t, 1)); break;
         case 'toToday': mv(id, t); break;
         case 'extraTmr': todayA().filter(x => !x.done).slice(3).forEach(x => mv(x.id, add(t, 1))); break;

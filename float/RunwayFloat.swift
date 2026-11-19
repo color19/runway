@@ -21,6 +21,7 @@ func fmt(_ sec: Int) -> String { let a = abs(sec); return (sec < 0 ? "+" : "") +
 
 // MARK: - What the page sends
 struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: String; let done: Bool; let time: String?; let group: String?; let color: String? }
+struct RProject: Decodable, Equatable, Identifiable { let id: String; let name: String; let color: String }
 struct RSpiral: Decodable, Equatable { var idx: Int; var endsAt: Double?; var left: Int; var bi: Int }
 struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
@@ -40,6 +41,7 @@ struct RState: Decodable, Equatable {
     let b: [String]
     let tasks: [RTask]
     let overdue: [RTask]
+    let projects: [RProject]?
     let now: String?
     let low: RLow?
     let cal: [RCal]?
@@ -206,6 +208,8 @@ struct RootView: View {
     @AppStorage("darkGlass") var dark = false
     @State private var draft = ""
     @State private var bDraft = ""
+    /// the project new tasks go under, kept between adds; "" is 生活
+    @AppStorage("addProject") var addProject = ""
     /// groups the viewer flipped away from their default, one key per line
     @AppStorage("folds") var folds = ""
 
@@ -326,15 +330,18 @@ struct RootView: View {
                     }
                 }
                 Rectangle().fill(p.line).frame(height: 1)
-                TextField("加一件今天的事，回车", text: $draft)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13))
-                    .foregroundColor(p.ink)
-                    .padding(8)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
-                    .onSubmit { m.cmd("add", ["title": draft]); draft = "" }
-                    .padding(12)
+                HStack(spacing: 6) {
+                    projectPicker
+                    TextField("加一件今天的事，回车", text: $draft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .foregroundColor(p.ink)
+                        .onSubmit { m.cmd("add", ["title": draft, "project": addTo?.id ?? ""]); draft = "" }
+                }
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+                .padding(12)
             }
         }
     }
@@ -463,6 +470,27 @@ struct RootView: View {
                 group(key: "__done", title: "做完了", color: p.sig, items: done, foldedByDefault: true)
             }
         }
+    }
+
+    /// the remembered project, while it is still running
+    var addTo: RProject? { m.st?.projects?.first { $0.id == addProject } }
+    var projectPicker: some View {
+        Menu {
+            Button("生活（不属于项目）") { addProject = "" }
+            ForEach(m.st?.projects ?? []) { pr in Button(pr.name) { addProject = pr.id } }
+        } label: {
+            HStack(spacing: 5) {
+                RoundedRectangle(cornerRadius: 2).fill(addTo.map { Color(hex: $0.color.isEmpty ? "#8F9A93" : $0.color) } ?? Color(hex: "#8F9A93")).frame(width: 8, height: 8)
+                Text(addTo.map { short($0.name) } ?? "生活").font(label(11)).foregroundColor(p.ink).lineLimit(1)
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundColor(p.muted)
+            }
+            .padding(.trailing, 6)
+            .overlay(Rectangle().fill(p.line).frame(width: 1), alignment: .trailing)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help("新加的事放进哪个项目")
     }
 
     /// Today's open tasks by project, in the order the page gives them.
