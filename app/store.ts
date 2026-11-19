@@ -1,6 +1,8 @@
 // Where the data lives. On claude.ai the page keeps it in its own database (the `db` capability), so the
 // phone and the Mac see the same thing. Without it the page still runs, from memory only, and says so.
 // The rest of the app only sees `data` and `put`; a local-first backend can replace this file later.
+// In the Mac app the page runs from the app itself and has no database of its own: the app keeps the claude.ai
+// page open out of sight, and the two pages pass the data back and forth through the app (see serveRelay).
 // The share build (__SHARE__) gives every viewer their own copy under data/users/<id>/, and when the
 // link cannot write to the database at all it keeps the data in this browser instead.
 import type { Store } from '../engine/src';
@@ -23,6 +25,11 @@ const sessionsToDays = (s: Docs) => {
   return days;
 };
 
+/** Set in the Mac app's own window: the app forwards to the hidden claude.ai page. */
+const appHost = () => (window as any).webkit?.messageHandlers?.runwayApp;
+/** Set in the hidden claude.ai page inside the Mac app. */
+const relayHost = () => (window as any).webkit?.messageHandlers?.runwayRelay;
+
 export function createStore(onChange: () => void) {
   const data: Data = { items: {}, projects: {}, settings: {}, notes: {}, sessions: {}, spiral: {} };
   let db: any = null;
@@ -33,6 +40,9 @@ export function createStore(onChange: () => void) {
   let base: any = null;
   const offs: Array<() => void> = [];
   const colRef = (col: Col) => base ? base.collection(col) : db.collection(col);
+  // Mac app window: writes go to the hidden page; its snapshots are the truth, except one sent just before our latest write
+  let relay = false, sent = 0, sentAt = 0;
+  const send = (c: Record<string, any>) => { sent++; sentAt = Date.now(); appHost().postMessage(JSON.stringify({ ...c, seq: sent })); };
 
   /** The browser keeps the whole thing as one JSON value; sessions stay in their per-day shape. */
   let saveTimer = 0;
@@ -63,7 +73,26 @@ export function createStore(onChange: () => void) {
     data.sessions = s;
   }
 
+  function connectApp() {
+    relay = true;
+    (window as any).runwayData = (snap: any) => {
+      if (snap.seq < sent && Date.now() - sentAt < 2000) return;
+      // only the real data: a page that is still loading or signed out holds nothing or the example
+      if (snap.mode === 'live') {
+        const d = snap.data || {};
+        for (const col of COLS) if (col !== 'sessions') absorb(col, d[col] || {});
+        absorb('sessions', d.days || {});
+      }
+      mode = snap.mode === 'live' ? 'live' : mode === 'live' || snap.mode !== 'loading' ? 'error' : 'loading';
+      problem = mode === 'error' ? (snap.problem || '数据连接断了，App 正在重新连接。') : '';
+      onChange();
+    };
+    setTimeout(() => { if (mode === 'loading') { mode = 'error'; problem = '还没连上你的数据。App 会弹出 claude.ai 让你登录一次。'; onChange(); } }, 15000);
+    appHost().postMessage(JSON.stringify({ op: 'hello' }));
+  }
+
   async function connect() {
+    if (appHost()) { connectApp(); return; }
     const c = (window as any).claude;
     if (__SHARE__) { let on = false; try { on = localStorage.getItem(LOCAL_KEY + ':on') === '1'; } catch { on = false; } if (on) { goLocal(false); return; } }
     try { db = c && c.use ? await c.use('db') : null; } catch { db = null; }
@@ -104,6 +133,7 @@ export function createStore(onChange: () => void) {
     if (body) (data as any)[col][id] = body; else delete (data as any)[col][id];
     onChange();
     if (mode === 'local') saveLocal();
+    if (relay) { send({ op: 'put', col, id, body }); return Promise.resolve(); }
     if (!db) return Promise.resolve();
     const ref = colRef(col).doc(id);
     return queue(col + '/' + id, () => body ? ref.set(body) : ref.delete());
@@ -115,6 +145,7 @@ export function createStore(onChange: () => void) {
     const day = days[s.date] = { list: [...(days[s.date]?.list || []), { id, item: s.item, project: s.project, start: s.start, mins: s.mins }] };
     onChange();
     if (mode === 'local') saveLocal();
+    if (relay) { send({ op: 'session', id, s }); return Promise.resolve(); }
     if (!db) return Promise.resolve();
     return queue('sessions/' + s.date, () => colRef('sessions').doc(s.date).set(day));
   }
@@ -126,6 +157,7 @@ export function createStore(onChange: () => void) {
     const day = days[s.date] = { list: (days[s.date]?.list || []).map((x: any) => x.id === id ? { ...x, mins } : x) };
     onChange();
     if (mode === 'local') saveLocal();
+    if (relay) { send({ op: 'mins', id, mins }); return Promise.resolve(); }
     if (!db) return Promise.resolve();
     return queue('sessions/' + s.date, () => colRef('sessions').doc(s.date).set(day));
   }
@@ -147,6 +179,7 @@ export function createStore(onChange: () => void) {
     for (const col of COLS) absorb(col, target[col]);
     onChange();
     if (mode === 'local') saveLocal();
+    if (relay) { send({ op: 'replace', b }); progress(1, 1); return; }
     if (!db) { progress(jobs.length, jobs.length); return; }
     let done = 0;
     const worker = async () => {
@@ -161,12 +194,35 @@ export function createStore(onChange: () => void) {
     await Promise.all([worker(), worker(), worker(), worker()]);
   }
 
+  /** Everything, with sessions in their per-day documents: what the Mac app's window is sent. */
+  const snapshot = () => ({ items: data.items, projects: data.projects, settings: data.settings, notes: data.notes, spiral: data.spiral, days });
+
   return {
-    data, connect, put, addSession, setSessionMins, replaceAll,
+    data, connect, put, addSession, setSessionMins, replaceAll, snapshot,
     get mode() { return mode; },
     get problem() { return problem; },
     clearProblem() { problem = ''; },
   };
+}
+
+/** In the hidden claude.ai page inside the Mac app: send the data to the app's window and carry out its writes.
+ *  Returns what to call after every change. Does nothing anywhere else. */
+export function serveRelay(S: ReturnType<typeof createStore>) {
+  const h = relayHost();
+  if (!h) return () => {};
+  let seq = 0, timer = 0;
+  const post = () => { clearTimeout(timer); timer = 0; h.postMessage(JSON.stringify({ seq, mode: S.mode, problem: S.problem, data: S.snapshot() })); };
+  (window as any).runwayRelay = (c: any) => {
+    seq = Math.max(seq, Number(c.seq) || 0);
+    if (c.op === 'put') S.put(c.col, c.id, c.body);
+    if (c.op === 'session') S.addSession(c.id, c.s);
+    if (c.op === 'mins') S.setSessionMins(c.id, c.mins);
+    if (c.op === 'replace') S.replaceAll(c.b, () => {});
+    post();
+  };
+  // a beat even when nothing changes, so the app can tell a stuck page from a quiet one
+  setInterval(post, 10000);
+  return () => { if (!timer) timer = setTimeout(post, 80) as unknown as number; };
 }
 
 /** The backup file: the old Runway format, plus this app's sessions. Old Runway ignores the extra key. */

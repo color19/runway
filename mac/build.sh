@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds "Runway.app" into ~/Applications and opens it.
+# Builds "Runway.app" into ~/Applications and opens it. Rebuild after changing the page, so the window gets the new page.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -13,7 +13,13 @@ pkill -x Runway 2>/dev/null || true
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "编译中，大约半分钟…"
-swiftc -O Runway.swift -o "$APP/Contents/MacOS/Runway" -framework Cocoa -framework WebKit
+swiftc -O Runway.swift -o "$APP/Contents/MacOS/Runway" -framework Cocoa -framework WebKit -framework Network
+
+# the window's own page: the same build that is published, wrapped as a full document
+(cd .. && npm run build >/dev/null)
+{ printf '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>'
+  cat ../dist/runway.html
+  printf '</body></html>'; } > "$APP/Contents/Resources/runway.html"
 
 ICON=$(mktemp -d)/Runway.iconset
 mkdir -p "$ICON"

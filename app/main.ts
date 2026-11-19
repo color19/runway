@@ -3,7 +3,7 @@ import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, d
 import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
 import { axisFor, projectRunway, ribbon, ruler, timetable, untimed } from './ribbon';
-import { backupOf, createStore, parseBackup } from './store';
+import { backupOf, createStore, parseBackup, serveRelay } from './store';
 import { OVER_MAX_MS, blockMin, isA, startBridge } from './bridge';
 import { countTargets, countTo, shortLabel } from './count';
 import doneUrl from './sounds/done.mp3';
@@ -26,7 +26,8 @@ const LOOSE_COLOR = '#8F9A93';
 
 let raf = 0;
 let toFloat: () => void = () => {};
-const S = createStore(() => { toFloat(); if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); });
+let toRelay: () => void = () => {};
+const S = createStore(() => { toFloat(); toRelay(); if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); });
 
 const ui = {
   skip: 0,
@@ -1127,24 +1128,19 @@ setInterval(() => {
 }, 1000);
 
 /* ---------- backup ---------- */
-async function exportBackup() {
-  const text = JSON.stringify(backupOf(S.data), null, 1);
+/** Saves a file: through the Mac app's save panel there, through claude.ai's downloads on claude.ai. */
+async function saveFile(filename: string, text: string, ok: string) {
+  const app = (window as any).webkit?.messageHandlers?.runwayApp;
+  if (app) { app.postMessage(JSON.stringify({ op: 'save', filename, data: text })); return; }
   let dl: any = null;
   try { dl = (window as any).claude?.use ? await (window as any).claude.use('downloads') : null; } catch { dl = null; }
   if (!dl) { say('这里不能直接下载文件。在 claude.ai 里打开这个页面再导出。'); render(); return; }
-  try { await dl.save({ filename: `Runway-backup-${T()}.json`, data: text }); say('备份已导出'); }
+  try { await dl.save({ filename, data: text }); say(ok); }
   catch (e: any) { say(e?.code === 'declined' ? '没有导出' : `导出没成功（${e?.code || '未知'}）`); }
   render();
 }
-async function exportIcs() {
-  const text = icsOf(createEngine(view(), T()), Date.now());
-  let dl: any = null;
-  try { dl = (window as any).claude?.use ? await (window as any).claude.use('downloads') : null; } catch { dl = null; }
-  if (!dl) { say('这里不能直接下载文件。在 claude.ai 里打开这个页面再导出。'); render(); return; }
-  try { await dl.save({ filename: `Runway-${T()}.ics`, data: text }); say('日历文件已导出，用手机打开它就能加进日历'); }
-  catch (e: any) { say(e?.code === 'declined' ? '没有导出' : `导出没成功（${e?.code || '未知'}）`); }
-  render();
-}
+const exportBackup = () => saveFile(`Runway-backup-${T()}.json`, JSON.stringify(backupOf(S.data), null, 1), '备份已导出');
+const exportIcs = () => saveFile(`Runway-${T()}.ics`, icsOf(createEngine(view(), T()), Date.now()), '日历文件已导出，用手机打开它就能加进日历');
 function readFile(input: HTMLInputElement) {
   const f = input.files?.[0]; if (!f) return;
   const fr = new FileReader();
@@ -1311,6 +1307,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.addUnde
 
 /* ---------- start ---------- */
 toFloat = startBridge(S, T);
+toRelay = serveRelay(S);
 render();
 S.connect().then(async () => {
   if (S.mode === 'memory' && !__SHARE__) await S.replaceAll(seed(T()), () => {});
