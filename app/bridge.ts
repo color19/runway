@@ -69,12 +69,8 @@ export function startBridge(S: Store, today: () => string) {
   }
   /** Seconds the current "do" stretch has run so far, including earlier runs before a pause. */
   const runSecs = (s: any) => (s.acc || 0) + (s.runFrom ? Math.max(0, Math.round((Date.now() - s.runFrom) / 1000)) : 0);
-  /** What to do now: last night's pick for today if there is one, else the first in the page's order (engine pickOrder). */
-  const firstOpen = () => {
-    const open = byNow();
-    const f = set().first; if (f && f.date === today() && open.some(x => x.id === f.id)) return f.id;
-    return open[0]?.id || null;
-  };
+  /** What to do now: the first in the page's order (engine pickOrder). */
+  const firstOpen = () => byNow()[0]?.id || null;
 
   /** The task the running stretch is on: the one the page or float started it on while it is still open, else the one by the clock. */
   const activeItem = (s: any) => { const x = s.item && D.items[s.item]; return x && !x.done && !x.old ? s.item : firstOpen(); };
@@ -102,7 +98,7 @@ export function startBridge(S: Store, today: () => string) {
         now: lowNow !== undefined ? lowNow : activeItem(s),
         // the next two weeks for the float to write into Apple Calendar
         ...(S.mode === 'live' ? (() => { const c = calSync(createEngine(live(), t), 14); return { cal: c.events, todo: c.tasks }; })() : { cal: null, todo: null }),
-        low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事收工时再说' : '状态差 · 只做这一件，别的先收起来' } : null,
+        low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事明天再说' : '状态差 · 只做这一件，别的先收起来' } : null,
         tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
       }));
