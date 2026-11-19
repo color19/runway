@@ -1,4 +1,5 @@
 // Runway: today's runway, the "now" card and the project drawer, on the real engine and real data.
+import { applyOutline, parseHours, settleDepths, subtreeEnd, toOutline, type OutlineRow } from '../engine/src';
 import { CAL_DAYS, CAL_MIN, MAX_DEPTH, add, calibrationFor, cnd, createEngine, descendants, orderPatch, projectTree, range, dayLoads, dayShares, diff, drawer, fmtH, hm, icsOf, ifToday, investedByProject, investedDays, lineage, monIdx, parse, pickOrder, r2, sessionsOn, sessionsWithLogs, sum, todayOf } from '../engine/src';
 import type { Calibration, Engine, Item, Project, ProjectStatus, Session, Store, TreeNode } from '../engine/src';
 import { seed } from './seed';
@@ -51,6 +52,17 @@ const ui = {
   sheet: null as null | 'data' | 'import' | 'edit' | 'cap' | 'proj' | 'count' | 'cal' | 'low',
   editId: '',
   draft: {} as Record<string, string>,
+  /** The project sheet's outline while it is open, and the outline as it was opened. */
+  ol: [] as Array<OutlineRow & { htext?: string }>,
+  olBefore: [] as OutlineRow[],
+  olFocus: null as null | { i: number; h?: boolean; end?: boolean },
+  /** The task being renamed right on the project page, and what is typed. */
+  inline: '',
+  inT: '',
+  inH: '',
+  focusInline: false,
+  /** The outline line whose buttons show: the one last typed in. */
+  olOn: -1,
   pending: null as null | ReturnType<typeof parseBackup>,
   busy: '',
   started: false,
@@ -804,8 +816,9 @@ function becomeHolder(pid: string) {
   const it = raw(pid);
   if (!it || kidsOf(pid).length || !(Number(it.hours) > 0 || Number(it.est) > 0)) return () => {};
   const prev = { hours: it.hours, est: it.est };
-  patch(pid, { hours: 0, est: 0 });
-  return () => patch(pid, prev);
+  // kept so the task gets its time back if its last step leaves it again
+  patch(pid, { hours: 0, est: 0, split: prev });
+  return () => patch(pid, { ...prev, split: it.split ?? null });
 }
 function addSub(parentId: string, moduleId: string) {
   const eng = createEngine(view(), T());
@@ -832,7 +845,34 @@ function addForm(parentId: string, moduleId: string, step: boolean) {
     <button class="mini signal" type="submit">记下</button><button class="mini ghost" type="button" data-act="sub-cancel">好了</button>
   </form>`;
 }
-function nodeView(n: TreeNode, t: string): string {
+/** Where a task sits: its row of siblings, the task it is a step of, and that task's own place. */
+type Spot = { sibs: TreeNode[]; up: string; upNext: string; mod: string };
+const height = (n: TreeNode): number => n.children.length ? 1 + Math.max(...n.children.map(height)) : 0;
+/** The small buttons that move a task: up, down, out a level, in a level, and drop it. */
+function rowTools(n: TreeNode, at: Spot) {
+  const id = n.item.id, k = at.sibs.findIndex(x => x.item.id === id), prev = at.sibs[k - 1], next = at.sibs[k + 1];
+  const mv = (label: string, aria: string, parent: string, module: string, to: string | null, say: string) =>
+    `<button class="mini ghost" type="button" data-act="mv" data-id="${id}" data-parent="${esc(parent)}" data-module="${esc(module)}" data-to="${esc(to || '')}" data-say="${esc(say)}" aria-label="${aria}">${label}</button>`;
+  const t = n.item.title;
+  return `<span class="pj-tools">
+    ${prev ? mv('↑', '往上挪', at.up, at.mod, prev.item.id, `「${t}」往上挪了`) : ''}
+    ${next ? mv('↓', '往下挪', at.up, at.mod, at.sibs[k + 2]?.item.id || null, `「${t}」往下挪了`) : ''}
+    ${at.up ? mv('←', '退出来，不再是小步', parentOf(at.up) && raw(parentOf(at.up)!) ? parentOf(at.up)! : '', raw(at.up)?.module || '', at.upNext || null, `「${t}」退出来了`) : ''}
+    ${prev && n.depth + 1 + height(n) <= MAX_DEPTH ? mv('→', `变成「${prev.item.title}」的小步`, prev.item.id, '', null, `「${t}」变成「${prev.item.title}」的小步了`) : ''}
+    <button class="mini ghost" type="button" data-act="drop" data-id="${id}" aria-label="不做了：${esc(t)}">×</button>
+  </span>`;
+}
+function inlineRow(n: TreeNode) {
+  const it = n.item, leaf = !n.children.length;
+  return `<div class="pj-row pj-inline">
+      <span class="pj-gap"></span>
+      <input id="in-t" type="text" maxlength="200" autocomplete="off" value="${esc(ui.inT)}" aria-label="改名字">
+      ${leaf ? `<input id="in-h" type="text" inputmode="decimal" autocomplete="off" value="${esc(ui.inH)}" placeholder="时长" aria-label="要多久">` : ''}
+      <button class="mini signal" type="button" data-act="in-save">好</button>
+      <button class="mini ghost" type="button" data-act="edit" data-id="${it.id}">更多</button>
+    </div>`;
+}
+function nodeView(n: TreeNode, t: string, at: Spot): string {
   const it = n.item, kids = n.children.filter(k => ui.showDone || k.open > 0);
   if (!ui.showDone && n.open === 0) return '';
   const holder = n.children.length > 0, open = holder && (!folded(it.id, false) || ui.addUnder === it.id);
@@ -840,18 +880,21 @@ function nodeView(n: TreeNode, t: string): string {
   const when = it.date ? (it.done ? '' : it.date < t ? `原来排在 ${cnd(it.date)}` : it.date === t ? '今天' : dayL(it.date)) : '';
   const meta = [holder ? `${stepsDone}/${steps} 步` : '', !it.done && (holder ? n.hours : it.hours) > 0.001 ? (holder ? `还剩 ${fmtH(n.hours)}` : fmtH(it.hours)) : '', when].filter(Boolean).join(' · ');
   const later = !it.done && (!it.date || it.date < t);
+  const kidSpot: Spot = { sibs: n.children, up: it.id, upNext: at.sibs[at.sibs.findIndex(x => x.item.id === it.id) + 1]?.item.id || '', mod: it.module || at.mod };
+  if (ui.inline === it.id) return `<li class="pj-node d${n.depth}${it.done ? ' done' : ''}">${inlineRow(n)}${holder && open && kids.length ? `<ul class="pj-kids">${kids.map(k => nodeView(k, t, kidSpot)).join('')}</ul>` : ''}</li>`;
   return `<li class="pj-node d${n.depth}${it.done ? ' done' : ''}">
     <div class="pj-row" data-before="${it.id}"${it.done ? '' : ` draggable="true" data-drag="${it.id}"`}>
       ${holder ? foldBtn(it.id, open, it.title) : '<span class="pj-gap"></span>'}
       <button class="mark${it.done ? ' o' : ''}" type="button" data-act="done" data-id="${it.id}" aria-label="${it.done ? '标成没做完' : '标成做完'}：${esc(it.title)}">${it.done ? 'O' : ''}</button>
-      <div class="pj-t"><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button>${meta ? `<small class="mono">${esc(meta)}</small>` : ''}</div>
+      <div class="pj-t"><button class="ed" type="button" data-act="inline" data-id="${it.id}" title="点一下改名字和时长">${esc(it.title)}</button>${meta ? `<small class="mono">${esc(meta)}</small>` : ''}</div>
       <div class="pj-a">
+        ${rowTools(n, at)}
         ${later && !holder ? `<button class="mini signal" type="button" data-act="today" data-id="${it.id}">放到今天</button>` : ''}
         ${n.depth < MAX_DEPTH && !it.done ? `<button class="mini" type="button" data-act="sub" data-id="${it.id}" aria-label="在「${esc(it.title)}」下面拆一小步">+</button>` : ''}
       </div>
     </div>
     ${ui.addUnder === it.id ? addForm(it.id, '', true) : ''}
-    ${holder && open && kids.length ? `<ul class="pj-kids">${kids.map(k => nodeView(k, t)).join('')}</ul>` : ''}
+    ${holder && open && kids.length ? `<ul class="pj-kids">${kids.map(k => nodeView(k, t, kidSpot)).join('')}</ul>` : ''}
   </li>`;
 }
 function projectView(eng: Engine) {
@@ -885,7 +928,7 @@ function projectView(eng: Engine) {
         return `<section class="pj-mod${g.open ? '' : ' quiet'}" data-mod="${esc(g.id)}">
           <header class="pj-mhd">${foldBtn(key, isOpen, g.name)}<b>${esc(g.name)}</b><span class="soft tiny">${info}${g.due ? ` · ${cnd(g.due)}前` : ''}</span><button class="mini" type="button" data-act="sub" data-id="${esc(key)}">+ 任务</button></header>
           ${ui.addUnder === key ? addForm('', g.id, false) : ''}
-          ${isOpen ? (nodes.length ? `<ul class="pj-tree">${nodes.map(n => nodeView(n, t)).join('')}</ul>` : g.total ? `<p class="pj-none">都做完了。想看就打开"显示做完的"。</p>` : `<p class="pj-none">还没有事，点"+ 任务"加一件。</p>`) : ''}
+          ${isOpen ? (nodes.length ? `<ul class="pj-tree">${nodes.map(n => nodeView(n, t, { sibs: g.nodes, up: '', upNext: '', mod: g.id })).join('')}</ul>` : g.total ? `<p class="pj-none">都做完了。想看就打开"显示做完的"。</p>` : `<p class="pj-none">还没有事，点"+ 任务"加一件。</p>`) : ''}
         </section>`; }).join('')}
     </section>
   </main>`;
@@ -1037,8 +1080,89 @@ function openProj(pid: string) {
   const p = pid ? S.data.projects[pid] : null;
   ui.sheet = 'proj'; ui.editId = pid;
   ui.draft = p
-    ? { name: p.name || '', start: p.start || T(), deadline: p.deadline || '', exam: examOf(pid) ? '1' : '', modules: (p.modules || []).map((m: any) => m.name).join('\n') }
-    : { name: '', start: T(), deadline: add(T(), 30), exam: '', modules: '' };
+    ? { name: p.name || '', start: p.start || T(), deadline: p.deadline || '', exam: examOf(pid) ? '1' : '' }
+    : { name: '', start: T(), deadline: add(T(), 30), exam: '' };
+  const dv = createEngine(view(), T()).derive(), proj = dv.projMap.get(pid);
+  ui.ol = proj ? toOutline(projectTree(proj, dv.items, parentOf), proj.modules) : [{ id: '', depth: 1, title: '', hours: 0, done: false }];
+  ui.olBefore = ui.ol.map(r => ({ ...r }));
+  ui.olOn = -1;
+}
+/** Hours left under row i: its own when it has no steps, else its steps' added up. */
+function olSum(i: number) {
+  const r = ui.ol, e = subtreeEnd(r, i);
+  if (e === i + 1) return r[i].done ? 0 : r[i].hours;
+  let h = 0;
+  for (let j = i + 1; j < e; j++) if (subtreeEnd(r, j) === j + 1 && !r[j].done) h += r[j].hours;
+  return h;
+}
+function olRows() {
+  const r = ui.ol;
+  const rows = r.map((x, i) => {
+    const holder = subtreeEnd(r, i) > i + 1, sum = olSum(i);
+    const right = x.depth && !holder
+      ? `<input id="olh-${i}" class="ol-h" data-oh="${i}" type="text" inputmode="decimal" autocomplete="off" value="${esc(x.htext ?? (x.hours ? fmtH(x.hours) : ''))}" placeholder="时长" aria-label="「${esc(x.title)}」要多久">`
+      : `<span class="ol-sum">${sum > 0.001 ? (x.depth ? '共 ' : '') + fmtH(sum) : ''}</span>`;
+    return `<li class="ol-row${x.depth ? '' : ' blk'}${x.done ? ' done' : ''}${i === (ui.olFocus ? ui.olFocus.i : ui.olOn) ? ' on' : ''}" style="--d:${x.depth}" data-ol="${i}">
+      <input id="ol-${i}" class="ol-t" data-oi="${i}" type="text" maxlength="200" autocomplete="off" value="${esc(x.title)}" placeholder="${x.depth ? (x.depth > 1 ? '一小步' : '一件事') : '块的名字，比如：第 1–3 章'}" aria-label="${x.depth ? `第 ${x.depth} 级` : '块'}">
+      ${right}
+      <span class="ol-tools">
+        <button class="mini ghost" type="button" data-act="ol-in" data-oi="${i}" data-by="-1" aria-label="往外退一级">←</button>
+        <button class="mini ghost" type="button" data-act="ol-in" data-oi="${i}" data-by="1" aria-label="往里缩一级">→</button>
+        <button class="mini ghost" type="button" data-act="ol-mv" data-oi="${i}" data-by="-1" aria-label="往上挪">↑</button>
+        <button class="mini ghost" type="button" data-act="ol-mv" data-oi="${i}" data-by="1" aria-label="往下挪">↓</button>
+        <button class="mini ghost" type="button" data-act="ol-del" data-oi="${i}" aria-label="删掉这行">×</button>
+      </span>
+    </li>`;
+  }).join('');
+  const keep = new Set(r.map(x => x.id).filter(Boolean));
+  const gone = ui.olBefore.filter(x => x.depth > 0 && x.id && !keep.has(x.id)).length;
+  return `<div class="fld"><span>块和要做的事</span>
+      <p class="soft tiny ol-hint">回车加一行，Tab 缩进成上一行的小步，Shift+Tab 退回来，Alt+↑↓ 挪位置；右边写时长，比如 1h30m、40m。</p>
+      ${r.length ? `<ol class="ol-list">${rows}</ol>` : ''}
+      <div class="ol-adds"><button class="mini" type="button" data-act="ol-add" data-depth="0">+ 加一块</button><button class="mini" type="button" data-act="ol-add" data-depth="1">+ 加一件</button></div>
+      ${gone ? `<p class="soft tiny">保存后有 ${gone} 件会放到"不做了"，数据还留着，可以撤销。</p>` : ''}
+    </div>`;
+}
+/* outline edits: each works on a line together with the steps under it */
+function olIndent(i: number, by: number) {
+  const r = ui.ol, x = r[i]; if (!x) return;
+  // a block line moves alone: the tasks under it stay where they are
+  const e = x.depth ? subtreeEnd(r, i) : i + 1, seg = r.slice(i, e);
+  const to = x.depth + by;
+  if (to < 0 || (to === 0 && x.id) || (x.depth === 0 && x.id)) return;
+  const deepest = Math.max(...seg.map(y => y.depth)) + by;
+  if (by > 0 && (i === 0 || to > r[i - 1].depth + 1 || deepest > MAX_DEPTH)) return;
+  // a new block line indented becomes a task; a new top task pulled out becomes a block
+  for (const y of seg) y.depth = y === x ? to : Math.max(1, y.depth + by);
+  ui.ol = settleDepths(r);
+}
+function olMove(i: number, by: number) {
+  const r = ui.ol, d = r[i]?.depth; if (d == null) return;
+  const e = subtreeEnd(r, i), seg = r.slice(i, e);
+  if (by < 0) {
+    let j = i - 1; while (j >= 0 && r[j].depth > d) j--;
+    if (j < 0 || r[j].depth < d && !(d === 1 && r[j].depth === 0)) return;
+    r.splice(i, e - i); r.splice(j, 0, ...seg); ui.olFocus = { i: j };
+  } else {
+    if (e >= r.length) return;
+    if (r[e].depth < d && !(d === 1 && r[e].depth === 0)) return;
+    const k = r[e].depth === d ? subtreeEnd(r, e) : e + 1;
+    r.splice(i, e - i); r.splice(k - seg.length, 0, ...seg); ui.olFocus = { i: k - seg.length };
+  }
+  ui.ol = settleDepths(r);
+}
+function olAdd(i: number | null, depth?: number) {
+  const r = ui.ol;
+  if (i == null) { r.push({ id: '', depth: depth ?? 1, title: '', hours: 0, done: false }); ui.olFocus = { i: r.length - 1 }; ui.ol = settleDepths(r); return; }
+  const x = r[i], d = x.depth === 0 ? 1 : r[i + 1] && r[i + 1].depth > x.depth ? x.depth + 1 : x.depth;
+  r.splice(i + 1, 0, { id: '', depth: d, title: '', hours: 0, done: false });
+  ui.olFocus = { i: i + 1 };
+}
+function olDel(i: number, withSteps: boolean) {
+  const r = ui.ol; if (!r[i]) return;
+  r.splice(i, withSteps && r[i].depth ? subtreeEnd(r, i) - i : 1);
+  ui.ol = settleDepths(r);
+  if (r.length) ui.olFocus = { i: Math.max(0, i - 1), end: true };
 }
 function projSheet() {
   if (ui.sheet !== 'proj') return '';
@@ -1053,7 +1177,7 @@ function projSheet() {
         <label class="fld"><span>截止那天</span><input id="pj-deadline" name="deadline" type="date" required value="${esc(d.deadline)}"></label>
       </div>
       <label class="pj-toggle"><input id="pj-exam" name="exam" type="checkbox"${d.exam ? ' checked' : ''}> 截止那天是一场考试</label>
-      <label class="fld"><span>分几块（可以不填，一行一块）</span><textarea id="pj-modules" name="modules" rows="3" placeholder="比如：第 1–3 章&#10;第 4–6 章&#10;模拟题">${esc(d.modules)}</textarea></label>
+      ${olRows()}
       <p class="soft tiny">建好以后在"项目"里加要做的事和大概要几小时，引擎会照截止日把它们摊到每一天。</p>
       <div class="acts"><button class="btn primary" type="submit">${isNew ? '建好了' : '保存'}</button><button class="btn" type="button" data-act="close">取消</button></div>
     </form>
@@ -1064,19 +1188,23 @@ function saveProj() {
   if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(d.deadline || '')) return;
   const pid = ui.editId || uid('p'), prev = S.data.projects[pid];
   const start = /^\d{4}-\d{2}-\d{2}$/.test(d.start || '') && d.start <= d.deadline ? d.start : (d.deadline < T() ? d.deadline : T());
-  const old = prev?.modules || [];
-  // a line whose name is new, sitting where a block whose name is gone used to be, is that block renamed: its tasks stay in it
-  const names = [...new Set((d.modules || '').split('\n').map(x => x.trim()).filter(Boolean))];
-  const modules = names.map((n, i) => old.find((m: any) => m.name === n) || (old[i] && !names.includes(old[i].name) ? { ...old[i], name: n } : { id: uid('m'), name: n }));
+  const plan = applyOutline({ rows: ui.ol, before: ui.olBefore, pid, items: S.data.items, modules: prev?.modules || [], newId: k => uid(k) });
+  const modules = plan.modules;
+  const was = [...plan.puts.map(([k]) => k), ...plan.drops].map(k => [k, S.data.items[k] ? { ...S.data.items[k] } : null] as const);
   const used = new Set(Object.values(S.data.projects).map(x => String(x.color || '').toLowerCase()));
   const color = prev?.color || (PALETTE.find(([, c]) => !used.has(c.toLowerCase())) || PALETTE[Object.keys(S.data.projects).length % PALETTE.length])[1];
+  const prevProj = prev ? { ...prev } : null;
   S.put('projects', pid, { buffer: 0, ...prev, name, start, deadline: d.deadline, color, modules });
+  for (const [k, x] of plan.puts) S.put('items', k, x);
+  for (const k of plan.drops) { if (ui.timer?.id === k) plant(); patch(k, { old: true }); }
   const ex = examOf(pid);
   if (d.exam && ex) S.put('items', ex[0], { ...ex[1], date: d.deadline });
   else if (d.exam) { const order = Math.max(0, ...Object.values(S.data.items).map(x => Number(x.order) || 0)) + 1; S.put('items', uid('i'), { kind: 'exam', title: name, date: d.deadline, time: '', end: '', done: false, project: pid, order }); }
   else if (ex) S.put('items', ex[0], { ...ex[1], old: true });
   ui.sheet = null; ui.editId = ''; ui.started = true; ui.layer = 'project'; ui.pid = pid;
-  say(prev ? '项目改好了' : `建好了「${name}」，接着加要做的事`);
+  const changed = plan.puts.length + plan.drops.length;
+  say(prev ? `项目改好了${changed ? `，动了 ${changed} 件事` : ''}` : `建好了「${name}」${plan.puts.length ? `，记下了 ${plan.puts.length} 件事` : '，接着加要做的事'}`,
+    prev ? () => { S.put('projects', pid, prevProj); for (const [k, x] of was) S.put('items', k, x); } : undefined);
 }
 
 function toastView() {
@@ -1101,6 +1229,8 @@ function render() {
   const g = root.querySelector('.groups') as HTMLElement | null; if (g) g.scrollTop = dScroll;
   if (typing) { const q = document.getElementById(active!.id) as HTMLInputElement | null; if (q) { q.focus(); try { if (caret != null) q.setSelectionRange(caret, caret); } catch { /* not a text field */ } } }
   else if (ui.focusSub) document.getElementById('sub-input')?.focus();
+  if (ui.focusInline) { const q = document.getElementById('in-t') as HTMLInputElement | null; ui.focusInline = false; if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
+  if (ui.olFocus) { ui.olOn = ui.olFocus.i; const f = ui.olFocus, q = document.getElementById(`${f.h ? 'olh' : 'ol'}-${f.i}`) as HTMLInputElement | null; ui.olFocus = null; if (q) { q.focus(); if (f.end) q.setSelectionRange(q.value.length, q.value.length); } }
   ui.focusSub = false;
   tick();
   ui.justPlanted = '';
@@ -1207,6 +1337,13 @@ root.addEventListener('click', e => {
     case 'mark-done': { const title = raw(id!)?.title || ''; patch(id!, { done: true, doneOn: T() }); playSound('done'); if (ui.sheet === 'edit') { ui.sheet = null; ui.editId = ''; } if (ui.draft.countTo === id) ui.draft.countTo = ''; say(`「${title}」完成了`, () => patch(id!, { done: false, doneOn: null })); break; }
     case 'proj-new': openProj(''); break;
     case 'proj-edit': openProj(pid!); break;
+    case 'inline': { const x = raw(id!); if (!x) break; ui.inline = id!; ui.inT = x.title || ''; ui.inH = kidsOf(id!).some(k => !raw(k).old) ? '' : Number(x.hours) > 0 ? fmtH(Number(x.hours)) : ''; ui.focusInline = true; break; }
+    case 'in-save': saveInline(); break;
+    case 'mv': place(id!, el.dataset.parent || '', el.dataset.module || '', el.dataset.to || null, el.dataset.say || ''); break;
+    case 'ol-add': olAdd(null, Number(el.dataset.depth)); break;
+    case 'ol-in': olIndent(Number(el.dataset.oi), Number(el.dataset.by)); ui.olFocus = { i: Number(el.dataset.oi) }; break;
+    case 'ol-mv': olMove(Number(el.dataset.oi), Number(el.dataset.by)); break;
+    case 'ol-del': olDel(Number(el.dataset.oi), true); break;
     case 'cal': ui.pid = pid!; ui.sheet = 'cal'; break;
     case 'cal-apply': calApply(pid!); break;
     case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
@@ -1237,7 +1374,7 @@ root.addEventListener('change', e => {
   if (t.id === 'ed-parent' && ui.sheet === 'edit') { ui.draft.parent = t.value; render(); }
   if (t.id === 'comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) setNote(d, 'text', v); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'day-input') ui.dayText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.dataset.oi != null && ui.ol[Number(t.dataset.oi)]) ui.ol[Number(t.dataset.oi)].title = t.value; if (t.dataset.oh != null && ui.ol[Number(t.dataset.oh)]) { const r = ui.ol[Number(t.dataset.oh)]; r.htext = t.value; r.hours = parseHours(t.value); } if (t.id === 'in-t') ui.inT = t.value; if (t.id === 'in-h') ui.inH = t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'day-input') ui.dayText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : '可以加 #项目 和时长'; } } });
 root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), null); render(); } if (f === 'park') { addQuick(createEngine(view(), T()), null, 'park'); render(); } if (f === 'day') { addQuick(createEngine(view(), T()), ui.addDay || null, 'dayText'); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
 /** Move a task within its project: under `parent`, or on its own in block `module`; right before `before`, or last. Its steps come along. */
@@ -1249,12 +1386,15 @@ function place(id: string, parent: string, module: string, before: string | null
   const find = (ns: TreeNode[], k: string): TreeNode | null => { for (const n of ns) { if (n.item.id === k) return n; const f = find(n.children, k); if (f) return f; } return null; };
   const row = parent ? find(groups.flatMap(g => g.nodes), parent)?.children || [] : groups.find(g => g.id === mod)?.nodes || [];
   const orders = orderPatch(row.map(n => ({ id: n.item.id, order: Number(raw(n.item.id).order) || 0, title: String(n.item.title || '') })), id, before);
-  const under = stepsUnder(id), touched = [...new Set([id, ...under, ...Object.keys(orders)])], prev = touched.map(k => [k, { ...raw(k) }] as const);
+  const left = it.parent && it.parent !== parent && raw(it.parent) ? it.parent as string : '';
+  const under = stepsUnder(id), touched = [...new Set([id, ...under, ...Object.keys(orders), ...(left ? [left] : [])])], prev = touched.map(k => [k, { ...raw(k) }] as const);
   const undoHolder = parent && parent !== (it.parent || '') ? becomeHolder(parent) : () => {};
   for (const k of touched) {
     const next = { ...raw(k), module: k === id || under.includes(k) ? mod : raw(k).module, ...(k in orders ? { order: orders[k] } : {}), ...(k === id ? { parent } : {}) };
     if (JSON.stringify(next) !== JSON.stringify(raw(k))) S.put('items', k, next);
   }
+  // the last step left: the task it came from gets back the time it had before it was split
+  if (left && !kidsOf(left).some(k => !raw(k).old) && raw(left).split && !(Number(raw(left).hours) > 0)) { const sp = raw(left).split; patch(left, { hours: sp.hours || 0, est: sp.est || 0, split: null }); }
   say(text, () => { for (const [k, x] of prev) S.put('items', k, x); undoHolder(); });
 }
 /** What dropping the dragged task here would do, or null when it cannot go here. */
@@ -1304,7 +1444,42 @@ root.addEventListener('drop', e => {
   render();
 });
 root.addEventListener('dragend', () => { dragId = ''; root.querySelectorAll('.hot,.dragging').forEach(x => x.classList.remove('hot', 'dragging')); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ui.addUnder && !ui.sheet) { ui.addUnder = ''; ui.subText = ''; render(); return; } if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } render(); } });
+document.addEventListener('keydown', e => { if (olKey(e)) return; if (ui.inline && /^in-[th]$/.test((e.target as HTMLElement).id) && !e.isComposing) { if (e.key === 'Enter') { e.preventDefault(); saveInline(); render(); return; } if (e.key === 'Escape') { ui.inline = ''; render(); return; } } if (e.key === 'Escape' && ui.addUnder && !ui.sheet) { ui.addUnder = ''; ui.subText = ''; render(); return; } if (e.key === 'Escape' && (ui.picker || ui.sheet)) { ui.picker = null; if (!ui.busy) { ui.sheet = null; ui.pending = null; ui.editId = ''; } render(); } });
+
+/** The title and hours typed right on the project page. */
+function saveInline() {
+  const id = ui.inline, it = raw(id); ui.inline = '';
+  if (!it) return;
+  const title = ui.inT.trim() || it.title, leaf = !kidsOf(id).some(k => !raw(k).old);
+  const next: Record<string, any> = { ...it, title };
+  if (leaf && ui.inH.trim() !== (Number(it.hours) > 0 ? fmtH(Number(it.hours)) : '')) { const h = parseHours(ui.inH); next.hours = h; if (!(Number(it.est) > 0)) next.est = h; }
+  if (JSON.stringify(next) === JSON.stringify(it)) return;
+  const prev = { ...it };
+  S.put('items', id, next);
+  say('改好了', () => S.put('items', id, prev));
+}
+
+/** Keys inside the project outline. True when the key was used. */
+function olKey(e: KeyboardEvent) {
+  const t = e.target as HTMLInputElement, ds = t.dataset || {};
+  const s = ds.oi ?? ds.oh; if (s == null || e.isComposing) return false;
+  const i = Number(s), title = ds.oi != null;
+  const go = (f: () => void) => { e.preventDefault(); f(); render(); return true; };
+  if (e.key === 'Enter') return go(() => olAdd(i));
+  if (e.key === 'Tab') return go(() => { olIndent(i, e.shiftKey ? -1 : 1); ui.olFocus = { i, h: !title }; });
+  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return go(() => olMove(i, e.key === 'ArrowUp' ? -1 : 1));
+  if (title && e.key === 'Backspace' && !t.value && !ui.ol[i]?.id) return go(() => olDel(i, false));
+  if (!e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { const j = i + (e.key === 'ArrowUp' ? -1 : 1); const q = document.getElementById(`${title ? 'ol' : 'olh'}-${j}`) || document.getElementById(`ol-${j}`); if (q) { e.preventDefault(); (q as HTMLInputElement).focus(); } return true; }
+  return false;
+}
+
+// the outline shows its buttons on the line being typed in, and keeps them there while a button is tapped
+root.addEventListener('focusin', e => {
+  const li = (e.target as HTMLElement).closest('.ol-row') as HTMLElement | null; if (!li) return;
+  ui.olOn = Number(li.dataset.ol);
+  root.querySelectorAll('.ol-row.on').forEach(x => x !== li && x.classList.remove('on'));
+  li.classList.add('on');
+});
 
 /* ---------- start ---------- */
 toFloat = startBridge(S, T);

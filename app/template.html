@@ -496,6 +496,28 @@ button.swatch:hover{transform:scale(1.3)}
 .fld>span{font:500 12px/1.2 var(--f-display);color:var(--muted);letter-spacing:.04em}
 .fld input,.fld select,.fld textarea{font:400 14px/1.4 var(--f-text);color:var(--ink);background:var(--paper);border:0;box-shadow:inset 0 0 0 1px var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
 .fld textarea{resize:vertical}
+.ol-hint{margin:0 0 4px}
+.ol-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow:auto}
+.ol-row{display:flex;align-items:center;gap:6px;padding-left:calc((var(--d) - 1) * 18px)}
+.ol-row.blk{padding-left:0;margin-top:8px}
+.ol-row:first-child{margin-top:0}
+.fld .ol-row input.ol-t{flex:1 1 auto;width:auto;padding:5px 8px}
+.ol-row.blk input.ol-t{font-weight:600;background:color-mix(in srgb,var(--signal) 8%,var(--paper))}
+.ol-row.done input.ol-t{text-decoration:line-through;color:var(--muted)}
+.fld .ol-row input.ol-h{flex:none;width:68px;padding:5px 6px;text-align:right;font-size:13px}
+.ol-row .ol-sum{flex:none;width:68px;text-align:right;font-size:12px;color:var(--muted);white-space:nowrap}
+.ol-tools{flex:none;display:flex;gap:1px}
+.ol-tools .mini{padding:3px 6px}
+.ol-row:not(.on) .ol-tools{display:none}
+@media (max-width:600px){.ol-row{flex-wrap:wrap}.ol-row .ol-tools{order:3;width:100%;justify-content:flex-end}.fld .ol-row input.ol-h,.ol-row .ol-sum{width:56px}}
+.ol-adds{display:flex;gap:6px;margin-top:6px}
+.pj-tools{display:inline-flex;gap:1px}
+.pj-tools .mini{padding:3px 6px}
+@media (hover:hover){.pj-row:not(:hover):not(:focus-within) .pj-tools{display:none}}
+.pj-inline{display:flex;align-items:center;gap:6px}
+.pj-inline #in-t{flex:1 1 auto;min-width:0}
+.pj-inline #in-h{flex:none;width:72px;text-align:right}
+.pj-inline input{font:400 14px/1.4 var(--f-text);color:var(--ink);background:var(--paper);border:0;box-shadow:inset 0 0 0 1px var(--signal);border-radius:8px;padding:5px 8px}
 .fld input:focus,.fld select:focus,.fld textarea:focus{outline:2px solid color-mix(in srgb,var(--signal) 40%,transparent);box-shadow:inset 0 0 0 1px var(--signal)}
 .fld-row{display:flex;gap:10px;flex-wrap:wrap}
 .fld-row .fld{flex:1 1 110px}

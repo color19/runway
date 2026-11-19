@@ -6,3 +6,4 @@ export * from './sessions';
 export * from './tree';
 export * from './calibrate';
 export * from './ics';
+export * from './outline';
