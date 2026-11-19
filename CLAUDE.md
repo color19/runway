@@ -10,7 +10,7 @@ Runway 是一个**对 ADHD 友好**的计划工具：从考试和截止日倒推
 - `app/`：界面。`main.ts` 是页面，`store.ts` 是唯一碰存储的地方，`ribbon.ts` 画今天的时间表。`npm run build` 打包成一个 HTML，发布到 https://claude.ai/artifact/S2ciyRbWrBAj86haWpHMhG 。
 - `legacy/runway.html`：旧版单文件页面（原来的 claude.ai artifact 已于 2026-11-04 删除，这是它的副本），只读参考，不要改。
 - `float/`：Mac 浮窗 Runway Float，连的是新版页面。`bash float/build.sh` 编译并装到 ~/Applications。页面那一侧的协议在 `app/bridge.ts`，两边要一起改。
-- `mac/`：Mac App Runway，一个窗口打开线上页面，数据和手机、浮窗是同一份。`bash mac/build.sh` 编译并装到 ~/Applications。
+- `mac/`：Mac App Runway。窗口里是 App 自带的页面（`dist/runway.html`），后台藏着线上的 claude.ai 页面做数据中转（`app/store.ts` 的 `serveRelay`），所以数据和手机、浮窗是同一份。`bash mac/build.sh` 重新打包页面、编译并装到 ~/Applications；改了页面要同时发布线上页面和重跑它，两边的中转代码要一致。
 - `legacy/float/`：浮窗连旧版时的源码，只读参考。
 - `tools/legacy-oracle.mjs`：把旧页面里的原函数切出来在 Node 里跑，作为引擎的标准答案。
 - `PRODUCT.md`：产品方向、ADHD 友好原则、范围边界和先做什么。动手前先读。
