@@ -11,6 +11,7 @@ import doneUrl from './sounds/done.mp3';
 declare const __SHARE__: boolean;
 
 const WD = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const WD_EN = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const dayL = (d: string) => `${cnd(d)} ${WD[monIdx(d)]}`;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
@@ -281,25 +282,25 @@ function page(eng: Engine) {
   return `<section class="page" aria-label="今天这一页">
     <div class="pg-main">
       <div class="pad pad-cream">
-      <div class="pad-hd"><span>今天</span><span class="mono">${t.replace(/-/g, '.')}</span></div>
+      <div class="pad-hd"><span>today</span><span class="mono">${t.replace(/-/g, '.')}</span></div>
       <header class="pg-head">
-        <div class="pg-date"><span class="kick">${d.getMonth() + 1}月${d.getDate()}日</span><h1>${WD[monIdx(t)]}</h1></div>
+        <div class="pg-date"><span class="kick">${WD[monIdx(t)]} · ${d.getMonth() + 1}月${d.getDate()}日</span><h1>${WD_EN[monIdx(t)].toLowerCase()}</h1></div>
         <div class="pg-nums">
-          ${cd ? `<button class="ed pg-cd" type="button" data-act="count-open" title="改倒计时数到哪天"><span class="kick">离${esc(cd.label)}</span><b class="big">${diff(t, cd.date) ? `D-${diff(t, cd.date)}` : 'D-DAY'}</b></button>`
-            : `<button class="ed pg-cd" type="button" data-act="count-open"><span class="kick">倒计时</span><b class="big soft">+</b></button>`}
-          <div><span class="kick">今天投入</span><b class="big signal">${hoursUpper(invested)}</b></div>
+          ${cd ? `<button class="ed pg-cd" type="button" data-act="count-open" title="改倒计时数到哪天"><span class="kick">d-day · ${esc(cd.label)}</span><b class="big">${diff(t, cd.date) ? `D-${diff(t, cd.date)}` : 'D-DAY'}</b></button>`
+            : `<button class="ed pg-cd" type="button" data-act="count-open"><span class="kick">d-day</span><b class="big soft">+</b></button>`}
+          <div><span class="kick">total time</span><b class="big signal">${hoursUpper(invested)}</b></div>
         </div>
       </header>
-      <label class="pg-comment"><input id="comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
+      <label class="pg-comment"><span class="kick">comment</span><input id="comment" type="text" autocomplete="off" maxlength="80" placeholder="今天想对自己说的一句话" value="${esc(note)}"></label>
       </div>
       <div class="pad pad-butter">
-        <div class="pad-hd"><span>现在做</span>${low ? `<button class="hd-btn" type="button" data-act="low-off">回到平常</button>` : `<span>${order.length ? `还有 ${order.length} 件` : '都做完了'}</span>`}</div>
+        <div class="pad-hd"><span>focus on</span>${low ? `<button class="hd-btn" type="button" data-act="low-off">回到平常</button>` : `<span>${order.length ? `还有 ${order.length} 件` : '都做完了'}</span>`}</div>
         ${low ? lowCard(eng, low, order) : nowCard(eng, order)}
         ${low ? '' : `<p class="low-link"><button class="btn quiet" type="button" data-act="low">今天状态差？</button></p>`}
-        ${!low && next.length ? `<section class="block next"><h3 class="kick">接下来</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
+        ${!low && next.length ? `<section class="block next"><h3 class="kick">next</h3><ul class="rows">${next.map(i => row(eng, i, { back: true })).join('')}</ul></section>` : ''}
       </div>
       <section class="pad pad-sage tasks">
-        <div class="pad-hd"><span>今天的事</span><span>${low ? '' : `排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}`}</span></div>
+        <div class="pad-hd"><span>tasks</span><span>${low ? '' : `排了 ${fmtH(placed)}${placed > cap + 0.01 ? `，比可用的 ${fmtH(cap)} 多 ${fmtH(placed - cap)}` : ''}`}</span></div>
         ${low && !ui.showAll ? `<p class="soft low-fold">今天其余的事先收起来了。<button class="btn quiet" type="button" data-act="all">看一眼</button></p>` : groups.size ? [...groups.entries()].map(([pid, its]) => `<div class="tg">
           <span class="tg-sub" style="--c:${esc(colorOf(eng, pid))}">${esc(pid ? shortName(nameOf(eng, pid)) : '生活')}</span>
           <ul>${its.map(it => `<li class="tl${it.done ? ' done' : ''}"${it.done ? '' : ` draggable="true" data-drag="${it.id}"`}>
@@ -312,7 +313,7 @@ function page(eng: Engine) {
       </section>
     </div>
     <aside class="pad pad-sky pg-side" aria-label="时间表">
-      <div class="pad-hd"><span>时间表</span><span>一格 10 分钟</span></div>
+      <div class="pad-hd"><span>time table</span><span>10 min</span></div>
       ${timetable({ sessions, planned, axis: ax, colorOf: pid => colorOf(eng, pid), titleOf: x => titleOf(eng, x), nowMin: now, live, fresh: ui.justPlanted })}
       ${legend(eng, sessions)}
       ${untimed(sessions, pid => colorOf(eng, pid), pid => nameOf(eng, pid))}
@@ -326,7 +327,7 @@ function weekRuns(eng: Engine) {
   const total = sum(days.map(d => d.hours));
   const ax = axisFor(days.flatMap(d => d.sessions));
   return `<section class="pad pad-lilac week" aria-label="最近七天">
-    <div class="pad-hd"><span>最近七天</span><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
+    <div class="pad-hd"><span>weekly · 最近七天</span><span>一共 <b class="mono">${fmtH(total)}</b></span></div>
     <div class="wk">
       <div class="wk-row wk-head"><span></span>${ruler(ax)}<span></span><span></span></div>
       ${days.map(d => `<div class="wk-row${d.date === t ? ' is-today' : ''}">
@@ -408,7 +409,7 @@ function drawerView(eng: Engine) {
   const inv = investedByProject(sessionsWithLogs(view()));
   return `<aside class="drawer pad-sand${ui.drawerOpen ? ' open' : ''}" aria-label="项目" data-drop="pool">
     <button class="drawer-handle" type="button" data-act="drawer" aria-expanded="${ui.drawerOpen}"><b>项目</b><span>${waiting} 件还没排进日子</span><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10l4-4 4 4"/></svg></button>
-    <div class="pad-hd drawer-hd"><span>项目</span><span>还没排进日子的事</span></div>
+    <div class="pad-hd drawer-hd"><span>projects</span><span>还没排进日子的事</span></div>
     ${quickView(eng)}
     <div class="groups">
     ${groups.map(g => {
@@ -694,8 +695,8 @@ function daysView(eng: Engine) {
     return { d, its, cap: eng.capOf(d), placed: sum(tasks.map(i => i.done ? i.est : i.hours)), spent: sum(sessionsOn(all, d).map(x => x.mins)) / 60, sug: dayShares(eng, d) };
   });
   const name = ui.weekOff === 0 ? '接下来 7 天' : `${cnd(start)} – ${cnd(add(start, 6))}`;
-  return `<section class="pad days" aria-label="每天">
-    <div class="pad-hd"><span>${name}</span><span class="days-nav">
+  return `<section class="pad pad-sky days" aria-label="每天">
+    <div class="pad-hd"><span>week · ${name}</span><span class="days-nav">
       <button class="mini" type="button" data-act="wk" data-step="-1" aria-label="往前一周">‹</button>
       ${ui.weekOff ? `<button class="mini" type="button" data-act="wk" data-step="0">回到今天</button>` : ''}
       <button class="mini" type="button" data-act="wk" data-step="1" aria-label="往后一周">›</button>
@@ -766,8 +767,8 @@ function timelineView(eng: Engine) {
     else if (cap > 0) run = null;
   }
   const avg = (a: number[]) => sum(a) / Math.max(1, a.length);
-  return `<section class="pad gv" aria-label="项目时间线">
-    <div class="pad-hd"><span>项目时间线</span><span>${cnd(t)} 到 ${cnd(end)}</span></div>
+  return `<section class="pad pad-sage gv" aria-label="项目时间线">
+    <div class="pad-hd"><span>all projects · 项目时间线</span><span>${cnd(t)} 到 ${cnd(end)}</span></div>
     <div class="gv-row gv-head"><span></span><div class="gv-axis">${mondays.filter((_, i) => i % Math.max(1, Math.ceil(mondays.length / 6)) === 0 && i > 0 || (i === 0 && X(mondays[0]) > 9)).map(d => `<span style="left:${X(d)}%">${d.slice(5).replace('-', '/').replace(/^0/, '').replace('/0', '/')}</span>`).join('')}<span class="gv-today" style="left:0">今天</span></div></div>
     ${lanes || `<p class="soft gv-empty">还没有进行中的项目。<button class="mini" type="button" data-act="proj-new">+ 新项目</button></p>`}${other}
     ${crowded.length ? `<div class="gv-outs">${crowded.slice(0, 4).map(c => `<div class="gv-out">
@@ -856,7 +857,7 @@ function nodeView(n: TreeNode, t: string): string {
 function projectView(eng: Engine) {
   const t = T(), dv = eng.derive();
   const projs = [...dv.projects].sort((a, b) => Number(a.deadline < t) - Number(b.deadline < t) || a.deadline.localeCompare(b.deadline));
-  if (!projs.length) return `<main class="plan"><section class="pad pad-lilac pj"><div class="pad-hd"><span>项目</span><span></span></div><p class="soft pj-empty">还没有项目。</p><div class="acts pj-empty"><button class="btn primary" type="button" data-act="proj-new">建一个项目</button></div></section></main>`;
+  if (!projs.length) return `<main class="plan"><section class="pad pad-lilac pj"><div class="pad-hd"><span>project</span><span></span></div><p class="soft pj-empty">还没有项目。</p><div class="acts pj-empty"><button class="btn primary" type="button" data-act="proj-new">建一个项目</button></div></section></main>`;
   const p = projs.find(x => x.id === ui.pid) || projs[0];
   ui.pid = p.id;
   const st = eng.projStatus(p), w = calm(st), c = p.color || LOOSE_COLOR;
@@ -869,7 +870,7 @@ function projectView(eng: Engine) {
   return `<main class="plan">
     <nav class="pj-tabs" aria-label="选项目">${projs.map(x => `<button type="button" data-act="proj" data-pid="${x.id}"${x.id === p.id ? ' aria-current="page"' : ''}><i style="background:${esc(x.color || LOOSE_COLOR)}"></i>${esc(x.name)}</button>`).join('')}<button type="button" class="pj-new" data-act="proj-new">+ 新项目</button></nav>
     <section class="pad pad-lilac pj" aria-label="${esc(p.name)}">
-      <div class="pad-hd"><span><b class="pj-name">${esc(p.name)}</b></span><span>${cnd(p.deadline)}${isExam ? '考试' : '截止'}${left >= 0 ? ` · 还有 ${left} 天` : ''}<button class="mini pj-edit" type="button" data-act="proj-edit" data-pid="${p.id}">改</button></span></div>
+      <div class="pad-hd"><span>project · <b class="pj-name">${esc(p.name)}</b></span><span>${cnd(p.deadline)}${isExam ? '考试' : '截止'}${left >= 0 ? ` · 还有 ${left} 天` : ''}<button class="mini pj-edit" type="button" data-act="proj-edit" data-pid="${p.id}">改</button></span></div>
       <div class="pj-top">
         <div class="pj-sum">${w.label ? `<span class="pill ${w.k}">${esc(w.label)}</span>` : ''}<span class="soft">${total ? `${open} 件没做，共 ${total} 件` : '还没有事'}${st.rem > 0.01 && !st.cnt ? ` · 还剩 ${fmtH(st.rem)}` : ''}${spent > 0.01 ? ` · 已投入 ${fmtH(spent)}` : ''}</span></div>
         ${st.cnt ? '' : projectRunway(spent, st.rem, c)}
