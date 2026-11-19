@@ -99,7 +99,7 @@ export function startBridge(S: Store, today: () => string) {
         // the next two weeks for the float to write into Apple Calendar
         ...(S.mode === 'live' ? (() => { const c = calSync(createEngine(live(), t), 14); return { cal: c.events, todo: c.tasks }; })() : { cal: null, todo: null }),
         low: lw ? { kind: lw.kind, text: lw.kind === 'rest' ? '今天歇着，没做的事明天再说' : '状态差 · 只做这一件，别的先收起来' } : null,
-        tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '' })),
+        tasks: (examOn() ? todayBlocks() : todayA()).filter(lowKeep).map(x => ({ id: x.id, title: x.title || '', done: !!x.done, time: x.time || '', end: x.end || '', group: D.projects[x.project]?.name || '', color: D.projects[x.project]?.color || '' })),
         overdue: overdue().slice(0, 15).map(x => ({ id: x.id, title: x.title || '', done: false, time: '', end: '' })),
       }));
     } catch { /* the float simply keeps its last state */ }

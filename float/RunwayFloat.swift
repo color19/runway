@@ -20,7 +20,7 @@ func fmt(_ sec: Int) -> String { let a = abs(sec); return (sec < 0 ? "+" : "") +
 
 
 // MARK: - What the page sends
-struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: String; let done: Bool; let time: String? }
+struct RTask: Decodable, Identifiable, Equatable { let id: String; let title: String; let done: Bool; let time: String?; let group: String?; let color: String? }
 struct RSpiral: Decodable, Equatable { var idx: Int; var endsAt: Double?; var left: Int; var bi: Int }
 struct RExam: Decodable, Equatable { let title: String; let days: Int }
 struct RTarget: Decodable, Equatable, Identifiable { let id: String; let title: String; let days: Int }
@@ -51,6 +51,8 @@ final class Model: ObservableObject {
     @Published var now = Date()
     @Published var waiting = true          // nothing heard from the page yet
     @Published var collapsed = false
+    /// pinned open: the note stays unfolded when the mouse leaves
+    @Published var stayOpen = UserDefaults.standard.bool(forKey: "stayOpen")
     var onCollapse: ((Bool) -> Void)?
     func toggleCollapse() { collapsed.toggle(); onCollapse?(collapsed) }
     var send: (([String: Any]) -> Void)?
@@ -204,6 +206,8 @@ struct RootView: View {
     @AppStorage("darkGlass") var dark = false
     @State private var draft = ""
     @State private var bDraft = ""
+    /// groups the viewer flipped away from their default, one key per line
+    @AppStorage("folds") var folds = ""
 
     var p: Paper { Paper(dark: dark) }
     // what the countdown shows is a setting the page keeps, so the page header and the float always agree
@@ -286,15 +290,17 @@ struct RootView: View {
                 .fixedSize()
                 .help("选倒计时数到哪天")
             }
-            Button { m.toggleCollapse() } label: {
-                Image(systemName: m.collapsed ? "chevron.down" : "chevron.up")
-                    .font(.system(size: 10, weight: .bold))
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
+            if !m.collapsed {
+                Button { m.stayOpen.toggle(); UserDefaults.standard.set(m.stayOpen, forKey: "stayOpen") } label: {
+                    Image(systemName: m.stayOpen ? "pin.fill" : "pin")
+                        .font(.system(size: 10, weight: .bold))
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(m.stayOpen ? p.sig : p.muted)
+                .help(m.stayOpen ? "现在一直展开，点一下恢复鼠标移开就收起" : "一直展开，不自动收起")
             }
-            .buttonStyle(.plain)
-            .foregroundColor(p.muted)
-            .help(m.collapsed ? "展开（也可以双击这一条）" : "收起成一条（也可以双击这一条）")
         }
         .padding(.horizontal, 14)
         .frame(height: BAND_H)
@@ -319,6 +325,16 @@ struct RootView: View {
                         bSection.padding(.horizontal, 16).padding(.vertical, 12)
                     }
                 }
+                Rectangle().fill(p.line).frame(height: 1)
+                TextField("加一件今天的事，回车", text: $draft)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .foregroundColor(p.ink)
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
+                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+                    .onSubmit { m.cmd("add", ["title": draft]); draft = "" }
+                    .padding(12)
             }
         }
     }
@@ -438,18 +454,51 @@ struct RootView: View {
             if let l = m.st?.low {
                 Text(l.text).font(.system(size: 12)).foregroundColor(p.muted)
             } else if open.isEmpty && done.isEmpty {
-                Text("还没排事，在下面加一件。").font(.system(size: 12)).foregroundColor(p.muted)
+                Text("还没排事，在最下面加一件。").font(.system(size: 12)).foregroundColor(p.muted)
             }
-            ForEach(open) { it in row(it) }
-            ForEach(done) { it in row(it) }
-            TextField("加一件今天的事，回车", text: $draft)
-                .textFieldStyle(.plain)
-                .font(.system(size: 13))
-                .foregroundColor(p.ink)
-                .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
-                .onSubmit { m.cmd("add", ["title": draft]); draft = "" }
+            ForEach(groups(open), id: \.name) { g in
+                group(key: g.name, title: g.name.isEmpty ? "生活" : short(g.name), color: g.color.isEmpty ? Color(hex: "#8F9A93") : Color(hex: g.color), items: g.items, foldedByDefault: false)
+            }
+            if !done.isEmpty {
+                group(key: "__done", title: "做完了", color: p.sig, items: done, foldedByDefault: true)
+            }
+        }
+    }
+
+    /// Today's open tasks by project, in the order the page gives them.
+    func groups(_ list: [RTask]) -> [(name: String, color: String, items: [RTask])] {
+        var out: [(name: String, color: String, items: [RTask])] = []
+        for it in list {
+            let k = it.group ?? ""
+            if let i = out.firstIndex(where: { $0.name == k }) { out[i].items.append(it) }
+            else { out.append((k, it.color ?? "", [it])) }
+        }
+        return out
+    }
+    func isFolded(_ key: String, _ byDefault: Bool) -> Bool { folds.split(separator: "\n").contains(Substring(key)) != byDefault }
+    func flip(_ key: String) {
+        var l = folds.split(separator: "\n").map(String.init)
+        if let i = l.firstIndex(of: key) { l.remove(at: i) } else { l.append(key) }
+        folds = l.joined(separator: "\n")
+    }
+    @ViewBuilder func group(key: String, title: String, color: Color, items: [RTask], foldedByDefault: Bool) -> some View {
+        let folded = isFolded(key, foldedByDefault)
+        VStack(alignment: .leading, spacing: 2) {
+            Button { withAnimation(.easeOut(duration: 0.15)) { flip(key) } } label: {
+                HStack(spacing: 7) {
+                    RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 8, height: 8)
+                    Text(title).font(label(12)).foregroundColor(p.ink)
+                    Text("\(items.count)").font(mono(10)).foregroundColor(p.muted)
+                    Spacer()
+                    Image(systemName: folded ? "chevron.right" : "chevron.down").font(.system(size: 9, weight: .bold)).foregroundColor(p.muted)
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if !folded {
+                ForEach(items) { it in row(it) }.padding(.leading, 15)
+            }
         }
     }
 
@@ -725,6 +774,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     var misses = 0
     let net = NWPathMonitor()
     var lastPath: String?
+    // folded to its band and see-through until the mouse comes over it
+    var autoFold: Bool { defaults.object(forKey: "autoFold") as? Bool ?? true }
+    var autoItem: NSMenuItem!
+    var lastInside = Date()
+    var menuOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -798,7 +852,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         net.start(queue: .global(qos: .utility))
         model.onCollapse = { [weak self] c in self?.applyCollapsed(c, animate: true) }
-        if defaults.bool(forKey: "collapsed") { model.collapsed = true; applyCollapsed(true, animate: false) }
+        if autoFold || defaults.bool(forKey: "collapsed") { model.collapsed = true; applyCollapsed(true, animate: false) }
+        NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] _ in self?.menuOpen = true }
+        NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] _ in self?.menuOpen = false; self?.lastInside = Date() }
+        let h = Timer(timeInterval: 0.15, target: self, selector: #selector(hover), userInfo: nil, repeats: true)
+        RunLoop.main.add(h, forMode: .common)
 
         setPinned(defaults.object(forKey: "pinned") as? Bool ?? true)
         panel.orderFrontRegardless()
@@ -849,6 +907,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             refresh("every 2 hours")
         }
         status.button?.title = model.running ? "✈︎ " + fmt(model.leftSec) : "✈︎"
+    }
+
+    /// Unfolds while the mouse is over the note; folds back a moment after it leaves, unless pinned open,
+    /// typing or in a menu. Folded and away, the band turns see-through so it never hides the work behind it.
+    @objc func hover() {
+        guard autoFold, !webShown, panel.isVisible else { setAlpha(1); return }
+        let inside = panel.frame.insetBy(dx: -6, dy: -6).contains(NSEvent.mouseLocation)
+        let typing = panel.isKeyWindow && panel.firstResponder is NSTextView
+        if inside || menuOpen || typing { lastInside = Date() }
+        if inside {
+            if model.collapsed { model.collapsed = false; applyCollapsed(false, animate: true) }
+            setAlpha(1)
+        } else if !model.collapsed, !model.stayOpen, Date().timeIntervalSince(lastInside) > 0.9 {
+            model.collapsed = true; applyCollapsed(true, animate: true)
+        }
+        if !inside && model.collapsed && !menuOpen { setAlpha(0.55) }
+    }
+    func setAlpha(_ a: CGFloat) {
+        guard abs(panel.alphaValue - a) > 0.01 else { return }
+        NSAnimationContext.runAnimationGroup { $0.duration = 0.2; panel.animator().alphaValue = a }
+    }
+    @objc func toggleAutoFold() {
+        defaults.set(!autoFold, forKey: "autoFold")
+        autoItem.state = autoFold ? .on : .off
+        if !autoFold { setAlpha(1) }
     }
 
     // fold to the band only, keeping the top edge where it is
@@ -962,6 +1045,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         _ = item("显示 / 隐藏", #selector(toggleShow))
         _ = item("收起成一条 / 展开", #selector(toggleCollapseMenu))
+        autoItem = item("鼠标移开自动收起", #selector(toggleAutoFold))
+        autoItem.state = autoFold ? .on : .off
         pinItem = item("保持在最前面", #selector(togglePin))
         pinItem.state = panel.level == .floating ? .on : .off
         _ = item("换深色 / 浅色", #selector(toggleGlass))
