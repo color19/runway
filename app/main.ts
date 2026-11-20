@@ -366,7 +366,7 @@ function nowCard(eng: Engine, order: Item[], low = false, extra = '') {
   return `<article class="now${running ? ' running' : ''}">
     <div class="now-label">${running ? (ui.timer!.kind === 'ten' ? '先做 10 分钟' : '整块进行中') : low ? '状态差 · 只做这一件' : '现在做'}</div>
     ${step ? `<h2><button class="ed" type="button" data-act="edit" data-id="${sid}">${esc(step.title)}</button></h2>
-      <p class="lin">「<button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button>」的下一小步</p>`
+      <p class="lin">「<button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button>」的子任务</p>`
       : `<h2><button class="ed" type="button" data-act="edit" data-id="${it.id}">${esc(it.title)}</button></h2>`}
     ${trail(eng, it) ? `<p class="lin">${esc(trail(eng, it))}</p>` : ''}
     ${it.note ? `<p class="lin note">${esc(it.note.split('\n')[0].slice(0, 120))}</p>` : ''}
@@ -573,7 +573,7 @@ function drop(id: string) {
   const title = raw(id).title;
   const under = descendants(id, Object.keys(S.data.items).map(k => ({ id: k })), parentOf).filter(k => !raw(k).old);
   for (const k of [id, ...under]) { if (ui.timer?.id === k) plant(); patch(k, { old: true }); }
-  say(`「${title}」${under.length ? `和下面 ${under.length} 步` : ''}不做了`, () => { for (const k of [id, ...under]) patch(k, { old: false }); });
+  say(`「${title}」${under.length ? `和 ${under.length} 个子任务` : ''}不做了`, () => { for (const k of [id, ...under]) patch(k, { old: false }); });
 }
 
 /** End of the day: what got done, and where each unfinished task goes. Nothing is marked late. */
@@ -738,7 +738,6 @@ function daysView(eng: Engine) {
           ? (c.spent ? `做了 ${fmtH(c.spent)}` : '')
           : c.sug.list.filter(([, h]) => h > 0.05).map(([pid, h]) => `<span style="--c:${esc(colorOf(eng, pid))}">${esc(shortName(nameOf(eng, pid)))} ${fmtH(h)}</span>`).join(' ')}</p>
       </section>`; }).join('')}</div>
-    <p class="soft tiny days-tip">拖一件事到另一天就改了日期，拖到项目里就放回去。照截止日摊到每天的量写在每栏最下面。</p>
   </section>`;
 }
 
@@ -833,7 +832,7 @@ function addSub(parentId: string, moduleId: string) {
   if (up?.done) patch(parentId, { done: false, doneOn: null });
   ui.subText = ''; ui.focusSub = true;
   const switched = up && holderHad > 0 && !kidsOf(parentId).some(k => k !== id);
-  say(`记下了「${q.title}」${switched ? `，「${up!.title}」的时间改成按小步加起来算` : ''}`, () => { S.put('items', id, null); undoHolder(); });
+  say(`记下了「${q.title}」${switched ? `，「${up!.title}」的时间改成按子任务加起来算` : ''}`, () => { S.put('items', id, null); undoHolder(); });
 }
 const folded = (key: string, byDefault: boolean) => ui.fold.has(key) ? !byDefault : byDefault;
 function foldBtn(key: string, open: boolean, label: string) {
@@ -841,7 +840,7 @@ function foldBtn(key: string, open: boolean, label: string) {
 }
 function addForm(parentId: string, moduleId: string, step: boolean) {
   return `<form class="pj-add" data-form="sub" data-parent="${esc(parentId)}" data-module="${esc(moduleId)}">
-    <input id="sub-input" type="text" autocomplete="off" maxlength="200" value="${esc(ui.subText)}" placeholder="${step ? '拆一小步，比如：先把题号分好 15m' : (__SHARE__ ? '加一件事，比如：读第 3 章 1h' : '加一件事，比如：FI 错题重做 1h')}" aria-label="${step ? '加一小步' : '加一件事'}">
+    <input id="sub-input" type="text" autocomplete="off" maxlength="200" value="${esc(ui.subText)}" placeholder="${step ? '加子任务，可写时长 15m' : '加任务，可写时长 1h'}" aria-label="${step ? '加子任务' : '加任务'}">
     <button class="mini signal" type="submit">记下</button><button class="mini ghost" type="button" data-act="sub-cancel">好了</button>
   </form>`;
 }
@@ -857,8 +856,8 @@ function rowTools(n: TreeNode, at: Spot) {
   return `<span class="pj-tools">
     ${prev ? mv('↑', '往上挪', at.up, at.mod, prev.item.id, `「${t}」往上挪了`) : ''}
     ${next ? mv('↓', '往下挪', at.up, at.mod, at.sibs[k + 2]?.item.id || null, `「${t}」往下挪了`) : ''}
-    ${at.up ? mv('←', '退出来，不再是小步', parentOf(at.up) && raw(parentOf(at.up)!) ? parentOf(at.up)! : '', raw(at.up)?.module || '', at.upNext || null, `「${t}」退出来了`) : ''}
-    ${prev && n.depth + 1 + height(n) <= MAX_DEPTH ? mv('→', `变成「${prev.item.title}」的小步`, prev.item.id, '', null, `「${t}」变成「${prev.item.title}」的小步了`) : ''}
+    ${at.up ? mv('←', '退出来，不再是子任务', parentOf(at.up) && raw(parentOf(at.up)!) ? parentOf(at.up)! : '', raw(at.up)?.module || '', at.upNext || null, `「${t}」退出来了`) : ''}
+    ${prev && n.depth + 1 + height(n) <= MAX_DEPTH ? mv('→', `变成「${prev.item.title}」的子任务`, prev.item.id, '', null, `「${t}」变成「${prev.item.title}」的子任务了`) : ''}
     <button class="mini ghost" type="button" data-act="drop" data-id="${id}" aria-label="不做了：${esc(t)}">×</button>
   </span>`;
 }
@@ -878,7 +877,7 @@ function nodeView(n: TreeNode, t: string, at: Spot): string {
   const holder = n.children.length > 0, open = holder && (!folded(it.id, false) || ui.addUnder === it.id);
   const steps = n.total - 1, stepsDone = steps - (n.open - (it.done ? 0 : 1));
   const when = it.date ? (it.done ? '' : it.date < t ? `原来排在 ${cnd(it.date)}` : it.date === t ? '今天' : dayL(it.date)) : '';
-  const meta = [holder ? `${stepsDone}/${steps} 步` : '', !it.done && (holder ? n.hours : it.hours) > 0.001 ? (holder ? `还剩 ${fmtH(n.hours)}` : fmtH(it.hours)) : '', when].filter(Boolean).join(' · ');
+  const meta = [holder ? `${stepsDone}/${steps}` : '', !it.done && (holder ? n.hours : it.hours) > 0.001 ? (holder ? `还剩 ${fmtH(n.hours)}` : fmtH(it.hours)) : '', when].filter(Boolean).join(' · ');
   const later = !it.done && (!it.date || it.date < t);
   const kidSpot: Spot = { sibs: n.children, up: it.id, upNext: at.sibs[at.sibs.findIndex(x => x.item.id === it.id) + 1]?.item.id || '', mod: it.module || at.mod };
   if (ui.inline === it.id) return `<li class="pj-node d${n.depth}${it.done ? ' done' : ''}">${inlineRow(n)}${holder && open && kids.length ? `<ul class="pj-kids">${kids.map(k => nodeView(k, t, kidSpot)).join('')}</ul>` : ''}</li>`;
@@ -890,7 +889,7 @@ function nodeView(n: TreeNode, t: string, at: Spot): string {
       <div class="pj-a">
         ${rowTools(n, at)}
         ${later && !holder ? `<button class="mini signal" type="button" data-act="today" data-id="${it.id}">放到今天</button>` : ''}
-        ${n.depth < MAX_DEPTH && !it.done ? `<button class="mini" type="button" data-act="sub" data-id="${it.id}" aria-label="在「${esc(it.title)}」下面拆一小步">+</button>` : ''}
+        ${n.depth < MAX_DEPTH && !it.done ? `<button class="mini" type="button" data-act="sub" data-id="${it.id}" aria-label="给「${esc(it.title)}」加子任务">+</button>` : ''}
       </div>
     </div>
     ${ui.addUnder === it.id ? addForm(it.id, '', true) : ''}
@@ -905,7 +904,7 @@ function projectView(eng: Engine) {
   ui.pid = p.id;
   const st = eng.projStatus(p), w = calm(st), c = p.color || LOOSE_COLOR;
   const groups = projectTree(p, dv.items, parentOf);
-  if (!groups.length) groups.push({ id: '', name: '要做的事', due: '', nodes: [], total: 0, open: 0, hours: 0 });
+  if (!groups.length) groups.push({ id: '', name: '任务', due: '', nodes: [], total: 0, open: 0, hours: 0 });
   const spent = investedByProject(sessionsWithLogs(view()))[p.id] || 0;
   const isExam = dv.items.some(x => x.kind === 'exam' && x.date === p.deadline);
   const left = diff(t, p.deadline);
@@ -919,7 +918,6 @@ function projectView(eng: Engine) {
         ${st.cnt ? '' : projectRunway(spent, st.rem, c)}
         ${st.cnt ? '' : calLine(p)}
         <label class="pj-toggle"><input type="checkbox" data-act="show-done"${ui.showDone ? ' checked' : ''}> 显示做完的</label>
-        ${total > 1 ? `<p class="soft tiny pj-hint">任务可以拖：拖到另一件事上，就排到它前面${groups.length > 1 ? '；拖到一块的标题上，就挪进那一块' : ''}。</p>` : ''}
       </div>
       ${groups.map(g => {
         const key = 'm:' + g.id, isOpen = !folded(key, g.open === 0 && !ui.showDone) || ui.addUnder === key;
@@ -928,7 +926,7 @@ function projectView(eng: Engine) {
         return `<section class="pj-mod${g.open ? '' : ' quiet'}" data-mod="${esc(g.id)}">
           <header class="pj-mhd">${foldBtn(key, isOpen, g.name)}<b>${esc(g.name)}</b><span class="soft tiny">${info}${g.due ? ` · ${cnd(g.due)}前` : ''}</span><button class="mini" type="button" data-act="sub" data-id="${esc(key)}">+ 任务</button></header>
           ${ui.addUnder === key ? addForm('', g.id, false) : ''}
-          ${isOpen ? (nodes.length ? `<ul class="pj-tree">${nodes.map(n => nodeView(n, t, { sibs: g.nodes, up: '', upNext: '', mod: g.id })).join('')}</ul>` : g.total ? `<p class="pj-none">都做完了。想看就打开"显示做完的"。</p>` : `<p class="pj-none">还没有事，点"+ 任务"加一件。</p>`) : ''}
+          ${isOpen ? (nodes.length ? `<ul class="pj-tree">${nodes.map(n => nodeView(n, t, { sibs: g.nodes, up: '', upNext: '', mod: g.id })).join('')}</ul>` : g.total ? '' : `<p class="pj-none">还没有任务</p>`) : ''}
         </section>`; }).join('')}
     </section>
   </main>`;
@@ -945,13 +943,13 @@ const offBy = (c: Calibration) => c.factor != null && Math.abs(c.factor - 1) >= 
 function calLine(p: Project) {
   const c = calibrationFor(view(), T(), p.id);
   const look = `<button class="mini ghost" type="button" data-act="cal" data-pid="${p.id}">看明细</button>`;
-  if (c.factor == null) return c.samples.length ? `<p class="cal soft">估时：最近 ${CAL_DAYS} 天计过时的事还不到 ${CAL_MIN} 件，再做几件就看得出估得准不准。${look}</p>` : '';
-  const f = c.factor, scope = c.own ? '这个项目' : '所有项目';
+  if (c.factor == null) return c.samples.length ? '' : '';
+  const f = c.factor;
   const ids = rescalable(p.id), h = sum(ids.map(id => Number(raw(id).hours) || 0));
   let text: string;
-  if (!offBy(c)) text = `估得挺准：最近 ${CAL_DAYS} 天${scope}做完的 ${c.n} 件，实际用时大约是预计的 ${fx(f)} 倍。`;
-  else text = `最近 ${CAL_DAYS} 天${scope}做完的 ${c.n} 件，实际用时一般是预计的 ${fx(f)} 倍${f < 1 ? '，比估的快' : ''}。${ids.length ? `剩下 ${ids.length} 件要是也这样，${fmtH(h)} 其实${f < 1 ? '只' : ''}要 ${fmtH(h * f)}。` : ''}`;
-  const apply = offBy(c) && ids.length ? `<button class="mini signal" type="button" data-act="cal-apply" data-pid="${p.id}">按 ${fx(f)} 倍重估这 ${ids.length} 件</button>` : '';
+  if (!offBy(c)) text = `估时挺准（${fx(f)} 倍）`;
+  else text = `你一般用预计的 ${fx(f)} 倍时间${ids.length ? `，剩下 ${fmtH(h)} 约等于 ${fmtH(h * f)}` : ''}`;
+  const apply = offBy(c) && ids.length ? `<button class="mini signal" type="button" data-act="cal-apply" data-pid="${p.id}">按这个重估</button>` : '';
   return `<div class="cal"><p class="soft">${text}</p><div class="acts">${apply}${look}</div></div>`;
 }
 function calApply(pid: string) {
@@ -988,9 +986,9 @@ const stepsUnder = (id: string) => descendants(id, Object.keys(S.data.items).map
 function moduleField(project: string, parent: string, current: string) {
   const mods: Array<{ id: string; name: string }> = (project && S.data.projects[project]?.modules) || [];
   if (!mods.length || parent) return '';
-  return `<label class="fld"><span>放在哪一块</span><select id="ed-module" name="module">
+  return `<label class="fld"><span>主题</span><select id="ed-module" name="module">
     ${mods.map(m => `<option value="${esc(m.id)}"${m.id === current ? ' selected' : ''}>${esc(m.name)}</option>`).join('')}
-    <option value=""${mods.some(m => m.id === current) ? '' : ' selected'}>不分块</option>
+    <option value=""${mods.some(m => m.id === current) ? '' : ' selected'}>不放进主题</option>
   </select></label>`;
 }
 function parentField(eng: Engine, id: string, project: string, current: string) {
@@ -1001,7 +999,7 @@ function parentField(eng: Engine, id: string, project: string, current: string) 
   const opts = (n: TreeNode): string => n.item.id === id || below.has(n.item.id) || n.depth >= MAX_DEPTH ? '' :
     `<option value="${esc(n.item.id)}"${n.item.id === current ? ' selected' : ''}>${'　'.repeat(n.depth - 1)}${esc(n.item.title)}${n.item.done ? '（做完了）' : ''}</option>` + n.children.map(opts).join('');
   return `<label class="fld"><span>放在哪件事下面</span><select id="ed-parent" name="parent">
-    <option value=""${current ? '' : ' selected'}>不放，自己就是一件事</option>
+    <option value=""${current ? '' : ' selected'}>不放，自己就是任务</option>
     ${groups.map(g => { const o = g.nodes.map(opts).join(''); return o ? `<optgroup label="${esc(g.name)}">${o}</optgroup>` : ''; }).join('')}
   </select></label>`;
 }
@@ -1103,7 +1101,7 @@ function olRows() {
       ? `<input id="olh-${i}" class="ol-h" data-oh="${i}" type="text" inputmode="decimal" autocomplete="off" value="${esc(x.htext ?? (x.hours ? fmtH(x.hours) : ''))}" placeholder="时长" aria-label="「${esc(x.title)}」要多久">`
       : `<span class="ol-sum">${sum > 0.001 ? (x.depth ? '共 ' : '') + fmtH(sum) : ''}</span>`;
     return `<li class="ol-row${x.depth ? '' : ' blk'}${x.done ? ' done' : ''}${i === (ui.olFocus ? ui.olFocus.i : ui.olOn) ? ' on' : ''}" style="--d:${x.depth}" data-ol="${i}">
-      <input id="ol-${i}" class="ol-t" data-oi="${i}" type="text" maxlength="200" autocomplete="off" value="${esc(x.title)}" placeholder="${x.depth ? (x.depth > 1 ? '一小步' : '一件事') : '块的名字，比如：第 1–3 章'}" aria-label="${x.depth ? `第 ${x.depth} 级` : '块'}">
+      <input id="ol-${i}" class="ol-t" data-oi="${i}" type="text" maxlength="200" autocomplete="off" value="${esc(x.title)}" placeholder="${x.depth ? (x.depth > 1 ? '子任务' : '任务') : '主题'}" aria-label="${x.depth ? (x.depth > 1 ? '子任务' : '任务') : '主题'}">
       ${right}
       <span class="ol-tools">
         <button class="mini ghost" type="button" data-act="ol-in" data-oi="${i}" data-by="-1" aria-label="往外退一级">←</button>
@@ -1116,11 +1114,11 @@ function olRows() {
   }).join('');
   const keep = new Set(r.map(x => x.id).filter(Boolean));
   const gone = ui.olBefore.filter(x => x.depth > 0 && x.id && !keep.has(x.id)).length;
-  return `<div class="fld"><span>块和要做的事</span>
-      <p class="soft tiny ol-hint">回车加一行，Tab 缩进成上一行的小步，Shift+Tab 退回来，Alt+↑↓ 挪位置；右边写时长，比如 1h30m、40m。</p>
+  return `<div class="fld"><span>主题和任务</span>
+      <p class="soft tiny ol-hint">回车加一行 · Tab 变子任务 · 右边写时长</p>
       ${r.length ? `<ol class="ol-list">${rows}</ol>` : ''}
-      <div class="ol-adds"><button class="mini" type="button" data-act="ol-add" data-depth="0">+ 加一块</button><button class="mini" type="button" data-act="ol-add" data-depth="1">+ 加一件</button></div>
-      ${gone ? `<p class="soft tiny">保存后有 ${gone} 件会放到"不做了"，数据还留着，可以撤销。</p>` : ''}
+      <div class="ol-adds"><button class="mini" type="button" data-act="ol-add" data-depth="0">+ 主题</button><button class="mini" type="button" data-act="ol-add" data-depth="1">+ 任务</button></div>
+      ${gone ? `<p class="soft tiny">保存后删掉 ${gone} 个任务（可撤销）</p>` : ''}
     </div>`;
 }
 /* outline edits: each works on a line together with the steps under it */
@@ -1178,7 +1176,6 @@ function projSheet() {
       </div>
       <label class="pj-toggle"><input id="pj-exam" name="exam" type="checkbox"${d.exam ? ' checked' : ''}> 截止那天是一场考试</label>
       ${olRows()}
-      <p class="soft tiny">建好以后在"项目"里加要做的事和大概要几小时，引擎会照截止日把它们摊到每一天。</p>
       <div class="acts"><button class="btn primary" type="submit">${isNew ? '建好了' : '保存'}</button><button class="btn" type="button" data-act="close">取消</button></div>
     </form>
   </div>`;
@@ -1203,7 +1200,7 @@ function saveProj() {
   else if (ex) S.put('items', ex[0], { ...ex[1], old: true });
   ui.sheet = null; ui.editId = ''; ui.started = true; ui.layer = 'project'; ui.pid = pid;
   const changed = plan.puts.length + plan.drops.length;
-  say(prev ? `项目改好了${changed ? `，动了 ${changed} 件事` : ''}` : `建好了「${name}」${plan.puts.length ? `，记下了 ${plan.puts.length} 件事` : '，接着加要做的事'}`,
+  say(prev ? '改好了' : `建好了「${name}」`,
     prev ? () => { S.put('projects', pid, prevProj); for (const [k, x] of was) S.put('items', k, x); } : undefined);
 }
 

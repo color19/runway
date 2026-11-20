@@ -60,7 +60,7 @@ export function projectTree(project: Project, items: Item[], parentOf: (id: stri
   };
   const roots = (kids.get('') || []).sort(order).map(i => build(i, 1));
   const groups: ModuleGroup[] = project.modules.map(m => ({ id: m.id, name: m.name, due: String(m.due || ''), nodes: [], total: 0, open: 0, hours: 0 }));
-  const loose: ModuleGroup = { id: '', name: '还没分块', due: '', nodes: [], total: 0, open: 0, hours: 0 };
+  const loose: ModuleGroup = { id: '', name: '其他', due: '', nodes: [], total: 0, open: 0, hours: 0 };
   for (const n of roots) (groups.find(g => g.id === n.item.module) || loose).nodes.push(n);
   for (const g of [...groups, loose]) { g.total = sum(g.nodes.map(n => n.total)); g.open = sum(g.nodes.map(n => n.open)); g.hours = sum(g.nodes.map(n => n.hours)); }
   return loose.nodes.length ? [...groups, loose] : groups;

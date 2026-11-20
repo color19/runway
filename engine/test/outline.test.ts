@@ -37,7 +37,7 @@ describe('outline', () => {
     const it = (id: string, title: string, hours: number, done = false) => ({ id, title, hours, done } as any);
     const groups: ModuleGroup[] = [
       { id: 'm1', name: '复现', due: '', total: 0, open: 0, hours: 0, nodes: [{ item: it('a', '读论文', 0), depth: 1, total: 2, open: 2, hours: 1, children: [{ item: it('a1', '第一节', 1), depth: 2, total: 1, open: 1, hours: 1, children: [] }] }] },
-      { id: '', name: '还没分块', due: '', total: 0, open: 0, hours: 0, nodes: [{ item: it('x', '散的', 0.5), depth: 1, total: 1, open: 1, hours: 0.5, children: [] }] },
+      { id: '', name: '其他', due: '', total: 0, open: 0, hours: 0, nodes: [{ item: it('x', '散的', 0.5), depth: 1, total: 1, open: 1, hours: 0.5, children: [] }] },
     ];
     expect(toOutline(groups, mods()).map(r => [r.id, r.depth])).toEqual([['x', 1], ['m1', 0], ['a', 1], ['a1', 2], ['m2', 0]]);
   });
