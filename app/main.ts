@@ -1229,6 +1229,7 @@ function render() {
   if (ui.focusInline) { const q = document.getElementById('in-t') as HTMLInputElement | null; ui.focusInline = false; if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
   if (ui.olFocus) { ui.olOn = ui.olFocus.i; const f = ui.olFocus, q = document.getElementById(`${f.h ? 'olh' : 'ol'}-${f.i}`) as HTMLInputElement | null; ui.olFocus = null; if (q) { q.focus(); if (f.end) q.setSelectionRange(q.value.length, q.value.length); } }
   ui.focusSub = false;
+  root.querySelectorAll<HTMLElement>('.pj-tabs').forEach(edgeFade);
   tick();
   ui.justPlanted = '';
 }
@@ -1477,6 +1478,11 @@ root.addEventListener('focusin', e => {
   root.querySelectorAll('.ol-row.on').forEach(x => x !== li && x.classList.remove('on'));
   li.classList.add('on');
 });
+
+/** The right edge of a sideways row fades out while there is more to scroll to, and stops fading at the end. */
+function edgeFade(el: HTMLElement) { el.classList.toggle('fade-r', el.scrollLeft + el.clientWidth < el.scrollWidth - 2); }
+root.addEventListener('scroll', e => { const el = e.target as HTMLElement; if (el.classList?.contains('pj-tabs')) edgeFade(el); }, true);
+window.addEventListener('resize', () => root.querySelectorAll<HTMLElement>('.pj-tabs').forEach(edgeFade));
 
 /* ---------- start ---------- */
 toFloat = startBridge(S, T);
