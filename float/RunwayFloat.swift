@@ -104,10 +104,6 @@ final class Model: ObservableObject {
     var done: [RTask] { (st?.tasks ?? []).filter { $0.done } }
     /** The page picks it by the clock: the task whose slot is running, else the next one. */
     var current: RTask? { open.first { $0.id == st?.now } ?? open.first }
-    var greeting: String {
-        let h = Calendar.current.component(.hour, from: now)
-        return h < 5 ? "夜深了" : h < 11 ? "早上好" : h < 14 ? "中午好" : h < 18 ? "下午好" : "晚上好"
-    }
     var dateLine: String {
         let c = Calendar.current.dateComponents([.month, .day, .weekday], from: now)
         let wd = ["日", "一", "二", "三", "四", "五", "六"][((c.weekday ?? 1) - 1) % 7]
@@ -194,8 +190,8 @@ struct Pill: ButtonStyle {
             .font(.system(size: 12, weight: .semibold))
             .padding(.horizontal, kind == .quiet ? 4 : 12)
             .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(bg))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(kind == .plain ? p.line : Color.clear, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(bg))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(kind == .plain ? p.line : Color.clear, lineWidth: 1))
             .foregroundColor(fg)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Rectangle())
@@ -245,7 +241,6 @@ struct RootView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(p.line, lineWidth: 1))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).inset(by: 1).strokeBorder(p.sheen, lineWidth: 0.5))
         .environment(\.colorScheme, dark ? .dark : .light)
     }
 
@@ -285,7 +280,7 @@ struct RootView: View {
                 } label: {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(t.days == 0 ? "today" : "D-\(t.days)").font(display(m.collapsed ? 12 : 14)).foregroundColor(p.sig).monospacedDigit()
-                        if !m.collapsed { Text(t.title).font(label(10)).foregroundColor(p.muted).lineLimit(1) }
+                        if !m.collapsed { Text(t.title).font(label(11)).foregroundColor(p.muted).lineLimit(1) }
                     }
                     .contentShape(Rectangle())
                 }
@@ -319,9 +314,6 @@ struct RootView: View {
                 if !m.signedIn { notSignedIn.padding(.horizontal, 16).padding(.top, 10) }
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("\(m.greeting)，\(m.st?.nick ?? "Color")")
-                            .font(.system(size: 18, weight: .bold)).foregroundColor(p.ink)
-                            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 4)
                         spiral.padding(16)
                         Rectangle().fill(p.line).frame(height: 1)
                         tasks.padding(16)
@@ -339,8 +331,8 @@ struct RootView: View {
                         .onSubmit { m.cmd("add", ["title": draft, "project": addTo?.id ?? ""]); draft = "" }
                 }
                 .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
-                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(p.field))
+                .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(p.line, lineWidth: 1))
                 .padding(12)
             }
         }
@@ -582,8 +574,8 @@ struct RootView: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .padding(6)
-                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(p.field))
-                    .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(p.line, lineWidth: 1))
+                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(p.field))
+                    .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(p.line, lineWidth: 1))
                     .onSubmit { m.cmd("addB", ["title": bDraft]); bDraft = "" }
             }
             .padding(.top, 6)
