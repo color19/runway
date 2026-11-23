@@ -26,7 +26,8 @@ export interface DrawerGroup {
 export function drawer(eng: Engine): DrawerGroup[] {
   const t = eng.today, dv = eng.derive();
   const waiting = (i: Item) => i.kind === 'task' && !i.done && (!i.date || i.date < t);
-  const byOrder = (a: Item, b: Item) => (a.order - b.order) || a.title.localeCompare(b.title);
+  const dueKey = (i: Item) => eng.topicDue(i) || '9999';
+  const byOrder = (a: Item, b: Item) => dueKey(a).localeCompare(dueKey(b)) || (a.order - b.order) || a.title.localeCompare(b.title);
   const groups: DrawerGroup[] = [];
   const fit = new Map(dayShares(eng, t).list);
   for (const p of dv.projects) {

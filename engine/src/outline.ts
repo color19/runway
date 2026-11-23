@@ -5,10 +5,10 @@ import { r2 } from './dates';
  * A project written out as an outline: depth 0 is a block, 1 a task, 2 a step, 3 a smaller step.
  * `id` is the block's or task's id, '' for a line not saved yet.
  */
-export interface OutlineRow { id: string; depth: number; title: string; hours: number; done: boolean }
+export interface OutlineRow { id: string; depth: number; title: string; hours: number; done: boolean; /** A topic's own deadline; '' clears it, absent leaves it. */ due?: string }
 
 /** The project as it stands: tasks outside any block first, then each block with its tasks. */
-export function toOutline(groups: ModuleGroup[], modules: Array<{ id: string; name: string }>): OutlineRow[] {
+export function toOutline(groups: ModuleGroup[], modules: Array<{ id: string; name: string; due?: unknown }>): OutlineRow[] {
   const out: OutlineRow[] = [];
   const walk = (n: TreeNode) => {
     out.push({ id: n.item.id, depth: Math.min(n.depth, MAX_DEPTH), title: n.item.title, hours: n.children.length ? 0 : n.item.hours, done: n.item.done });
@@ -16,7 +16,7 @@ export function toOutline(groups: ModuleGroup[], modules: Array<{ id: string; na
   };
   groups.find(g => g.id === '')?.nodes.forEach(walk);
   for (const m of modules) {
-    out.push({ id: m.id, depth: 0, title: m.name, hours: 0, done: false });
+    out.push({ id: m.id, depth: 0, title: m.name, hours: 0, done: false, due: String(m.due || '') });
     groups.find(g => g.id === m.id)?.nodes.forEach(walk);
   }
   return out;
@@ -87,7 +87,9 @@ export function applyOutline(opts: {
       if (same) { mod = same.id; stack.length = 0; continue; }
       const m = r.id && oldMods.get(r.id);
       const id = m ? r.id : opts.newId('m');
-      modules.push(m ? { ...m, name: r.title } : { id, name: r.title });
+      const mod1: Record<string, any> = m ? { ...m, name: r.title } : { id, name: r.title };
+      if (r.due) mod1.due = r.due; else if (r.due === '') delete mod1.due;
+      modules.push(mod1);
       mod = id; stack.length = 0;
       continue;
     }

@@ -107,6 +107,38 @@ export function createEngine(store: Store, today: Day) {
     return [start, end];
   }
 
+  /** The topic a task belongs to: a step takes it from its top task. */
+  function topicId(it: Item) {
+    let id = it.id; const seen = new Set<string>();
+    while (!seen.has(id)) { seen.add(id); const up = String(store.items[id]?.parent || ''); if (!up || store.items[up]?.project !== it.project) break; id = up; }
+    return String(store.items[id]?.module || '');
+  }
+  /** A topic's date while it still lies ahead. A date already past asks nothing: its tasks go back to the project's own deadline. */
+  const liveDue = (m: Record<string, unknown> | undefined, D: Day) => { const v = String(m?.due || ''); return /^\d{4}-\d{2}-\d{2}$/.test(v) && v >= D ? v : ''; };
+  /** The date this task's topic asks for, '' when it asks for none. */
+  function topicDue(it: Item, D: Day = today) {
+    const p = derive().projMap.get(it.project);
+    return p ? liveDue(p.modules.find(m => m.id === topicId(it)), D) : '';
+  }
+  /** Hours each dated topic still needs as of day D, earliest date first, with the last day they may land on. */
+  function topicParts(p: Project, D: Day, w: [Day, Day]) {
+    const out: Array<{ end: Day; hours: number; due: Day }> = [];
+    for (const m of p.modules) {
+      const due = liveDue(m, D); if (!due) continue;
+      const end = due > D ? add(due, -1) : D;
+      if (end < w[0] || end >= w[1]) continue;
+      let hours = 0;
+      for (const i of projTasks(p.id)) {
+        if (topicId(i) !== m.id) continue;
+        if (!i.done) hours += i.hours;
+        if (i.burn) { for (const [d, h] of Object.entries(i.burn)) if (d >= D) hours += Number(h) || 0; }
+        else if (i.done && i.doneOn && i.doneOn >= D) hours += i.est;
+      }
+      if (hours > 1e-6) out.push({ end, hours, due });
+    }
+    return out.sort((a, b) => a.due.localeCompare(b.due));
+  }
+
   /* ---------- count goals: a number per day (applications, problems…) instead of hours ---------- */
   const cntOf = (p: Project): CountGoal | null => p && p.count && p.count.plan.length ? p.count : null;
   function cntTgt(p: Project, d: Day) {
@@ -120,6 +152,7 @@ export function createEngine(store: Store, today: Day) {
    * Joint allocation as seen from day D: earliest deadline first; each project spreads its remaining
    * hours over its window, weighted by the capacity still free that day (balance) or by raw capacity.
    * Count goals are placed first since their daily numbers are fixed.
+   * Deliberately beyond the old page: a topic with a date still ahead is placed before that date. Projects without one match the old page exactly.
    */
   function allocate(D: Day): Allocation {
     const hit = allocMemo.get(D); if (hit) return hit;
@@ -139,16 +172,21 @@ export function createEngine(store: Store, today: Day) {
       const rem = remStart(p, D);
       const w = windowOf(p, D);
       if (!w || rem <= 1e-6 || p.deadline <= D) continue;
-      const days = range(w[0], w[1]);
-      let wts = days.map(d => settings.balance ? Math.max(0, free[d] != null ? free[d] : capOf(d)) : capOf(d));
-      if (sum(wts) < 1e-6) wts = days.map(d => capOf(d));
-      if (sum(wts) < 1e-6) wts = days.map(() => 1);
-      const tot = sum(wts);
-      days.forEach((d, i) => {
-        const h = rem * wts[i] / tot; if (h < 1e-6) return;
-        byProj[p.id][d] = (byProj[p.id][d] || 0) + h; const bd = (byDay[d] = byDay[d] || {}); bd[p.id] = (bd[p.id] || 0) + h;
-        free[d] = (free[d] != null ? free[d] : capOf(d)) - h;
-      });
+      const spread = (hours: number, days: Day[]) => {
+        let wts = days.map(d => settings.balance ? Math.max(0, free[d] != null ? free[d] : capOf(d)) : capOf(d));
+        if (sum(wts) < 1e-6) wts = days.map(d => capOf(d));
+        if (sum(wts) < 1e-6) wts = days.map(() => 1);
+        const tot = sum(wts);
+        days.forEach((d, i) => {
+          const h = hours * wts[i] / tot; if (h < 1e-6) return;
+          byProj[p.id][d] = (byProj[p.id][d] || 0) + h; const bd = (byDay[d] = byDay[d] || {}); bd[p.id] = (bd[p.id] || 0) + h;
+          free[d] = (free[d] != null ? free[d] : capOf(d)) - h;
+        });
+      };
+      // topics with a date of their own go first, each inside its own shorter window; the rest of the project fills the whole window
+      let rest = rem;
+      for (const part of topicParts(p, D, w)) { const h = Math.min(part.hours, rest); if (h <= 1e-6) continue; spread(h, range(w[0], part.end)); rest -= h; }
+      if (rest > 1e-6) spread(rest, range(w[0], w[1]));
     }
     const res = { byProj, byDay };
     allocMemo.set(D, res);
@@ -247,7 +285,7 @@ export function createEngine(store: Store, today: Day) {
   }
 
   return {
-    today, settings, derive, itemsOn, capOf, projTasks, remNow, totalOf, progOn, remStart, windowOf,
+    today, settings, derive, itemsOn, capOf, projTasks, remNow, totalOf, progOn, remStart, windowOf, topicDue,
     allocate, quota, dayNeed, progDay, workdays, cntOf, cntTgt, cntDone, cntStat, projStatus,
   };
 }

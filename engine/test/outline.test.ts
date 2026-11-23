@@ -65,6 +65,14 @@ describe('outline', () => {
     expect(a).toMatchObject({ title: '精读论文', hours: 2, est: 1.5, date: '2026-11-20', note: '第 3 节', log: { '2026-11-18': 0.5 } });
   });
 
+  test('a topic date can be set, changed and cleared, and stays when the row says nothing about it', () => {
+    const at = (due?: string) => run(before.map(r => r.id === 'm2' ? { ...r, due } : r)).modules[1];
+    expect(at('2026-12-05').due).toBe('2026-12-05');
+    expect(at('')).toEqual({ id: 'm2', name: '报告' });
+    expect(at(undefined).due).toBe('2026-12-01');
+    expect(toOutline([], mods()).map(r => r.due)).toEqual(['', '2026-12-01']);
+  });
+
   test('indenting makes a step; the task above hands its hours to its steps', () => {
     const rows = before.map(r => r.id === 'b' ? { ...r, depth: 2 } : r);
     const p = run(rows);

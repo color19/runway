@@ -53,7 +53,7 @@ const ui = {
   editId: '',
   draft: {} as Record<string, string>,
   /** The project sheet's outline while it is open, and the outline as it was opened. */
-  ol: [] as Array<OutlineRow & { htext?: string }>,
+  ol: [] as Array<OutlineRow & { htext?: string; dueOn?: boolean }>,
   olBefore: [] as OutlineRow[],
   olFocus: null as null | { i: number; h?: boolean; end?: boolean },
   /** The task being renamed right on the project page, and what is typed. */
@@ -1101,6 +1101,9 @@ function olRows() {
       : `<span class="ol-sum">${sum > 0.001 ? (x.depth ? '共 ' : '') + fmtH(sum) : ''}</span>`;
     return `<li class="ol-row${x.depth ? '' : ' blk'}${x.done ? ' done' : ''}${i === (ui.olFocus ? ui.olFocus.i : ui.olOn) ? ' on' : ''}" style="--d:${x.depth}" data-ol="${i}">
       <input id="ol-${i}" class="ol-t" data-oi="${i}" type="text" maxlength="200" autocomplete="off" value="${esc(x.title)}" placeholder="${x.depth ? (x.depth > 1 ? '子任务' : '任务') : '主题'}" aria-label="${x.depth ? (x.depth > 1 ? '子任务' : '任务') : '主题'}">
+      ${x.depth ? '' : x.due || x.dueOn
+        ? `<input id="old-${i}" class="ol-due" data-od="${i}" type="date" value="${esc(x.due || '')}" max="${esc(ui.draft.deadline || '')}" aria-label="「${esc(x.title)}」的截止日"><button class="mini ghost ol-due-x" type="button" data-act="ol-due-x" data-oi="${i}" aria-label="去掉截止日">×</button>`
+        : `<button class="mini ghost ol-due-add" type="button" data-act="ol-due" data-oi="${i}">截止日</button>`}
       ${right}
       <span class="ol-tools">
         <button class="mini ghost" type="button" data-act="ol-in" data-oi="${i}" data-by="-1" aria-label="往外退一级">←</button>
@@ -1342,6 +1345,8 @@ root.addEventListener('click', e => {
     case 'ol-in': olIndent(Number(el.dataset.oi), Number(el.dataset.by)); ui.olFocus = { i: Number(el.dataset.oi) }; break;
     case 'ol-mv': olMove(Number(el.dataset.oi), Number(el.dataset.by)); break;
     case 'ol-del': olDel(Number(el.dataset.oi), true); break;
+    case 'ol-due': { const i = Number(el.dataset.oi); ui.ol[i].dueOn = true; render(); const q = document.getElementById(`old-${i}`) as HTMLInputElement | null; q?.focus(); try { q?.showPicker(); } catch { /* not every browser opens it from here */ } return; }
+    case 'ol-due-x': { const x = ui.ol[Number(el.dataset.oi)]; x.due = ''; x.dueOn = false; break; }
     case 'cal': ui.pid = pid!; ui.sheet = 'cal'; break;
     case 'cal-apply': calApply(pid!); break;
     case 'cap-open': ui.sheet = 'cap'; ui.draft = Object.fromEntries(WD.map((_, i) => ['c' + i, String(Number(eng.settings.cap[i]) || 0)])); break;
@@ -1372,7 +1377,7 @@ root.addEventListener('change', e => {
   if (t.id === 'ed-parent' && ui.sheet === 'edit') { ui.draft.parent = t.value; render(); }
   if (t.id === 'comment') { const d = T(), v = t.value.trim(), old = S.data.notes[d]; if (v !== String(old?.text || '').split('\n')[0]) setNote(d, 'text', v); }
 });
-root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.dataset.oi != null && ui.ol[Number(t.dataset.oi)]) ui.ol[Number(t.dataset.oi)].title = t.value; if (t.dataset.oh != null && ui.ol[Number(t.dataset.oh)]) { const r = ui.ol[Number(t.dataset.oh)]; r.htext = t.value; r.hours = parseHours(t.value); } if (t.id === 'in-t') ui.inT = t.value; if (t.id === 'in-h') ui.inH = t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'day-input') ui.dayText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : ''; } } });
+root.addEventListener('input', e => { const t = e.target as HTMLInputElement; if (t.closest('[data-form="edit"], [data-form="cap"], [data-form="proj"], [data-form="count"]') && t.name) { if (t.type === 'radio') { if (t.checked) ui.draft[t.name] = t.value; } else ui.draft[t.name] = t.type === 'checkbox' ? (t.checked ? '1' : '') : t.value; } if (t.dataset.oi != null && ui.ol[Number(t.dataset.oi)]) ui.ol[Number(t.dataset.oi)].title = t.value; if (t.dataset.oh != null && ui.ol[Number(t.dataset.oh)]) { const r = ui.ol[Number(t.dataset.oh)]; r.htext = t.value; r.hours = parseHours(t.value); } if (t.dataset.od != null && ui.ol[Number(t.dataset.od)]) ui.ol[Number(t.dataset.od)].due = t.value; if (t.id === 'in-t') ui.inT = t.value; if (t.id === 'in-h') ui.inH = t.value; if (t.id === 'sub-input') ui.subText = t.value; if (t.id === 'park-input') ui.park = t.value; if (t.id === 'day-input') ui.dayText = t.value; if (t.id === 'quick-input') { ui.quick = t.value; const hint = root.querySelector('.quick-row .soft'); if (hint) { const q = ui.quick.trim() ? parseQuick(ui.quick, createEngine(view(), T())) : null; const h = q && q.title ? [q.project ? nameOf(createEngine(view(), T()), q.project) : '', q.hours ? fmtH(q.hours) : ''].filter(Boolean).join(' · ') : ''; hint.textContent = h ? '会记成：' + h : ''; } } });
 root.addEventListener('submit', e => { e.preventDefault(); const f = (e.target as HTMLElement).dataset.form; if (f === 'quick') { addQuick(createEngine(view(), T()), null); render(); } if (f === 'park') { addQuick(createEngine(view(), T()), null, 'park'); render(); } if (f === 'day') { addQuick(createEngine(view(), T()), ui.addDay || null, 'dayText'); render(); } if (f === 'edit') { saveEdit(); render(); } if (f === 'cap') { saveCap(); render(); } if (f === 'proj') { saveProj(); render(); } if (f === 'count') { saveCount(); render(); } if (f === 'sub') { const fe = e.target as HTMLElement; addSub(fe.dataset.parent || '', fe.dataset.module || ''); render(); } });
 
 /** Move a task within its project: under `parent`, or on its own in block `module`; right before `before`, or last. Its steps come along. */
