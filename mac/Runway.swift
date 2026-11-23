@@ -40,6 +40,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         window = NSWindow(contentRect: rect, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Runway"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        // must match --desk in app/template.html, so the title bar reads as part of the page
+        window.backgroundColor = NSColor(name: nil) { a in
+            a.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                ? NSColor(srgbRed: 0x12/255, green: 0x13/255, blue: 0x13/255, alpha: 1)
+                : NSColor(srgbRed: 0xED/255, green: 0xEC/255, blue: 0xE8/255, alpha: 1)
+        }
         window.minSize = NSSize(width: 380, height: 480)
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
@@ -61,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
 
         let ac = WKWebViewConfiguration()
         ac.userContentController.add(Handler { [weak self] m in self?.fromApp(m) }, name: "runwayApp")
+        ac.userContentController.addUserScript(WKUserScript(source: "const s=document.createElement('style');s.textContent='body{margin-top:0}#app{padding-top:2px}';document.head.appendChild(s)", injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         app = WKWebView(frame: box.bounds, configuration: ac)
         app.autoresizingMask = [.width, .height]
         app.uiDelegate = self
